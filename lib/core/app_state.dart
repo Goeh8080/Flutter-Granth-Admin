@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -7,10 +9,23 @@ import '../services/granth_api.dart';
 class PrefsCookieStore implements CookieStore {
   static const _k = 'granth_admin_cookie';
   @override
-  Future<String?> read() async => (await SharedPreferences.getInstance()).getString(_k);
+  Future<String?> read() async {
+    try {
+      return (await SharedPreferences.getInstance().timeout(const Duration(seconds: 5))).getString(_k);
+    } catch (e) {
+      debugPrint('GranthAdmin cookie store read failed: $e');
+      return null;
+    }
+  }
   @override
   Future<void> write(String? cookie) async {
-    final p = await SharedPreferences.getInstance();
+    final SharedPreferences p;
+    try {
+      p = await SharedPreferences.getInstance().timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint('GranthAdmin cookie store write failed: $e');
+      return;
+    }
     if (cookie == null) {
       await p.remove(_k);
     } else {
@@ -42,32 +57,62 @@ class AppState extends ChangeNotifier {
   static const _kTheme = 'granth_admin_theme';
   static const _kUser = 'granth_admin_user';
 
+  /// Startup. Whatever happens (plugin failure, no network, slow server, bad JSON)
+  /// this always ends with [booting] = false so the UI leaves the loading screen.
   Future<void> boot() async {
-    final p = await SharedPreferences.getInstance();
-    themeMode = ThemeMode.values[(p.getInt(_kTheme) ?? 0).clamp(0, 2)];
-    username = p.getString(_kUser) ?? '';
-    if (await api.client.hasCookie) {
-      try {
-        loggedIn = await api.checkSession();
-        if (!loggedIn) await api.client.clearCookie();
-      } on SessionExpiredException {
-        loggedIn = false;
-      } on ApiException {
-        // offline: trust the stored cookie; the next protected call will verify it
-        loggedIn = true;
-      }
+    try {
+      await _boot().timeout(const Duration(seconds: 15));
+    } catch (e, st) {
+      debugPrint('GranthAdmin boot failed: $e\n$st');
+    } finally {
+      booting = false;
+      notifyListeners();
     }
-    booting = false;
-    notifyListeners();
   }
+
+  Future<void> _boot() async {
+    try {
+      final p = await SharedPreferences.getInstance().timeout(const Duration(seconds: 5));
+      themeMode = ThemeMode.values[(p.getInt(_kTheme) ?? 0).clamp(0, 2)];
+      username = p.getString(_kUser) ?? '';
+    } catch (e) {
+      debugPrint('GranthAdmin prefs unavailable: $e');
+    }
+    bool hasCookie;
+    try {
+      hasCookie = await api.client.hasCookie;
+    } catch (e) {
+      debugPrint('GranthAdmin cookie read failed: $e');
+      hasCookie = false;
+    }
+    if (!hasCookie) return;
+    try {
+      loggedIn = await api.checkSession().timeout(sessionCheckTimeout);
+      if (!loggedIn) await api.client.clearCookie();
+    } on SessionExpiredException {
+      loggedIn = false;
+    } on ApiException {
+      // offline / server trouble: trust the stored cookie; the next protected call verifies it
+      loggedIn = true;
+    } on TimeoutException {
+      loggedIn = true;
+    } catch (e) {
+      debugPrint('GranthAdmin session check failed: $e');
+      loggedIn = true;
+    }
+  }
+
+  static const sessionCheckTimeout = Duration(seconds: 10);
 
   /// Re-check on app resume.
   Future<void> verifySession() async {
     if (!loggedIn) return;
     try {
-      if (!await api.checkSession()) _expired();
-    } on ApiException {
-      // network trouble: keep the session
+      if (!await api.checkSession().timeout(sessionCheckTimeout)) _expired();
+    } on SessionExpiredException {
+      // already handled by onSessionExpired
+    } catch (_) {
+      // network trouble / timeout: keep the session
     }
   }
 
@@ -76,7 +121,9 @@ class AppState extends ChangeNotifier {
     if (ok) {
       loggedIn = true;
       username = user;
-      (await SharedPreferences.getInstance()).setString(_kUser, user);
+      try {
+        (await SharedPreferences.getInstance()).setString(_kUser, user);
+      } catch (_) {}
       notifyListeners();
     }
     return ok;
@@ -104,7 +151,9 @@ class AppState extends ChangeNotifier {
   Future<void> setTheme(ThemeMode m) async {
     themeMode = m;
     notifyListeners();
-    (await SharedPreferences.getInstance()).setInt(_kTheme, m.index);
+    try {
+      (await SharedPreferences.getInstance()).setInt(_kTheme, m.index);
+    } catch (_) {}
   }
 
   Future<List<Topic>> loadTopics() async {

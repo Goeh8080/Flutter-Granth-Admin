@@ -48,14 +48,19 @@ class ApiClient {
   final http.Client _http;
   String? _cookie; // "PHPSESSID=..."
   bool _loaded = false;
-  static const _timeout = Duration(seconds: 40);
+  static const _timeout = Duration(seconds: 10);
+  static const _uploadTimeout = Duration(seconds: 60);
 
   /// Called when the server tells us the session is gone.
   void Function()? onSessionExpired;
 
   Future<void> _ensureLoaded() async {
     if (_loaded) return;
-    _cookie = await store.read();
+    try {
+      _cookie = await store.read().timeout(const Duration(seconds: 5));
+    } catch (_) {
+      _cookie = null; // unreadable store: behave as logged out
+    }
     _loaded = true;
   }
 
@@ -115,17 +120,27 @@ class ApiClient {
     }
   }
 
-  Future<T> _guard<T>(Future<T> Function() f) async {
+  Future<T> _guard<T>(Future<T> Function() f, {Duration timeout = _timeout}) async {
     try {
-      return await f().timeout(_timeout);
+      return await f().timeout(timeout);
+    } on ApiException {
+      rethrow;
     } on TimeoutException {
       throw const ApiException('समय समाप्त, फिर कोशिश करें / Request timed out');
     } on SocketException {
       throw const ApiException('इंटरनेट कनेक्शन नहीं / No internet connection');
-    } on http.ClientException {
-      throw const ApiException('नेटवर्क त्रुटि / Network error');
     } on HandshakeException {
       throw const ApiException('सुरक्षित कनेक्शन विफल / Secure connection failed');
+    } on TlsException {
+      throw const ApiException('सुरक्षित कनेक्शन विफल / Secure connection failed');
+    } on http.ClientException {
+      throw const ApiException('नेटवर्क त्रुटि / Network error');
+    } on HttpException {
+      throw const ApiException('नेटवर्क त्रुटि / Network error');
+    } on FormatException {
+      throw const ApiException('अमान्य उत्तर / Invalid server response');
+    } on IOException {
+      throw const ApiException('नेटवर्क त्रुटि / Network error');
     }
   }
 
@@ -179,6 +194,6 @@ class ApiClient {
       final r = await http.Response.fromStream(streamed);
       await _captureCookie(r);
       return _checkSession(_decode(r), requireLogin: requireLogin);
-    });
+    }, timeout: _uploadTimeout);
   }
 }
