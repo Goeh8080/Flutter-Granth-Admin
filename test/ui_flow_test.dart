@@ -253,6 +253,8 @@ void main() {
     expect(writes, isEmpty, reason: 'UI test must not trigger write actions');
   }
 
-  testWidgets('full read-only UI flow (light)', (t) => run(t, Brightness.light));
-  testWidgets('full read-only UI flow (dark)', (t) => run(t, Brightness.dark));
+  // Needs live-data fixtures in _probe/, which are kept out of git.
+  final skip = Directory('_probe').existsSync() ? false : 'no _probe fixtures';
+  testWidgets('full read-only UI flow (light)', (t) => run(t, Brightness.light), skip: skip != false);
+  testWidgets('full read-only UI flow (dark)', (t) => run(t, Brightness.dark), skip: skip != false);
 }
