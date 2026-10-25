@@ -4,10 +4,10 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:granthadmin/models/panel_models.dart';
-import 'package:granthadmin/models/structure_edit.dart';
-import 'package:granthadmin/screens/panel/panel_dashboard.dart';
-import 'package:granthadmin/screens/panel/panel_granths.dart';
+import 'package:granthadmin/admin/models/panel_models.dart';
+import 'package:granthadmin/admin/models/structure_edit.dart';
+import 'package:granthadmin/admin/screens/panel/panel_dashboard.dart';
+import 'package:granthadmin/admin/screens/panel/panel_granths.dart';
 
 Map<String, dynamic> j(String s) => jsonDecode(s) as Map<String, dynamic>;
 
@@ -94,7 +94,12 @@ void main() {
       expect(s.newGranthsPending, 3);
     });
     test('missing / null fields never throw', () {
-      final e = StatsOverview.fromJson({'days': 30, 'totals': null, 'dau': null, 'top_granths_opens': 'x'});
+      final e = StatsOverview.fromJson({
+        'days': 30,
+        'totals': null,
+        'dau': null,
+        'top_granths_opens': 'x',
+      });
       expect(e.totals.totalInstalls, 0);
       expect(e.dau, isEmpty);
       expect(e.topGranthsOpens, isEmpty);
@@ -130,8 +135,18 @@ void main() {
       expect(d.sync.lastCount, 300);
     });
     test('filters', () {
-      List<String> ids(GranthFilter f, {String q = '', String? leaf, Map<String, PendingGranth> p = const {}}) =>
-          filterGranths(d.items, filter: f, query: q, leaf: leaf, pending: p).map((g) => g.id).toList();
+      List<String> ids(
+        GranthFilter f, {
+        String q = '',
+        String? leaf,
+        Map<String, PendingGranth> p = const {},
+      }) => filterGranths(
+        d.items,
+        filter: f,
+        query: q,
+        leaf: leaf,
+        pending: p,
+      ).map((g) => g.id).toList();
       expect(ids(GranthFilter.all), ['104', '105', '106']);
       expect(ids(GranthFilter.isNew), ['105']);
       expect(ids(GranthFilter.other), ['105']);
@@ -141,19 +156,36 @@ void main() {
       expect(ids(GranthFilter.all, leaf: 'hindu/gita'), ['104', '106']);
     });
     test('pending edits are reflected in filters and hidden count', () {
-      final p = {'104': PendingGranth(hidden: true), '105': PendingGranth(leaf: 'hindu/gita')};
+      final p = {
+        '104': PendingGranth(hidden: true),
+        '105': PendingGranth(leaf: 'hindu/gita'),
+      };
       expect(hiddenAfter(d.items, p), 2);
-      expect(filterGranths(d.items, filter: GranthFilter.other, pending: p), isEmpty);
-      expect(filterGranths(d.items, filter: GranthFilter.hidden, pending: p).map((g) => g.id), ['104', '106']);
+      expect(
+        filterGranths(d.items, filter: GranthFilter.other, pending: p),
+        isEmpty,
+      );
+      expect(
+        filterGranths(
+          d.items,
+          filter: GranthFilter.hidden,
+          pending: p,
+        ).map((g) => g.id),
+        ['104', '106'],
+      );
     });
   });
 
   group('other responses', () {
     test('structure + icons', () {
-      final s = PanelStructure.fromJson(j('''
+      final s = PanelStructure.fromJson(
+        j(
+          '''
       {"structure":{"version":2,"religions":[{"id":"hindu","title":"हिन्दू","groups":[{"id":"ved","title":"वेद","granthIds":["1"]}],"futureField":42}]},
        "counts":{"hindu/ved":1},"leaves":[{"key":"hindu/ved","label":"हिन्दू › वेद","religion":"हिन्दू","religion_id":"hindu","group":"वेद","visible":true}],
-       "icons":{"group":["scroll","book-red"],"religion":["om"],"tones":["saffron","maroon","gold"]},"draft":false,"base_version":2}'''));
+       "icons":{"group":["scroll","book-red"],"religion":["om"],"tones":["saffron","maroon","gold"]},"draft":false,"base_version":2}''',
+        ),
+      );
       expect(s.counts['hindu/ved'], 1);
       expect(s.icons.tones, ['saffron', 'maroon', 'gold']);
       expect(s.icons.group, contains('scroll'));
@@ -162,12 +194,16 @@ void main() {
     });
 
     test('diff + draft', () {
-      final dr = PanelDraft.fromJson(j('''
+      final dr = PanelDraft.fromJson(
+        j(
+          '''
       {"exists":true,"base_version":7,"next_version":8,"updated_at":"2026-10-25T05:00:00Z",
        "diff":{"granths":[{"id":"105","title":"नया","leaf":{"from":"other","to":"hindu/ved"},"hidden":{"from":false,"to":true}}],
                "folders":[{"path":"hindu/ved","change":"edited","title":"वेद","fields":[{"field":"title","from":"वेद","to":"वेदः"}]}],
                "contacts":[],"settings":[{"field":"flags.ai_enabled","from":"true","to":"false"}],
-               "hidden_count":1,"catalog_total":300,"warnings":["hiding >50%"],"changed":3}}'''));
+               "hidden_count":1,"catalog_total":300,"warnings":["hiding >50%"],"changed":3}}''',
+        ),
+      );
       expect(dr.exists, isTrue);
       expect(dr.nextVersion, 8);
       expect(dr.diff.changed, 3);
@@ -178,21 +214,29 @@ void main() {
     });
 
     test('alerts', () {
-      final a = PanelAlerts.fromJson(j('''
+      final a = PanelAlerts.fromJson(
+        j(
+          '''
       {"new_granths":[{"id":"200","position":9,"title":"नया","author":"क","cover":null,"praman_count":0,"first_seen":"2026-10-25",
         "suggested_leaf":"hindu/puran","suggested_label":"हिन्दू › पुराण","suggestion_source":"keyword"}],
-       "alerts":[{"id":5,"kind":"sync_failed","ref":"","message":"sync failed","created_at":"2026-10-25T01:00:00Z"}],"count":2}'''));
+       "alerts":[{"id":5,"kind":"sync_failed","ref":"","message":"sync failed","created_at":"2026-10-25T01:00:00Z"}],"count":2}''',
+        ),
+      );
       expect(a.count, 2);
       expect(a.newGranths.single.suggestedLeaf, 'hindu/puran');
       expect(a.alerts.single.message, 'sync failed');
     });
 
     test('settings + announcement', () {
-      final s = PanelSettings.fromJson(j('''
+      final s = PanelSettings.fromJson(
+        j(
+          '''
       {"flags":{"ai_enabled":true,"analytics_enabled":true,"analytics_sample":0.25},
        "announcement":{"enabled":true,"id":"a1","text":"नमस्ते","level":"warn","expires_at":"2026-12-01T00:00:00Z"},
        "ai_endpoint":"https://ai.example","levels":["info","warn","critical"],
-       "info":{"base":"https://x","published_version":7,"signing_public_key":"abc","signed":true},"draft":false}'''));
+       "info":{"base":"https://x","published_version":7,"signing_public_key":"abc","signed":true},"draft":false}''',
+        ),
+      );
       expect(s.aiEnabled, isTrue);
       expect(s.analyticsSample, 0.25);
       expect(s.announcement.level, 'warn');
@@ -203,9 +247,13 @@ void main() {
     });
 
     test('versions', () {
-      final v = PanelVersions.fromJson(j('''
+      final v = PanelVersions.fromJson(
+        j(
+          '''
       {"items":[{"version":7,"etag":"e7","kind":"publish","note":"n","author":"goutam","created_at":"2026-10-25T05:10:28Z","bytes":1234},
-                {"version":6,"etag":"e6","kind":"rollback","note":null,"author":"goutam","created_at":"2026-10-24T05:10:28Z","bytes":1200}],"current":7}'''));
+                {"version":6,"etag":"e6","kind":"rollback","note":null,"author":"goutam","created_at":"2026-10-24T05:10:28Z","bytes":1200}],"current":7}''',
+        ),
+      );
       expect(v.current, 7);
       expect(v.items.length, 2);
       expect(v.items.last.kind, 'rollback');
@@ -226,18 +274,21 @@ void main() {
       expect(titleError('वेद'), isNull);
     });
 
-    test('addSubgroup strips leaf-only fields; removing the last restores them', () {
-      final g = newNode('ved', 'वेद');
-      expect(g.containsKey('granthIds'), isTrue);
-      addSubgroup(g, newNode('rigved', 'ऋग्वेद'));
-      expect(g.containsKey('granthIds'), isFalse);
-      expect(g.containsKey('keywords'), isFalse);
-      expect(leafKeysUnder(g, 'hindu/ved'), ['hindu/ved/rigved']);
-      removeChild(g, 'subgroups', 0);
-      expect(g.containsKey('subgroups'), isFalse);
-      expect(g['granthIds'], isEmpty);
-      expect(leafKeysUnder(g, 'hindu/ved'), ['hindu/ved']);
-    });
+    test(
+      'addSubgroup strips leaf-only fields; removing the last restores them',
+      () {
+        final g = newNode('ved', 'वेद');
+        expect(g.containsKey('granthIds'), isTrue);
+        addSubgroup(g, newNode('rigved', 'ऋग्वेद'));
+        expect(g.containsKey('granthIds'), isFalse);
+        expect(g.containsKey('keywords'), isFalse);
+        expect(leafKeysUnder(g, 'hindu/ved'), ['hindu/ved/rigved']);
+        removeChild(g, 'subgroups', 0);
+        expect(g.containsKey('subgroups'), isFalse);
+        expect(g['granthIds'], isEmpty);
+        expect(leafKeysUnder(g, 'hindu/ved'), ['hindu/ved']);
+      },
+    );
 
     test('moveChild + religionLeafKeys + sameTree/deepCopy', () {
       final r = newNode('hindu', 'हिन्दू', religion: true, tone: 'saffron');
@@ -255,7 +306,9 @@ void main() {
   });
 
   group('dashboard cards (widget)', () {
-    testWidgets('renders key numbers, top lists and the pending-granths card', (tester) async {
+    testWidgets('renders key numbers, top lists and the pending-granths card', (
+      tester,
+    ) async {
       final s = StatsOverview.fromJson(overviewJson);
       tester.view.physicalSize = const Size(900, 6000);
       tester.view.devicePixelRatio = 1;
@@ -264,24 +317,33 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: Builder(
-              builder: (c) => SingleChildScrollView(child: Column(children: statsCards(c, s))),
+              builder: (c) => SingleChildScrollView(
+                child: Column(children: statsCards(c, s)),
+              ),
             ),
           ),
         ),
       );
       expect(find.textContaining('श्रीमद्भगवद्गीता'), findsWidgets);
       expect(find.textContaining('हिन्दू › पुराण'), findsWidgets);
-      expect(find.textContaining('3'), findsWidgets); // N new granths need a folder
+      expect(
+        find.textContaining('3'),
+        findsWidgets,
+      ); // N new granths need a folder
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('empty stats show a friendly state, not an error', (tester) async {
+    testWidgets('empty stats show a friendly state, not an error', (
+      tester,
+    ) async {
       final s = StatsOverview.fromJson({'days': 7});
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: Builder(
-              builder: (c) => SingleChildScrollView(child: Column(children: statsCards(c, s))),
+              builder: (c) => SingleChildScrollView(
+                child: Column(children: statsCards(c, s)),
+              ),
             ),
           ),
         ),

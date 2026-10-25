@@ -1,6 +1,6 @@
 name: Build APK
 
-run-name: Round 4
+run-name: Round 1
 
 on:
   push:
@@ -37,35 +37,56 @@ jobs:
       - name: Test
         run: flutter test
 
+      # APP_KEY (optional repository secret) is passed via --dart-define-from-file; without it the build has no key.
       - name: Build universal release APK
-        run: flutter build apk --release
+        env:
+          APP_KEY: ${{ secrets.APP_KEY }}
+        run: |
+          set +x
+          args=""
+          if [ -n "$APP_KEY" ]; then
+            printf '{"APP_KEY":"%s"}' "$APP_KEY" > "$RUNNER_TEMP/dd.json"
+            args="--dart-define-from-file=$RUNNER_TEMP/dd.json"
+          fi
+          flutter build apk --release $args
+          rm -f "$RUNNER_TEMP/dd.json"
 
       - name: Upload universal APK
         uses: actions/upload-artifact@v4
         with:
-          name: Round-4-universal
+          name: Round-1-universal
           path: build/app/outputs/flutter-apk/app-release.apk
 
       - name: Build arm64-v8a release APK
-        run: flutter build apk --release --split-per-abi --target-platform android-arm64
+        env:
+          APP_KEY: ${{ secrets.APP_KEY }}
+        run: |
+          set +x
+          args=""
+          if [ -n "$APP_KEY" ]; then
+            printf '{"APP_KEY":"%s"}' "$APP_KEY" > "$RUNNER_TEMP/dd.json"
+            args="--dart-define-from-file=$RUNNER_TEMP/dd.json"
+          fi
+          flutter build apk --release --split-per-abi --target-platform android-arm64 $args
+          rm -f "$RUNNER_TEMP/dd.json"
 
       - name: Upload arm64-v8a APK
         uses: actions/upload-artifact@v4
         with:
-          name: Round-4-arm64
+          name: Round-1-arm64
           path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
 
-      - name: Publish "Round 4" prerelease
+      - name: Publish "Round 1" prerelease
         if: github.event_name == 'push'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "round-4-run${{ github.run_number }}" \
+          gh release create "round-1-run${{ github.run_number }}" \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
             --prerelease \
-            --title "Round 4" \
-            --notes "Round 4 build of ${{ github.sha }} (run ${{ github.run_id }})." \
+            --title "Round 1" \
+            --notes "Round 1 build of ${{ github.sha }} (run ${{ github.run_id }})." \
             build/app/outputs/flutter-apk/app-release.apk \
             build/app/outputs/flutter-apk/app-arm64-v8a-release.apk

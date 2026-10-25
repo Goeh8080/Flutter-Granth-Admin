@@ -4,15 +4,16 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:granthadmin/models/models.dart';
-import 'package:granthadmin/services/granth_api.dart';
+import 'package:granthadmin/admin/models/models.dart';
+import 'package:granthadmin/admin/services/granth_api.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 /// Any real network access from these tests fails loudly.
 class _NoNetwork extends HttpOverrides {
   @override
-  HttpClient createHttpClient(SecurityContext? c) => throw StateError('network disabled in tests');
+  HttpClient createHttpClient(SecurityContext? c) =>
+      throw StateError('network disabled in tests');
 }
 
 void main() {
@@ -27,12 +28,26 @@ void main() {
           reqs.add(r);
           final a = r.url.queryParameters['action'];
           if (a == 'get_user') {
-            return http.Response('{"success":true}', 200, headers: {'set-cookie': 'PHPSESSID=abc; path=/'});
+            return http.Response(
+              '{"success":true}',
+              200,
+              headers: {'set-cookie': 'PHPSESSID=abc; path=/'},
+            );
           }
           if (a == 'get_feedbacks') {
-            return http.Response(jsonEncode({'success': loggedIn, 'isLogin': loggedIn, 'data': []}), 200);
+            return http.Response(
+              jsonEncode({
+                'success': loggedIn,
+                'isLogin': loggedIn,
+                'data': [],
+              }),
+              200,
+            );
           }
-          return http.Response('{"success":true,"isLogin":true,"data":[]}', 200);
+          return http.Response(
+            '{"success":true,"isLogin":true,"data":[]}',
+            200,
+          );
         }),
       ),
     );
@@ -48,17 +63,23 @@ void main() {
     expect(reqs.last.headers['Cookie'], 'PHPSESSID=abc');
   });
 
-  test('session expiry raises SessionExpiredException and fires callback', () async {
-    final api = make();
-    await api.login('u', 'p');
-    var fired = false;
-    api.client.onSessionExpired = () => fired = true;
-    loggedIn = false;
-    await expectLater(api.feedbacks(), throwsA(isA<SessionExpiredException>()));
-    expect(fired, isTrue);
-    expect(await api.checkSession(), isFalse);
-    loggedIn = true;
-  });
+  test(
+    'session expiry raises SessionExpiredException and fires callback',
+    () async {
+      final api = make();
+      await api.login('u', 'p');
+      var fired = false;
+      api.client.onSessionExpired = () => fired = true;
+      loggedIn = false;
+      await expectLater(
+        api.feedbacks(),
+        throwsA(isA<SessionExpiredException>()),
+      );
+      expect(fired, isTrue);
+      expect(await api.checkSession(), isFalse);
+      loggedIn = true;
+    },
+  );
 
   test('create_topic JSON payload (add + edit)', () async {
     final api = make();
@@ -111,8 +132,21 @@ void main() {
 
   test('create_granth multipart fields', () async {
     final api = make();
-    await api.saveGranth(title: 'G', author: 'A', isActive: true, pdfUrl: 'https://x/y.pdf');
-    for (final f in ['title', 'author', 'description', 'granthPDF', 'formType', 'id', 'isActive']) {
+    await api.saveGranth(
+      title: 'G',
+      author: 'A',
+      isActive: true,
+      pdfUrl: 'https://x/y.pdf',
+    );
+    for (final f in [
+      'title',
+      'author',
+      'description',
+      'granthPDF',
+      'formType',
+      'id',
+      'isActive',
+    ]) {
       expect(reqs.last.body, contains('name="$f"'), reason: f);
     }
   });
@@ -121,13 +155,20 @@ void main() {
     final api = make();
     final t = Topic.fromJson({'id': '3', 'title': 'x', 'position': '7'});
     await api.moveTopicTo(t, 2);
-    expect(jsonDecode(reqs.last.body), {'topicId': 3, 'currentPostion': 7, 'newPosition': '2'});
+    expect(jsonDecode(reqs.last.body), {
+      'topicId': 3,
+      'currentPostion': 7,
+      'newPosition': '2',
+    });
     await api.saveTopicOrder([t]);
     expect((jsonDecode(reqs.last.body)['topics'] as List).first['id'], '3');
     await api.setFavorite(pramanId: 4, granthId: 8);
     expect(jsonDecode(reqs.last.body), {'praman': '4', 'granthId': '8'});
     await api.deletePraman(11);
     expect(reqs.last.method, 'GET');
-    expect(reqs.last.url.queryParameters, {'action': 'delete_praman', 'id': '11'});
+    expect(reqs.last.url.queryParameters, {
+      'action': 'delete_praman',
+      'id': '11',
+    });
   });
 }

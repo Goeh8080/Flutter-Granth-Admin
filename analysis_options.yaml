@@ -13,6 +13,8 @@ analyzer:
   exclude:
     - build/**
     - android/**
+    # Old live-server smoke script (uses the pre-Round-1 import paths); kept as is, not analysed.
+    - tool/smoke_test.dart
 
 linter:
   # The lint rules applied to this project can be customized in the
@@ -26,6 +28,9 @@ linter:
   # `// ignore_for_file: name_of_lint` syntax on the line or in the file
   # producing the lint.
   rules:
+    # Style-only lints that the inherited (user-app and legacy admin) code does not follow.
+    curly_braces_in_flow_control_structures: false
+    prefer_initializing_formals: false
     # avoid_print: false  # Uncomment to disable the `avoid_print` rule
     # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
 
