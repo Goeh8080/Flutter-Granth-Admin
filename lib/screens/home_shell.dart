@@ -414,9 +414,28 @@ class _RootBackground extends StatelessWidget {
 class _Mast extends StatelessWidget {
   const _Mast();
 
+  // The mast is a const widget, so the shell's rebuilds never reach it: it listens to the data
+  // itself. (After a session expiry the shell is created with an empty AdminData; the catalog
+  // arrives later and the header counts must follow it.)
   @override
-  Widget build(BuildContext context) {
-    final s = AdminData.I;
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: Listenable.merge([
+      CatalogStore.I,
+      if (AdminData.isSet) AdminData.I,
+    ]),
+    builder: (context, _) => _build(context),
+  );
+
+  Widget _build(BuildContext context) {
+    // The admin data first; the shared catalog (what the Dashboard cards show) is the fallback,
+    // so the header never shows "—" while the cards below show numbers.
+    final a = AdminData.isSet ? AdminData.I : null;
+    final c = CatalogStore.I;
+    int pick(int fromAdmin, int fromCatalog) =>
+        fromAdmin > 0 ? fromAdmin : fromCatalog;
+    final nTopics = pick(a?.topics.length ?? 0, c.topics.length);
+    final nGranths = pick(a?.granths.length ?? 0, c.granths.length);
+    final nPramans = pick(a?.pramans.length ?? 0, c.pramans.length);
     final nav = AppNav.I;
     final top = MediaQuery.paddingOf(context).top;
     return Container(
@@ -524,21 +543,21 @@ class _Mast extends StatelessWidget {
                 Row(
                   children: [
                     _Stat(
-                      n: s.topics.length,
+                      n: nTopics,
                       label: 'विषय / प्रश्नोत्तरी',
                       active: nav.isActive(Panel.topics),
                       onTap: () => nav.go('#/topics'),
                     ),
                     const SizedBox(width: 10),
                     _Stat(
-                      n: s.granths.length,
+                      n: nGranths,
                       label: 'पवित्र ग्रन्थ',
                       active: nav.isActive(Panel.granths),
                       onTap: () => nav.go('#/granths'),
                     ),
                     const SizedBox(width: 10),
                     _Stat(
-                      n: s.pramans.length,
+                      n: nPramans,
                       label: 'नए प्रमाण',
                       active: nav.isActive(Panel.pramans),
                       onTap: () => nav.go('#/pramans'),

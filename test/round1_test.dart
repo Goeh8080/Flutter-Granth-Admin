@@ -17,6 +17,8 @@ import 'package:granthadmin/admin_ui/ai_admin_screens.dart';
 import 'package:granthadmin/admin_ui/announcement_editor.dart';
 import 'package:granthadmin/screens/admin_panel_screen.dart';
 import 'package:granthadmin/widgets/announcement_banner.dart';
+import 'package:granthadmin/models/models.dart' as u;
+import 'package:granthadmin/services/catalog_store.dart';
 import 'package:granthadmin/screens/home_shell.dart';
 import 'package:granthadmin/state/router.dart';
 import 'package:http/http.dart' as http;
@@ -459,4 +461,70 @@ void main() {
     expect(find.byKey(const ValueKey('announcement-empty')), findsOneWidget);
     await settle(t, 20);
   });
+
+  testWidgets(
+    'mast stats: after expire -> re-login the shell starts empty, numbers appear once the catalog loads',
+    (t) async {
+      t.view.physicalSize = const Size(1080, 4000);
+      t.view.devicePixelRatio = 3;
+      addTearDown(t.view.reset);
+      final rig = _Rig();
+      await rig.up(t);
+      // Session expiry: AdminGate resets AdminData and the catalog is empty when the shell is
+      // created again after the new login.
+      AdminData.I.reset();
+      CatalogStore.I.adoptAdminCatalog(
+        u.Catalog(topics: [], granths: [], pramans: []),
+        warm: false,
+      );
+      await t.pumpWidget(
+        MaterialApp(
+          home: AppScope(state: rig.state, child: const HomeShell()),
+        ),
+      );
+      await settle(t, 8);
+      expect(find.text('—'), findsWidgets);
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is Text && w.data == '—' && w.style?.fontSize == 22,
+        ),
+        findsNWidgets(3),
+      );
+      // The catalog arrives later (the dashboard cards already show it).
+      CatalogStore.I.adoptAdminCatalog(
+        u.Catalog(
+          topics: [
+            u.Topic({'id': '1', 'title': 'a'}),
+            u.Topic({'id': '2', 'title': 'b'}),
+          ],
+          granths: [
+            u.Granth({'id': '1', 'title': 'g'}),
+          ],
+          pramans: [
+            u.Praman({'id': '1', 'title': 'p'}),
+            u.Praman({'id': '2', 'title': 'p'}),
+            u.Praman({'id': '3', 'title': 'p'}),
+          ],
+        ),
+        warm: false,
+      );
+      await settle(t, 14);
+      for (final label in [
+        'विषय / प्रश्नोत्तरी',
+        'पवित्र ग्रन्थ',
+        'नए प्रमाण',
+      ]) {
+        expect(find.text(label), findsOneWidget);
+      }
+      // Header stats no longer show the dash.
+      bool mastStat(Widget w) =>
+          w is Text && w.style?.fontSize == 22 && w.style?.height == 1.1;
+      final shown = [
+        for (final w in t.widgetList<Text>(find.byWidgetPredicate(mastStat)))
+          w.data,
+      ];
+      expect(shown, ['2', '1', '3']);
+      await settle(t, 30);
+    },
+  );
 }
