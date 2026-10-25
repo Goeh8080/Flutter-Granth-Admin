@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 
 import '../core/app_state.dart';
 import '../models/models.dart';
@@ -22,22 +21,13 @@ class TopicDetailScreen extends StatefulWidget {
   State<TopicDetailScreen> createState() => _TopicDetailScreenState();
 }
 
-class _TopicDetailScreenState extends State<TopicDetailScreen> {
+class _TopicDetailScreenState extends State<TopicDetailScreen> with RevisionReload<TopicDetailScreen> {
   late Topic _t = widget.topic;
   List<Praman> _pramans = const [];
   bool _loading = true;
   Object? _error;
-  int _rev = -1;
-
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final rev = AppScope.of(context, listen: true).revision;
-    if (rev != _rev) {
-      _rev = rev;
-      Future.microtask(_load);
-    }
-  }
+  Future<void> reload() => _load();
 
   Future<void> _load() async {
     final api = AppScope.of(context).api;
@@ -76,7 +66,7 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           child: SliverToBoxAdapter(
             child: Glass(
-              blur: 18,
+              blur: 0,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -86,21 +76,25 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                       const SizedBox(width: 6),
                       Tag('${_t.pramanCount} प्रमाण', icon: CupertinoIcons.photo_on_rectangle),
                       const Spacer(),
-                      StatusDot(_t.isActive),
-                      const SizedBox(width: 6),
-                      Text(_t.isActive ? 'Active' : 'In-Active', style: TextStyle(color: p.subtext, fontSize: 12)),
+                      OptimisticActive(
+                        kind: 'topic',
+                        id: _t.id,
+                        server: _t.isActive,
+                        builder: (_, a) => Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            StatusDot(a),
+                            const SizedBox(width: 6),
+                            Text(a ? 'Active' : 'In-Active', style: TextStyle(color: p.subtext, fontSize: 12)),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Hero(
-                    tag: 'topic-title-${_t.id}',
-                    child: Material(
-                      type: MaterialType.transparency,
-                      child: Text(
-                        _t.title,
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: p.text, height: 1.5),
-                      ),
-                    ),
+                  Text(
+                    _t.title,
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: p.text, height: 1.5),
                   ),
                   if (_t.description.trim().isNotEmpty) ...[
                     const SizedBox(height: 8),
@@ -112,10 +106,15 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                     runSpacing: 8,
                     children: [
                       PillButton('Edit', CupertinoIcons.pencil, () => showTopicForm(context, topic: _t)),
-                      PillButton(
-                        _t.isActive ? 'Hide' : 'Show',
-                        _t.isActive ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
-                        () => toggleTopic(context, _t),
+                      OptimisticActive(
+                        kind: 'topic',
+                        id: _t.id,
+                        server: _t.isActive,
+                        builder: (_, a) => PillButton(
+                          a ? 'Hide' : 'Show',
+                          a ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
+                          () => toggleTopic(context, _t),
+                        ),
                       ),
                       PillButton('Position', CupertinoIcons.number, () => moveTopicFlow(context, _t)),
                       PillButton('Share', CupertinoIcons.share, () => shareItem('topic', _t.id, _t.title)),

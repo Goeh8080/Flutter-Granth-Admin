@@ -52,17 +52,11 @@ class TopicCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Hero(
-                    tag: 'topic-title-${t.id}',
-                    child: Material(
-                      type: MaterialType.transparency,
-                      child: Text(
-                        oneLine(t.title),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600, color: p.text, height: 1.45),
-                      ),
-                    ),
+                  Text(
+                    oneLine(t.title),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600, color: p.text, height: 1.45),
                   ),
                   if (t.description.trim().isNotEmpty)
                     Padding(
@@ -87,7 +81,10 @@ class TopicCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Padding(padding: const EdgeInsets.only(top: 6), child: StatusDot(t.isActive)),
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: OptimisticActive(kind: 'topic', id: t.id, server: t.isActive, builder: (_, a) => StatusDot(a)),
+            ),
           ],
         ),
       ),
@@ -120,7 +117,7 @@ class GranthCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Hero(tag: 'granth-img-${g.id}', child: NetImage(g.imageUrl, width: 70, height: 92, radius: 12)),
+            NetImage(g.imageUrl, width: 70, height: 92, radius: 12),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -138,7 +135,15 @@ class GranthCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Padding(padding: const EdgeInsets.only(top: 6), child: StatusDot(g.isActive)),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: OptimisticActive(
+                          kind: 'granth',
+                          id: g.id,
+                          server: g.isActive,
+                          builder: (_, a) => StatusDot(a),
+                        ),
+                      ),
                     ],
                   ),
                   if (g.author.trim().isNotEmpty)
@@ -207,7 +212,7 @@ class PramanCard extends StatelessWidget {
           children: [
             Stack(
               children: [
-                Hero(tag: '$heroPrefix-img-${m.id}', child: NetImage(thumb, width: 84, height: 84, radius: 14)),
+                NetImage(thumb, width: 84, height: 84, radius: 14),
                 if (m.hasYoutube)
                   const Positioned(
                     right: 4,
@@ -243,7 +248,15 @@ class PramanCard extends StatelessWidget {
                           child: Icon(CupertinoIcons.heart_fill, color: AppColors.red, size: 16),
                         ),
                       const SizedBox(width: 6),
-                      Padding(padding: const EdgeInsets.only(top: 6), child: StatusDot(m.isActive)),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: OptimisticActive(
+                          kind: 'praman',
+                          id: m.id,
+                          server: m.isActive,
+                          builder: (_, a) => StatusDot(a),
+                        ),
+                      ),
                     ],
                   ),
                   if (m.description.trim().isNotEmpty)

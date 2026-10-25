@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../core/app_state.dart';
+import '../core/perf.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
 import '../widgets/animated_items.dart';
@@ -23,7 +24,7 @@ class TopicsScreen extends StatefulWidget {
   State<TopicsScreen> createState() => _TopicsScreenState();
 }
 
-class _TopicsScreenState extends State<TopicsScreen> {
+class _TopicsScreenState extends State<TopicsScreen> with RevisionReload<TopicsScreen> {
   final _search = TextEditingController();
   final _scroll = ScrollController();
   List<Topic> _all = const [];
@@ -34,36 +35,74 @@ class _TopicsScreenState extends State<TopicsScreen> {
   String _sort = 'position';
   bool _desc = false;
   Object? _error;
-  int _rev = -1;
+  final _debounce = Debouncer();
+  final _memo = Memo<(List<Topic>, String, String, bool), ({List<Topic> items, Map<int, int> index})>();
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final rev = AppScope.of(context, listen: true).revision;
-    if (rev != _rev) {
-      _rev = rev;
-      Future.microtask(_load);
+  void initState() {
+    super.initState();
+    // Stale-while-revalidate: show what the app already holds at once, refresh behind it.
+    final cached = AppScope.of(context).topics;
+    if (!_inactive && cached.isNotEmpty) {
+      _all = cached;
+      _loading = false;
     }
   }
 
+  @override
+  void dispose() {
+    _debounce.dispose();
+    _search.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Future<void> reload() => _load();
+
   Future<void> _load() async {
     final app = AppScope.of(context);
-    setState(() {
-      _error = null;
-      if (_all.isEmpty) _loading = true;
-    });
+    if (_error != null || (_all.isEmpty && !_loading)) {
+      setState(() {
+        _error = null;
+        if (_all.isEmpty) _loading = true;
+      });
+    }
     try {
       final r = await app.api.topics(search: _serverQuery, onlyInactive: _inactive);
       if (!_inactive && _serverQuery.isEmpty) {
         app.topics = r;
       }
-      if (mounted) setState(() => _all = r);
+      if (mounted) {
+        setState(() {
+          _all = r;
+          _loading = false;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() => _error = e);
+      if (mounted) {
+        setState(() {
+          _error = e;
+          _loading = false;
+        });
+      }
       if (_all.isNotEmpty) showError(e);
-    } finally {
-      if (mounted) setState(() => _loading = false);
     }
+  }
+
+  ({List<Topic> items, Map<int, int> index}) get _view => _memo.get((_all, _local, _sort, _desc), () {
+    final items = _visible;
+    return (items: items, index: {for (var i = 0; i < items.length; i++) items[i].id: i});
+  });
+
+  Object? _titlesFor;
+  List<String> _titlesCache = const [];
+  List<String> get _titles {
+    if (!identical(_titlesFor, _all)) {
+      _titlesFor = _all;
+      _titlesCache = _all.map((e) => oneLine(e.title)).toList();
+    }
+    return _titlesCache;
   }
 
   List<Topic> get _visible {
@@ -93,8 +132,7 @@ class _TopicsScreenState extends State<TopicsScreen> {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    final items = _visible;
-    final index = {for (var i = 0; i < items.length; i++) items[i].id: i};
+    final (:items, :index) = _view;
     final app = AppScope.of(context);
     return GlassPage(
       title: widget.inactiveOnly ? 'निष्क्रिय विषय' : 'विषय / Topics',
@@ -129,14 +167,16 @@ class _TopicsScreenState extends State<TopicsScreen> {
                 SuggestSearchField(
                   controller: _search,
                   placeholder: 'विषय खोजें / Search topic',
-                  suggestions: _all.map((e) => oneLine(e.title)).toList(),
-                  onChanged: (v) => setState(() => _local = v.trim()),
-                  onSubmitted: (v) {
+                  suggestions: _titles,
+                  onChanged: (v) => _debounce(() {
+                    if (mounted) setState(() => _local = v.trim());
+                  }),
+                  onSubmitted: (v) => _debounce.now(() {
                     // like searchTopic(): server-side search with &topic=
                     _serverQuery = v.trim();
                     _local = '';
                     _load();
-                  },
+                  }),
                 ),
                 const SizedBox(height: 10),
                 SortBar(
@@ -166,6 +206,7 @@ class _TopicsScreenState extends State<TopicsScreen> {
                         true: Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text('निष्क्रिय / Inactive')),
                       },
                       onValueChanged: (v) {
+                        _debounce.dispose();
                         setState(() {
                           _inactive = v ?? false;
                           _serverQuery = '';
@@ -191,12 +232,12 @@ class _TopicsScreenState extends State<TopicsScreen> {
                         CupertinoButton(
                           padding: EdgeInsets.zero,
                           minimumSize: const Size(0, 28),
-                          onPressed: () {
+                          onPressed: () => _debounce.now(() {
                             _search.clear();
                             _serverQuery = '';
                             _local = '';
                             _load();
-                          },
+                          }),
                           child: const Text('हटाएँ / Clear', style: TextStyle(fontSize: 13)),
                         ),
                       ],

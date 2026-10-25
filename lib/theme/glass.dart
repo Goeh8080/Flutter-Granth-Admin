@@ -101,12 +101,17 @@ class Glass extends StatelessWidget {
         child: body,
       );
     }
+    // Without a backdrop blur nothing inside needs clipping (the decoration already paints the
+    // rounded fill/border), so list cards skip the ClipRRect clip layer (saveLayer on some GPUs).
+    // The shadow is lighter (blur 14) than the old 24: a big blur radius is costly per card.
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: br,
-        boxShadow: [BoxShadow(color: p.glassShadow, blurRadius: 24, offset: const Offset(0, 10))],
+        boxShadow: [
+          BoxShadow(color: p.glassShadow, blurRadius: blur > 0 ? 24 : 14, offset: Offset(0, blur > 0 ? 10 : 6)),
+        ],
       ),
-      child: ClipRRect(borderRadius: br, child: body),
+      child: blur > 0 ? ClipRRect(borderRadius: br, child: body) : body,
     );
   }
 }
@@ -135,20 +140,27 @@ class PressableGlass extends StatefulWidget {
 
 class _PressableGlassState extends State<PressableGlass> {
   bool _down = false;
+  void _set(bool v) {
+    if (_down != v) setState(() => _down = v);
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTapDown: (_) => setState(() => _down = true),
-      onTapCancel: () => setState(() => _down = false),
-      onTapUp: (_) => setState(() => _down = false),
+      onTapDown: (_) => _set(true),
+      onTapCancel: () => _set(false),
+      onTapUp: (_) => _set(false),
       onTap: widget.onTap,
       onLongPress: widget.onLongPress,
       child: AnimatedScale(
         scale: _down ? 0.97 : 1,
         duration: Duration(milliseconds: _down ? 90 : 380),
         curve: _down ? Curves.easeOut : const SpringCurve(),
-        child: Glass(padding: widget.padding, radius: widget.radius, blur: widget.blur, child: widget.child),
+        // RepaintBoundary: the card is rasterised once; the press animation only scales that layer.
+        child: RepaintBoundary(
+          child: Glass(padding: widget.padding, radius: widget.radius, blur: widget.blur, child: widget.child),
+        ),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_state.dart';
+import '../../core/panel_state.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/glass.dart';
 import '../../widgets/glass_scaffold.dart';
@@ -23,8 +24,12 @@ class PanelHome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final app = AppScope.of(context, listen: true);
-    final panel = app.panel;
+    final panel = AppScope.of(context).panel;
+    // Rebuilds on control-server changes only (not on every website-side notification).
+    return ListenableBuilder(listenable: panel, builder: (context, _) => _content(context, panel));
+  }
+
+  Widget _content(BuildContext context, PanelState panel) {
     if (!panel.loggedIn) return PanelLoggedOutView(bottomInset: bottomInset);
     final p = Palette.of(context);
     final me = panel.me;
@@ -41,7 +46,7 @@ class PanelHome extends StatelessWidget {
           child: SliverList(
             delegate: SliverChildListDelegate([
               Glass(
-                blur: 16,
+                blur: 0,
                 child: Row(
                   children: [
                     Container(

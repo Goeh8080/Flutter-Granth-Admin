@@ -7,7 +7,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:granthadmin/core/app_state.dart';
+import 'package:granthadmin/core/panel_state.dart';
 import 'package:granthadmin/main.dart';
+import 'package:granthadmin/services/panel_api.dart';
+import 'package:granthadmin/services/panel_token_store.dart';
 import 'package:granthadmin/services/granth_api.dart';
 import 'package:granthadmin/widgets/cards.dart';
 import 'package:granthadmin/widgets/common.dart';
@@ -91,25 +94,51 @@ void main() {
 
   Future<void> run(WidgetTester tester, Brightness b) async {
     NetImage.enabled = false;
+    // Background isolate decoding needs real time; this test runs on a fake clock, so decode inline.
+    ApiClient.isolateDecodeThreshold = 1 << 30;
+    addTearDown(() => ApiClient.isolateDecodeThreshold = 64 * 1024);
     SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = const Size(1080, 2340);
     tester.view.devicePixelRatio = 3;
     tester.platformDispatcher.platformBrightnessTestValue = b;
     addTearDown(tester.view.reset);
-    final state = AppState(api: GranthApi(ApiClient(client: mock())));
+    final panel = PanelState(
+      api: PanelApi(
+        baseUrl: 'https://panel.test',
+        store: MemoryPanelTokenStore(),
+        client: MockClient((req) async {
+          final body = req.url.path.endsWith('/login')
+              ? {'token': 'tok', 'expires_in': 86400, 'username': 'ctl'}
+              : {'ok': true, 'username': 'ctl', 'count': 0, 'items': []};
+          return http.Response(jsonEncode(body), 200, headers: {'content-type': 'application/json'});
+        }),
+      ),
+    );
+    final state = AppState(
+      api: GranthApi(ApiClient(client: mock())),
+      panel: panel,
+    );
     await tester.runAsync(() => state.boot());
     await tester.pumpWidget(AppScope(state: state, child: const GranthAdminApp()));
     await settle(tester);
     expect(find.text('ग्रंथ प्रबंधन'), findsOneWidget, reason: 'login screen');
+    expect(find.text('ऐप एडमिन (कंट्रोल सर्वर)'), findsOneWidget);
+    expect(find.text('wnm सर्वर (डेटा एडिट)'), findsOneWidget);
 
-    await tester.enterText(find.byType(CupertinoTextField).at(0), 'tester');
-    await tester.enterText(find.byType(CupertinoTextField).at(1), 'x');
+    // one screen, both logins (control server first, then the wnm website)
+    await tester.enterText(find.byType(CupertinoTextField).at(0), 'ctl');
+    await tester.enterText(find.byType(CupertinoTextField).at(1), 'y');
+    await tester.enterText(find.byType(CupertinoTextField).at(2), 'tester');
+    await tester.enterText(find.byType(CupertinoTextField).at(3), 'x');
+    await tester.ensureVisible(find.text('लॉगिन / Login')); // two sections: the page scrolls
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('लॉगिन / Login'));
     await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 300)));
     await settle(tester, 20);
     await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 300)));
     await settle(tester, 20);
     expect(state.loggedIn, isTrue);
+    expect(state.panel.loggedIn, isTrue);
     expect(find.text('डैशबोर्ड'), findsWidgets);
 
     Future<void> tab(String label) async {

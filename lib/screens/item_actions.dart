@@ -44,29 +44,53 @@ Future<bool> deletePramanFlow(BuildContext context, Praman p) async {
 
 Future<void> toggleTopic(BuildContext context, Topic t) async {
   final app = AppScope.of(context);
+  // Optimistic: flip the dot/label at once; the write (and refetch) syncs afterwards.
+  final wasActive = app.activeOf('topic', t.id, t.isActive);
+  app.setOptimisticActive('topic', t.id, !wasActive);
   final ok = await runWrite(
-    () => app.api.setTopicActive(t, !t.isActive),
-    success: t.isActive ? 'विषय छिपाया गया / Topic hidden' : 'विषय दिखाया गया / Topic visible',
+    () => app.api.setTopicActive(t, !wasActive),
+    success: wasActive ? 'विषय छिपाया गया / Topic hidden' : 'विषय दिखाया गया / Topic visible',
   );
-  if (ok) app.bump();
+  if (ok) {
+    app.bump();
+    app.settleOptimisticActive('topic', t.id);
+  } else {
+    app.clearOptimisticActive('topic', t.id);
+  }
 }
 
 Future<void> toggleGranth(BuildContext context, Granth g) async {
   final app = AppScope.of(context);
+  // Optimistic: flip the dot/label at once; the write (and refetch) syncs afterwards.
+  final wasActive = app.activeOf('granth', g.id, g.isActive);
+  app.setOptimisticActive('granth', g.id, !wasActive);
   final ok = await runWrite(
-    () => app.api.setGranthActive(g, !g.isActive),
-    success: g.isActive ? 'ग्रंथ छिपाया गया / Granth hidden' : 'ग्रंथ दिखाया गया / Granth visible',
+    () => app.api.setGranthActive(g, !wasActive),
+    success: wasActive ? 'ग्रंथ छिपाया गया / Granth hidden' : 'ग्रंथ दिखाया गया / Granth visible',
   );
-  if (ok) app.bump();
+  if (ok) {
+    app.bump();
+    app.settleOptimisticActive('granth', g.id);
+  } else {
+    app.clearOptimisticActive('granth', g.id);
+  }
 }
 
 Future<void> togglePraman(BuildContext context, Praman p) async {
   final app = AppScope.of(context);
+  // Optimistic: flip the dot/label at once; the write (and refetch) syncs afterwards.
+  final wasActive = app.activeOf('praman', p.id, p.isActive);
+  app.setOptimisticActive('praman', p.id, !wasActive);
   final ok = await runWrite(
-    () => app.api.setPramanActive(p, !p.isActive),
-    success: p.isActive ? 'प्रमाण छिपाया गया / Praman hidden' : 'प्रमाण दिखाया गया / Praman visible',
+    () => app.api.setPramanActive(p, !wasActive),
+    success: wasActive ? 'प्रमाण छिपाया गया / Praman hidden' : 'प्रमाण दिखाया गया / Praman visible',
   );
-  if (ok) app.bump();
+  if (ok) {
+    app.bump();
+    app.settleOptimisticActive('praman', p.id);
+  } else {
+    app.clearOptimisticActive('praman', p.id);
+  }
 }
 
 Future<void> moveTopicFlow(BuildContext context, Topic t) async {

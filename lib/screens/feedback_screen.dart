@@ -21,21 +21,12 @@ class FeedbackScreen extends StatefulWidget {
   State<FeedbackScreen> createState() => _FeedbackScreenState();
 }
 
-class _FeedbackScreenState extends State<FeedbackScreen> {
+class _FeedbackScreenState extends State<FeedbackScreen> with RevisionReload<FeedbackScreen> {
   List<FeedbackItem> _items = const [];
   bool _loading = true;
   Object? _error;
-  int _rev = -1;
-
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final rev = AppScope.of(context, listen: true).revision;
-    if (rev != _rev) {
-      _rev = rev;
-      Future.microtask(_load);
-    }
-  }
+  Future<void> reload() => _load();
 
   Future<void> _load() async {
     setState(() => _error = null);

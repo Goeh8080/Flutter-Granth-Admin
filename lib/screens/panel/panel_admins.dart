@@ -43,24 +43,31 @@ class PanelAdminsScreen extends StatelessWidget {
         final p = Palette.of(context);
         return [
           PadSliver(
-            child: SliverList(
-              delegate: SliverChildListDelegate([
-                PrimaryButton(
-                  label: 'नया एडमिन जोड़ें / Add admin',
-                  icon: CupertinoIcons.person_add_solid,
-                  onPressed: () async {
-                    final ok = await showGlassSheet<bool>(
-                      context,
-                      (_) => AdminCreateForm(minPassword: d.minPasswordLength, roles: d.roles),
-                    );
-                    if (ok == true) await reload();
-                  },
+            child: SliverMainAxisGroup(
+              slivers: [
+                SliverList(
+                  delegate: SliverChildListDelegate([
+                    PrimaryButton(
+                      label: 'नया एडमिन जोड़ें / Add admin',
+                      icon: CupertinoIcons.person_add_solid,
+                      onPressed: () async {
+                        final ok = await showGlassSheet<bool>(
+                          context,
+                          (_) => AdminCreateForm(minPassword: d.minPasswordLength, roles: d.roles),
+                        );
+                        if (ok == true) await reload();
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Text('${d.items.length} एडमिन', style: TextStyle(color: p.subtext, fontSize: 12.5)),
+                    const SizedBox(height: 8),
+                  ]),
                 ),
-                const SizedBox(height: 12),
-                Text('${d.items.length} एडमिन', style: TextStyle(color: p.subtext, fontSize: 12.5)),
-                const SizedBox(height: 8),
-                for (final a in d.items) _AdminRow(a: a, d: d, reload: reload),
-              ]),
+                SliverList.builder(
+                  itemCount: d.items.length,
+                  itemBuilder: (context, i) => _AdminRow(a: d.items[i], d: d, reload: reload),
+                ),
+              ],
             ),
           ),
         ];

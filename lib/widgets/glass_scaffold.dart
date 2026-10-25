@@ -1,8 +1,10 @@
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import '../theme/glass.dart';
+import '../theme/smooth_scroll.dart';
 
 /// Large-title iOS page on a glass backdrop. The nav bar is translucent,
 /// and Cupertino applies the blur behind it.
@@ -37,22 +39,9 @@ class GlassPage extends StatefulWidget {
 
 class _GlassPageState extends State<GlassPage> {
   late final ScrollController _sc = widget.controller ?? ScrollController();
-  bool _showTop = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _sc.addListener(_onScroll);
-  }
-
-  void _onScroll() {
-    final show = _sc.hasClients && _sc.offset > 900;
-    if (show != _showTop) setState(() => _showTop = show);
-  }
 
   @override
   void dispose() {
-    _sc.removeListener(_onScroll);
     if (widget.controller == null) _sc.dispose();
     super.dispose();
   }
@@ -68,7 +57,9 @@ class _GlassPageState extends State<GlassPage> {
     final bottomInset = widget.bottomInset;
     final floating = widget.floating;
     final p = Palette.of(context);
-    final navBg = p.barFill;
+    // Nearly opaque bar with no BackdropFilter: a full-width live blur on every page of the stack
+    // was one of the heaviest per-frame costs while scrolling.
+    final navBg = p.barFill.withValues(alpha: p.dark ? 0.94 : 0.92);
     final border = Border(bottom: BorderSide(color: p.separator, width: 0.5));
     final titleW = Text(title, maxLines: 1, overflow: TextOverflow.ellipsis);
     return GlassBackdrop(
@@ -78,7 +69,9 @@ class _GlassPageState extends State<GlassPage> {
           children: [
             CustomScrollView(
               controller: _sc,
-              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+              physics: const SmoothScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+              // Build a little ahead of the viewport so fast flicks don't reveal blank rows.
+              scrollCacheExtent: const ScrollCacheExtent.pixels(600),
               slivers: [
                 if (widget.largeTitle)
                   CupertinoSliverNavigationBar(
@@ -89,6 +82,7 @@ class _GlassPageState extends State<GlassPage> {
                     leading: leading,
                     previousPageTitle: previousPageTitle,
                     stretch: true,
+                    enableBackgroundFilterBlur: false,
                   )
                 else
                   SliverPersistentHeader(
@@ -101,13 +95,14 @@ class _GlassPageState extends State<GlassPage> {
                         trailing: trailing,
                         leading: leading,
                         previousPageTitle: previousPageTitle,
+                        enableBackgroundFilterBlur: false,
                       ),
-                      MediaQuery.of(context).padding.top + kMinInteractiveDimensionCupertino,
+                      MediaQuery.paddingOf(context).top + kMinInteractiveDimensionCupertino,
                     ),
                   ),
                 if (onRefresh != null) CupertinoSliverRefreshControl(onRefresh: onRefresh),
                 ...slivers,
-                SliverToBoxAdapter(child: SizedBox(height: 24 + bottomInset + MediaQuery.of(context).padding.bottom)),
+                SliverToBoxAdapter(child: SizedBox(height: 24 + bottomInset + MediaQuery.paddingOf(context).bottom)),
               ],
             ),
             ?floating,
@@ -129,7 +124,7 @@ class _BarDelegate extends SliverPersistentHeaderDelegate {
   @override
   double get minExtent => height;
   @override
-  bool shouldRebuild(covariant _BarDelegate old) => true;
+  bool shouldRebuild(covariant _BarDelegate old) => old.child != child || old.height != height;
 }
 
 /// Padding wrapper for sliver content.
@@ -151,7 +146,7 @@ class GlassFab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Positioned(
       right: 20,
-      bottom: bottom + MediaQuery.of(context).padding.bottom,
+      bottom: bottom + MediaQuery.paddingOf(context).bottom,
       child: CupertinoButton(
         padding: EdgeInsets.zero,
         onPressed: onTap,

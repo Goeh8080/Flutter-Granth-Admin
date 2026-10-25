@@ -3,9 +3,10 @@ import 'package:flutter/services.dart';
 
 import 'core/app_state.dart';
 import 'screens/home_shell.dart';
-import 'screens/login_screen.dart';
+import 'screens/dual_login_screen.dart';
 import 'theme/app_theme.dart';
 import 'theme/glass.dart';
+import 'theme/smooth_scroll.dart';
 import 'widgets/common.dart';
 import 'widgets/toast.dart';
 
@@ -43,17 +44,26 @@ class _GranthAdminAppState extends State<GranthAdminApp> with WidgetsBindingObse
     if (s == AppLifecycleState.resumed) AppScope.of(context).verifySession();
   }
 
+  // Built once: ColorScheme.fromSeed + ThemeData are expensive and used to be rebuilt (twice)
+  // on every AppState notification.
+  static final ThemeData _light = buildTheme(Brightness.light);
+  static final ThemeData _dark = buildTheme(Brightness.dark);
+
   @override
   Widget build(BuildContext context) {
-    final app = AppScope.of(context, listen: true);
-    return MaterialApp(
-      title: 'ग्रंथ प्रबंधन Admin',
-      debugShowCheckedModeBanner: false,
-      navigatorKey: rootNavKey,
-      themeMode: app.themeMode,
-      theme: buildTheme(Brightness.light),
-      darkTheme: buildTheme(Brightness.dark),
-      home: const _Gate(),
+    // Only a theme-mode change rebuilds the MaterialApp.
+    return AppSelector<ThemeMode>(
+      selector: (a) => a.themeMode,
+      builder: (context, app, mode) => MaterialApp(
+        title: 'ग्रंथ प्रबंधन Admin',
+        debugShowCheckedModeBanner: false,
+        navigatorKey: rootNavKey,
+        scrollBehavior: const SmoothScrollBehavior(),
+        themeMode: mode,
+        theme: _light,
+        darkTheme: _dark,
+        home: const _Gate(),
+      ),
     );
   }
 }
@@ -67,36 +77,40 @@ class _Gate extends StatefulWidget {
 
 class _GateState extends State<_Gate> {
   bool? _wasLoggedIn; // wnm website session
-  bool? _wasAny; // wnm or control-server session
+  bool? _wasReady; // both sessions valid (the app is open)
   @override
   Widget build(BuildContext context) {
-    final app = AppScope.of(context, listen: true);
+    // Rebuild only when the gate-relevant flags change (not on every cache fill / panel tick).
+    return AppSelector<(bool, bool, bool, String?)>(
+      selector: (a) => (a.booting, a.loggedIn, a.panel.loggedIn, a.expiredMessage),
+      builder: (context, app, _) => _gate(context, app),
+    );
+  }
+
+  Widget _gate(BuildContext context, AppState app) {
+    // The app needs BOTH sessions (website + control server); one expiring asks only for that one.
+    final ready = app.loggedIn && app.panel.loggedIn;
     final wnmDropped = _wasLoggedIn == true && !app.loggedIn;
-    if (wnmDropped) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        // Control-server screens stay when that session is still alive.
-        if (app.panel.panelDepth == 0) rootNavKey.currentState?.popUntil((r) => r.isFirst);
-        final msg = app.expiredMessage;
-        if (msg != null) {
-          app.expiredMessage = null;
-          showToast(msg, error: true);
-        }
-      });
-    } else if (_wasAny == true && !app.anyLoggedIn) {
+    if (_wasReady == true && !ready) {
       WidgetsBinding.instance.addPostFrameCallback((_) => rootNavKey.currentState?.popUntil((r) => r.isFirst));
+      // (the control server toasts its own expiry)
+      if (wnmDropped && app.expiredMessage != null) {
+        final msg = app.expiredMessage!;
+        WidgetsBinding.instance.addPostFrameCallback((_) => showToast(msg, error: true));
+      }
     }
     _wasLoggedIn = app.booting ? null : app.loggedIn;
-    _wasAny = app.booting ? null : app.anyLoggedIn;
+    _wasReady = app.booting ? null : ready;
     final Widget child;
     if (app.booting) {
       child = const GlassBackdrop(
         key: ValueKey('boot'),
         child: Scaffold(backgroundColor: Colors.transparent, body: LoadingView()),
       );
-    } else if (app.anyLoggedIn) {
+    } else if (ready) {
       child = const HomeShell(key: ValueKey('home'));
     } else {
-      child = const LoginScreen(key: ValueKey('login'));
+      child = const DualLoginScreen(key: ValueKey('login'));
     }
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 500),

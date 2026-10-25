@@ -74,28 +74,42 @@ class _PanelInboxScreenState extends State<PanelInboxScreen> {
       },
       trailing: _syncing
           ? const CupertinoActivityIndicator()
-          : CupertinoButton(padding: EdgeInsets.zero, onPressed: _sync, child: const Icon(CupertinoIcons.arrow_2_circlepath)),
+          : CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: _sync,
+              child: const Icon(CupertinoIcons.arrow_2_circlepath),
+            ),
       builder: (context, data, reload) {
         final a = data.$1;
         final leaves = data.$2;
         final empty = a.newGranths.isEmpty && a.alerts.isEmpty;
         return [
           PadSliver(
-            child: SliverList(
-              delegate: SliverChildListDelegate([
-                const DraftBanner(),
-                if (empty)
-                  const SizedBox(
-                    height: 340,
-                    child: MessageView(
-                      icon: CupertinoIcons.checkmark_seal,
-                      title: 'सब ठीक है',
-                      subtitle: 'कोई नया ग्रंथ फ़ोल्डर का इंतज़ार नहीं कर रहा। ऊपर दाएँ बटन से वेबसाइट से सिंक करें।',
-                    ),
-                  ),
-                for (final g in a.newGranths) _card(context, g, leaves, p),
-                for (final al in a.alerts) _alert(context, al, p),
-              ]),
+            child: SliverMainAxisGroup(
+              slivers: [
+                SliverList(
+                  delegate: SliverChildListDelegate([
+                    const DraftBanner(),
+                    if (empty)
+                      const SizedBox(
+                        height: 340,
+                        child: MessageView(
+                          icon: CupertinoIcons.checkmark_seal,
+                          title: 'सब ठीक है',
+                          subtitle:
+                              'कोई नया ग्रंथ फ़ोल्डर का इंतज़ार नहीं कर रहा। ऊपर दाएँ बटन से वेबसाइट से सिंक करें।',
+                        ),
+                      ),
+                  ]),
+                ),
+                // Rows are built lazily as they scroll into view.
+                SliverList.builder(
+                  itemCount: a.newGranths.length + a.alerts.length,
+                  itemBuilder: (context, i) => i < a.newGranths.length
+                      ? _card(context, a.newGranths[i], leaves, p)
+                      : _alert(context, a.alerts[i - a.newGranths.length], p),
+                ),
+              ],
             ),
           ),
         ];
@@ -125,7 +139,9 @@ class _PanelInboxScreenState extends State<PanelInboxScreen> {
             ),
             CupertinoButton(
               padding: const EdgeInsets.symmetric(horizontal: 10),
-              onPressed: _busy.contains(key) ? null : () => _run(key, () => panelOf(context).api.ackAlert(al.id), 'हटाया'),
+              onPressed: _busy.contains(key)
+                  ? null
+                  : () => _run(key, () => panelOf(context).api.ackAlert(al.id), 'हटाया'),
               child: const Text('ठीक है'),
             ),
           ],
@@ -155,25 +171,43 @@ class _PanelInboxScreenState extends State<PanelInboxScreen> {
                 const Tag('नया', color: AppColors.green),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(g.title.isEmpty ? g.id : g.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.text, fontSize: 16, fontWeight: FontWeight.w700)),
+                  child: Text(
+                    g.title.isEmpty ? g.id : g.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: p.text, fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
                 ),
               ],
             ),
             if (g.author.isNotEmpty) Text(g.author, style: TextStyle(color: p.subtext, fontSize: 12.5)),
-            Text('${g.pramanCount} प्रमाण • ${shortTs(g.firstSeen)}', style: TextStyle(color: p.subtext, fontSize: 12.5)),
+            Text(
+              '${g.pramanCount} प्रमाण • ${shortTs(g.firstSeen)}',
+              style: TextStyle(color: p.subtext, fontSize: 12.5),
+            ),
             if (g.suggestedLeaf.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Text('सुझाव: ${g.suggestedLabel.isEmpty ? g.suggestedLeaf : g.suggestedLabel}', style: const TextStyle(color: AppColors.blue, fontSize: 13)),
+                child: Text(
+                  'सुझाव: ${g.suggestedLabel.isEmpty ? g.suggestedLeaf : g.suggestedLabel}',
+                  style: const TextStyle(color: AppColors.blue, fontSize: 13),
+                ),
               ),
             const SizedBox(height: 4),
             if (busy)
-              const Padding(padding: EdgeInsets.all(10), child: Center(child: CupertinoActivityIndicator()))
+              const Padding(
+                padding: EdgeInsets.all(10),
+                child: Center(child: CupertinoActivityIndicator()),
+              )
             else
               Wrap(
                 children: [
                   if (g.suggestedLeaf.isNotEmpty)
-                    CupertinoButton(padding: const EdgeInsets.symmetric(horizontal: 8), onPressed: () => assign(g.suggestedLeaf, 'फ़ोल्डर तय — ड्राफ्ट में'), child: const Text('सुझाव मानें')),
+                    CupertinoButton(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      onPressed: () => assign(g.suggestedLeaf, 'फ़ोल्डर तय — ड्राफ्ट में'),
+                      child: const Text('सुझाव मानें'),
+                    ),
                   CupertinoButton(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     onPressed: leaves.isEmpty
@@ -184,7 +218,11 @@ class _PanelInboxScreenState extends State<PanelInboxScreen> {
                           },
                     child: const Text('फ़ोल्डर चुनें'),
                   ),
-                  CupertinoButton(padding: const EdgeInsets.symmetric(horizontal: 8), onPressed: () => assign('other', 'अन्य में रखा — ड्राफ्ट में'), child: const Text('अन्य में रखें')),
+                  CupertinoButton(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    onPressed: () => assign('other', 'अन्य में रखा — ड्राफ्ट में'),
+                    child: const Text('अन्य में रखें'),
+                  ),
                   CupertinoButton(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     onPressed: () => _run(key, () async {
@@ -193,7 +231,11 @@ class _PanelInboxScreenState extends State<PanelInboxScreen> {
                     }, 'छिपाया — ड्राफ्ट में'),
                     child: const Text('छिपाएँ', style: TextStyle(color: AppColors.red)),
                   ),
-                  CupertinoButton(padding: const EdgeInsets.symmetric(horizontal: 8), onPressed: () => _run(key, () => api.ackGranth(g.id), 'देख लिया'), child: const Text('देख लिया')),
+                  CupertinoButton(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    onPressed: () => _run(key, () => api.ackGranth(g.id), 'देख लिया'),
+                    child: const Text('देख लिया'),
+                  ),
                 ],
               ),
           ],

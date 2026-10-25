@@ -5,6 +5,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../core/app_state.dart';
+import '../core/perf.dart';
 import '../theme/app_theme.dart';
 import '../theme/glass.dart';
 import 'motion.dart';
@@ -31,6 +33,9 @@ class NetImage extends StatelessWidget {
     if (url == null || !enabled) {
       return ClipRRect(borderRadius: BorderRadius.circular(radius), child: placeholder(CupertinoIcons.photo));
     }
+    // Decode at display size (dpr-aware, capped) instead of the full-size source bitmap.
+    final dpr = MediaQuery.devicePixelRatioOf(context).clamp(1.0, 3.0);
+    final w = (width == null || !width!.isFinite) ? MediaQuery.sizeOf(context).width : width!;
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: CachedNetworkImage(
@@ -38,11 +43,37 @@ class NetImage extends StatelessWidget {
         width: width,
         height: height,
         fit: fit,
-        fadeInDuration: const Duration(milliseconds: 220),
-        memCacheWidth: (width == null || !width!.isFinite) ? null : (width! * 3).round(),
+        fadeInDuration: const Duration(milliseconds: 100),
+        fadeOutDuration: Duration.zero,
+        placeholderFadeInDuration: Duration.zero,
+        memCacheWidth: (w * dpr).round(),
         placeholder: (_, _) => placeholder(CupertinoIcons.photo),
         errorWidget: (_, _, _) => placeholder(CupertinoIcons.exclamationmark_triangle),
       ),
+    );
+  }
+}
+
+/// Rebuilds only this subtree when an optimistic show/hide toggle for ([kind], [id]) changes;
+/// [builder] gets the displayed Active flag (the pending toggle wins over [server]).
+class OptimisticActive extends StatelessWidget {
+  const OptimisticActive({
+    super.key,
+    required this.kind,
+    required this.id,
+    required this.server,
+    required this.builder,
+  });
+  final String kind;
+  final int id;
+  final bool server;
+  final Widget Function(BuildContext context, bool active) builder;
+  @override
+  Widget build(BuildContext context) {
+    final app = AppScope.of(context);
+    return ValueListenableBuilder<int>(
+      valueListenable: app.optimisticListenable,
+      builder: (context, _, _) => builder(context, app.activeOf(kind, id, server)),
     );
   }
 }
@@ -665,12 +696,24 @@ class _PickerSheet<T> extends StatefulWidget {
 
 class _PickerSheetState<T> extends State<_PickerSheet<T>> {
   String q = '';
+  final _debounce = Debouncer();
+  final _filtered = Memo<String, List<T>>();
+
+  @override
+  void dispose() {
+    _debounce.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    final list = q.isEmpty
-        ? widget.items
-        : widget.items.where((e) => widget.labelOf(e).toLowerCase().contains(q.toLowerCase())).toList();
+    final list = _filtered.get(
+      q.toLowerCase(),
+      () => q.isEmpty
+          ? widget.items
+          : widget.items.where((e) => widget.labelOf(e).toLowerCase().contains(q.toLowerCase())).toList(),
+    );
     return SafeArea(
       top: false,
       child: Column(
@@ -695,7 +738,9 @@ class _PickerSheetState<T> extends State<_PickerSheet<T>> {
               autofocus: false,
               style: TextStyle(color: p.text, fontFamily: kFont),
               backgroundColor: p.fieldFill,
-              onChanged: (v) => setState(() => q = v.trim()),
+              onChanged: (v) => _debounce(() {
+                if (mounted) setState(() => q = v.trim());
+              }),
             ),
           ),
           const SizedBox(height: 8),

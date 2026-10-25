@@ -25,19 +25,15 @@ class PramanDetailScreen extends StatefulWidget {
   State<PramanDetailScreen> createState() => _PramanDetailScreenState();
 }
 
-class _PramanDetailScreenState extends State<PramanDetailScreen> {
+class _PramanDetailScreenState extends State<PramanDetailScreen> with RevisionReload<PramanDetailScreen> {
   late Praman _p = widget.praman;
-  int _rev = -1;
+  bool _first = true;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final rev = AppScope.of(context, listen: true).revision;
-    if (rev != _rev) {
-      final first = _rev == -1;
-      _rev = rev;
-      Future.microtask(() => _load(silent: first));
-    }
+  Future<void> reload() {
+    final silent = _first;
+    _first = false;
+    return _load(silent: silent);
   }
 
   Future<void> _load({bool silent = false}) async {
@@ -94,15 +90,25 @@ class _PramanDetailScreenState extends State<PramanDetailScreen> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           child: SliverToBoxAdapter(
             child: Glass(
-              blur: 18,
+              blur: 0,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      StatusDot(_p.isActive),
-                      const SizedBox(width: 6),
-                      Text(_p.isActive ? 'Active' : 'In-Active', style: TextStyle(color: p.subtext, fontSize: 12)),
+                      OptimisticActive(
+                        kind: 'praman',
+                        id: _p.id,
+                        server: _p.isActive,
+                        builder: (_, a) => Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            StatusDot(a),
+                            const SizedBox(width: 6),
+                            Text(a ? 'Active' : 'In-Active', style: TextStyle(color: p.subtext, fontSize: 12)),
+                          ],
+                        ),
+                      ),
                       const Spacer(),
                       if (_p.isFavorite)
                         const Tag('ग्रंथ डिफ़ॉल्ट', icon: CupertinoIcons.heart_fill, color: AppColors.red),
@@ -239,10 +245,15 @@ class _PramanDetailScreenState extends State<PramanDetailScreen> {
                   alignment: WrapAlignment.center,
                   children: [
                     PillButton('Edit', CupertinoIcons.pencil, () => showPramanForm(context, praman: _p)),
-                    PillButton(
-                      _p.isActive ? 'Hide' : 'Show',
-                      _p.isActive ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
-                      () => togglePraman(context, _p),
+                    OptimisticActive(
+                      kind: 'praman',
+                      id: _p.id,
+                      server: _p.isActive,
+                      builder: (_, a) => PillButton(
+                        a ? 'Hide' : 'Show',
+                        a ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
+                        () => togglePraman(context, _p),
+                      ),
                     ),
                     if (canFav && !_p.isFavorite)
                       PillButton(

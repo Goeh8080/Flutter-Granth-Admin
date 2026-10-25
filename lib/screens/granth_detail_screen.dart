@@ -23,22 +23,13 @@ class GranthDetailScreen extends StatefulWidget {
   State<GranthDetailScreen> createState() => _GranthDetailScreenState();
 }
 
-class _GranthDetailScreenState extends State<GranthDetailScreen> {
+class _GranthDetailScreenState extends State<GranthDetailScreen> with RevisionReload<GranthDetailScreen> {
   late Granth _g = widget.granth;
   List<Praman> _pramans = const [];
   bool _loading = true;
   Object? _error;
-  int _rev = -1;
-
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final rev = AppScope.of(context, listen: true).revision;
-    if (rev != _rev) {
-      _rev = rev;
-      Future.microtask(_load);
-    }
-  }
+  Future<void> reload() => _load();
 
   Future<void> _load() async {
     final api = AppScope.of(context).api;
@@ -81,7 +72,7 @@ class _GranthDetailScreenState extends State<GranthDetailScreen> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           child: SliverToBoxAdapter(
             child: Glass(
-              blur: 18,
+              blur: 0,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -104,7 +95,12 @@ class _GranthDetailScreenState extends State<GranthDetailScreen> {
                               children: [
                                 Tag('#${_g.position}', color: AppColors.maroon),
                                 const Spacer(),
-                                StatusDot(_g.isActive),
+                                OptimisticActive(
+                                  kind: 'granth',
+                                  id: _g.id,
+                                  server: _g.isActive,
+                                  builder: (_, a) => StatusDot(a),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 8),
@@ -146,10 +142,15 @@ class _GranthDetailScreenState extends State<GranthDetailScreen> {
                     runSpacing: 8,
                     children: [
                       PillButton('Edit', CupertinoIcons.pencil, () => showGranthForm(context, granth: _g)),
-                      PillButton(
-                        _g.isActive ? 'Hide' : 'Show',
-                        _g.isActive ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
-                        () => toggleGranth(context, _g),
+                      OptimisticActive(
+                        kind: 'granth',
+                        id: _g.id,
+                        server: _g.isActive,
+                        builder: (_, a) => PillButton(
+                          a ? 'Hide' : 'Show',
+                          a ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
+                          () => toggleGranth(context, _g),
+                        ),
                       ),
                       if (_g.pdfUrl.isNotEmpty)
                         PillButton('PDF', CupertinoIcons.doc_text, () => openExternal(_g.pdfUrl)),

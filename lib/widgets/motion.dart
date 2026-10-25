@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -47,42 +45,42 @@ class _GlassSheetRoute<T> extends PageRoute<T> {
   @override
   bool get maintainState => true;
   @override
-  Duration get transitionDuration => const Duration(milliseconds: 520);
+  Duration get transitionDuration => const Duration(milliseconds: 340);
   @override
   Duration get reverseTransitionDuration => const Duration(milliseconds: 280);
 
   @override
   Widget buildPage(BuildContext context, Animation<double> a, Animation<double> b) {
     final p = Palette.of(context);
-    final mq = MediaQuery.of(context);
+    final size = MediaQuery.sizeOf(context);
+    final top = MediaQuery.paddingOf(context).top;
     return Align(
       alignment: Alignment.bottomCenter,
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: mq.size.height - mq.padding.top - (fullHeight ? 12 : 120)),
+        constraints: BoxConstraints(maxHeight: size.height - top - (fullHeight ? 12 : 120)),
         child: ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: p.dark ? const Color(0xCC1A1720) : const Color(0xD9FFF8F2),
-                border: Border(top: BorderSide(color: p.glassBorder)),
-              ),
-              child: Material(
-                type: MaterialType.transparency,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 8),
-                    Container(
-                      width: 38,
-                      height: 5,
-                      decoration: BoxDecoration(color: p.separator, borderRadius: BorderRadius.circular(3)),
-                    ),
-                    Flexible(child: builder(context)),
-                  ],
-                ),
+          // No BackdropFilter: a 30-sigma blur over a near-full-screen sheet re-rendered the whole
+          // page behind it on every frame of the slide-in. A denser fill looks the same.
+          child: Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: p.dark ? const Color(0xF21A1720) : const Color(0xF7FFF8F2),
+              border: Border(top: BorderSide(color: p.glassBorder)),
+            ),
+            child: Material(
+              type: MaterialType.transparency,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 8),
+                  Container(
+                    width: 38,
+                    height: 5,
+                    decoration: BoxDecoration(color: p.separator, borderRadius: BorderRadius.circular(3)),
+                  ),
+                  Flexible(child: builder(context)),
+                ],
               ),
             ),
           ),
@@ -114,7 +112,8 @@ Future<bool> confirmDialog(
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 320),
       child: Glass(
-        blur: 28,
+        blur: 0,
+        tint: Palette.of(ctx).dark ? const Color(0xF21F1B26) : const Color(0xF7FFF8F2),
         strong: true,
         radius: 24,
         padding: EdgeInsets.zero,
@@ -187,7 +186,8 @@ Future<int?> numberDialog(BuildContext context, {required String title, String? 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 320),
       child: Glass(
-        blur: 28,
+        blur: 0,
+        tint: Palette.of(ctx).dark ? const Color(0xF21F1B26) : const Color(0xF7FFF8F2),
         strong: true,
         radius: 24,
         child: Material(

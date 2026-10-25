@@ -70,7 +70,13 @@ class _FeedbackFormState extends State<_FeedbackForm> {
 
   @override
   Widget build(BuildContext context) {
-    final app = AppScope.of(context, listen: true);
+    return AppSelector<(Object, Object, Object)>(
+      selector: (a) => (a.topics, a.granths, a.pramans),
+      builder: (context, app, _) => _form(context, app),
+    );
+  }
+
+  Widget _form(BuildContext context, AppState app) {
     return FormSheet(
       title: 'नया फीडबैक / Create Feedback',
       busy: _busy,

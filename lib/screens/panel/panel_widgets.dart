@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/app_state.dart';
 import '../../core/panel_state.dart';
+import '../../core/perf.dart';
 import '../../models/panel_models.dart';
 import '../../services/panel_api.dart';
 import '../../theme/app_theme.dart';
@@ -69,7 +70,12 @@ Future<T?> pushPanel<T>(BuildContext context, Widget page) {
   final panel = AppScope.of(context).panel;
   panel.panelDepth++;
   return Navigator.of(context)
-      .push<T>(CupertinoPageRoute<T>(settings: const RouteSettings(name: kPanelRouteName), builder: (_) => page))
+      .push<T>(
+        CupertinoPageRoute<T>(
+          settings: const RouteSettings(name: kPanelRouteName),
+          builder: (_) => page,
+        ),
+      )
       .whenComplete(() => panel.panelDepth = panel.panelDepth > 0 ? panel.panelDepth - 1 : 0);
 }
 
@@ -115,20 +121,41 @@ class _PanelPageState<T> extends State<PanelPage<T>> {
   bool _loading = true;
   int _rev = -1;
   int _seq = 0;
-  bool _started = false;
+  late final PanelState _panel = AppScope.of(context).panel;
+  // What the page body can show from the panel state; a change rebuilds, nothing else does.
+  (bool, Object?, int) _sig = (false, null, 0);
+
+  (bool, Object?, int) _signature() => (_panel.loggedIn, _panel.me, _panel.alertCount);
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final panel = AppScope.of(context, listen: true).panel;
-    if (!_started) {
-      _started = true;
-      _rev = panel.revision;
-      unawaited(_run(panel.api));
-    } else if (panel.revision != _rev && panel.loggedIn) {
-      _rev = panel.revision;
-      unawaited(_run(panel.api, silent: true));
+  void initState() {
+    super.initState();
+    // Listens to the control-server state only (not to every AppState notification).
+    _panel.addListener(_onPanel);
+    _sig = _signature();
+    _rev = _panel.revision;
+    Future.microtask(() {
+      if (mounted) unawaited(_run(_panel.api));
+    });
+  }
+
+  void _onPanel() {
+    if (!mounted) return;
+    if (_panel.revision != _rev && _panel.loggedIn) {
+      _rev = _panel.revision;
+      unawaited(_run(_panel.api, silent: true));
     }
+    final s = _signature();
+    if (s != _sig) {
+      _sig = s;
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    _panel.removeListener(_onPanel);
+    super.dispose();
   }
 
   Future<void> _run(PanelApi api, {bool silent = false}) async {
@@ -170,7 +197,9 @@ class _PanelPageState<T> extends State<PanelPage<T>> {
         SliverFillRemaining(
           hasScrollBody: false,
           child: MessageView(
-            icon: e is PanelApiException && e.isNetwork ? CupertinoIcons.wifi_slash : CupertinoIcons.exclamationmark_triangle,
+            icon: e is PanelApiException && e.isNetwork
+                ? CupertinoIcons.wifi_slash
+                : CupertinoIcons.exclamationmark_triangle,
             title: e is PanelApiException ? e.message : 'कुछ गलत हुआ / Something went wrong',
             subtitle: e is PanelApiException && e.errors.isNotEmpty ? e.errors.take(3).join('\n') : null,
             onRetry: _reload,
@@ -194,7 +223,15 @@ class _PanelPageState<T> extends State<PanelPage<T>> {
 // ------------------------------------------------------------------ small widgets
 
 class StatCard extends StatelessWidget {
-  const StatCard({super.key, required this.icon, required this.label, required this.value, this.sub, this.color, this.onTap});
+  const StatCard({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.sub,
+    this.color,
+    this.onTap,
+  });
   final IconData icon;
   final String label, value;
   final String? sub;
@@ -217,7 +254,12 @@ class StatCard extends StatelessWidget {
               Icon(icon, size: 17, color: c),
               const SizedBox(width: 6),
               Expanded(
-                child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: p.subtext)),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12.5, color: p.subtext),
+                ),
               ),
             ],
           ),
@@ -225,9 +267,18 @@ class StatCard extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text(value, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: p.text, height: 1.15)),
+            child: Text(
+              value,
+              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: p.text, height: 1.15),
+            ),
           ),
-          if (sub != null) Text(sub!, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: p.subtext)),
+          if (sub != null)
+            Text(
+              sub!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11.5, color: p.subtext),
+            ),
         ],
       ),
     );
@@ -278,7 +329,10 @@ class BarList extends StatelessWidget {
                   children: [
                     SizedBox(
                       width: 22,
-                      child: Text('${i + 1}', style: TextStyle(fontSize: 12, color: p.subtext, fontWeight: FontWeight.w700)),
+                      child: Text(
+                        '${i + 1}',
+                        style: TextStyle(fontSize: 12, color: p.subtext, fontWeight: FontWeight.w700),
+                      ),
                     ),
                     Expanded(
                       child: Text(
@@ -289,7 +343,10 @@ class BarList extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(list[i].text, style: TextStyle(fontSize: 12.5, color: p.subtext, fontWeight: FontWeight.w600)),
+                    Text(
+                      list[i].text,
+                      style: TextStyle(fontSize: 12.5, color: p.subtext, fontWeight: FontWeight.w600),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -385,7 +442,10 @@ class SectionCard extends StatelessWidget {
               children: [
                 if (icon != null) ...[Icon(icon, size: 18, color: AppColors.saffron), const SizedBox(width: 8)],
                 Expanded(
-                  child: Text(title, style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, color: p.text)),
+                  child: Text(
+                    title,
+                    style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, color: p.text),
+                  ),
                 ),
                 ?trailing,
               ],
@@ -412,7 +472,9 @@ class EmptyNote extends StatelessWidget {
         children: [
           Icon(icon, size: 20, color: p.subtext),
           const SizedBox(width: 10),
-          Expanded(child: Text(text, style: TextStyle(color: p.subtext, fontSize: 13.5))),
+          Expanded(
+            child: Text(text, style: TextStyle(color: p.subtext, fontSize: 13.5)),
+          ),
         ],
       ),
     );
@@ -455,7 +517,10 @@ class MenuRow extends StatelessWidget {
                 margin: const EdgeInsets.only(right: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(color: AppColors.red, borderRadius: BorderRadius.circular(10)),
-                child: Text('$badge', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                child: Text(
+                  '$badge',
+                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+                ),
               ),
             Icon(CupertinoIcons.chevron_right, size: 15, color: p.subtext),
           ],
@@ -551,7 +616,12 @@ String leafRest(PanelLeaf l) {
 }
 
 /// Picks a folder (leaf) from a grouped Religion > Group list. Returns the leaf key.
-Future<String?> pickLeaf(BuildContext context, List<PanelLeaf> leaves, {String? current, String title = 'फ़ोल्डर चुनें / Choose folder'}) {
+Future<String?> pickLeaf(
+  BuildContext context,
+  List<PanelLeaf> leaves, {
+  String? current,
+  String title = 'फ़ोल्डर चुनें / Choose folder',
+}) {
   return showGlassSheet<String>(context, (ctx) => _LeafSheet(leaves: leaves, current: current, title: title));
 }
 
@@ -566,12 +636,30 @@ class _LeafSheet extends StatefulWidget {
 
 class _LeafSheetState extends State<_LeafSheet> {
   String q = '';
+  final _debounce = Debouncer();
+  final _rows = Memo<String, List<Object>>();
+
+  @override
+  void dispose() {
+    _debounce.dispose();
+    super.dispose();
+  }
+
+  /// Flat list of group headers (String) and leaves, so the ListView can build rows lazily.
+  List<Object> _flat() => _rows.get(q.toLowerCase(), () {
+    final ql = q.toLowerCase();
+    final filtered = ql.isEmpty
+        ? widget.leaves
+        : widget.leaves.where((l) => l.label.toLowerCase().contains(ql)).toList();
+    return [
+      for (final g in groupLeaves(filtered)) ...[g.$1, ...g.$2],
+    ];
+  });
+
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    final ql = q.toLowerCase();
-    final filtered = ql.isEmpty ? widget.leaves : widget.leaves.where((l) => l.label.toLowerCase().contains(ql)).toList();
-    final groups = groupLeaves(filtered);
+    final rows = _flat();
     return SafeArea(
       top: false,
       child: Column(
@@ -581,7 +669,10 @@ class _LeafSheetState extends State<_LeafSheet> {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(widget.title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: p.text)),
+                  child: Text(
+                    widget.title,
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: p.text),
+                  ),
                 ),
                 CupertinoButton(onPressed: () => Navigator.pop(context), child: const Text('बंद / Close')),
               ],
@@ -592,40 +683,48 @@ class _LeafSheetState extends State<_LeafSheet> {
             child: CupertinoSearchTextField(
               style: TextStyle(color: p.text, fontFamily: kFont),
               backgroundColor: p.fieldFill,
-              onChanged: (v) => setState(() => q = v.trim()),
+              onChanged: (v) => _debounce(() {
+                if (mounted) setState(() => q = v.trim());
+              }),
             ),
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: groups.isEmpty
+            child: rows.isEmpty
                 ? const MessageView(icon: CupertinoIcons.folder, title: 'कोई फ़ोल्डर नहीं मिला / No folder found')
-                : ListView(
+                : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    children: [
-                      for (final g in groups) ...[
-                        Padding(
+                    itemCount: rows.length,
+                    itemBuilder: (context, i) {
+                      final r = rows[i];
+                      if (r is String) {
+                        return Padding(
                           padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
-                          child: Text(g.$1, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.saffron)),
-                        ),
-                        for (final l in g.$2)
-                          CupertinoButton(
-                            padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
-                            minimumSize: Size.zero,
-                            onPressed: () => Navigator.pop(context, l.key),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    leafRest(l) + (l.visible ? '' : '  (छिपा)'),
-                                    style: TextStyle(color: p.text, fontSize: 15),
-                                  ),
-                                ),
-                                if (l.key == widget.current) const Icon(CupertinoIcons.checkmark_alt, color: AppColors.saffron, size: 18),
-                              ],
-                            ),
+                          child: Text(
+                            r,
+                            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.saffron),
                           ),
-                      ],
-                    ],
+                        );
+                      }
+                      final l = r as PanelLeaf;
+                      return CupertinoButton(
+                        padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
+                        minimumSize: Size.zero,
+                        onPressed: () => Navigator.pop(context, l.key),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                leafRest(l) + (l.visible ? '' : '  (छिपा)'),
+                                style: TextStyle(color: p.text, fontSize: 15),
+                              ),
+                            ),
+                            if (l.key == widget.current)
+                              const Icon(CupertinoIcons.checkmark_alt, color: AppColors.saffron, size: 18),
+                          ],
+                        ),
+                      );
+                    },
                   ),
           ),
         ],
@@ -649,7 +748,10 @@ class DiffView extends StatelessWidget {
     final p = Palette.of(context);
     Widget head(String t) => Padding(
       padding: const EdgeInsets.fromLTRB(2, 12, 2, 6),
-      child: Text(t, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: p.subtext)),
+      child: Text(
+        t,
+        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: p.subtext),
+      ),
     );
     if (diff.isEmpty) {
       return const EmptyNote('कोई बदलाव नहीं / No changes', icon: CupertinoIcons.checkmark_circle);
@@ -693,7 +795,10 @@ class DiffView extends StatelessWidget {
                   for (final x in f.fields)
                     Padding(
                       padding: const EdgeInsets.only(left: 6, top: 2),
-                      child: Text('${x.field}: ${x.from} → ${x.to}', style: TextStyle(color: p.subtext, fontSize: 12.5)),
+                      child: Text(
+                        '${x.field}: ${x.from} → ${x.to}',
+                        style: TextStyle(color: p.subtext, fontSize: 12.5),
+                      ),
                     ),
                 ],
               ),
@@ -707,11 +812,22 @@ class DiffView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(g.title.isEmpty ? g.id : g.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.text, fontSize: 14)),
+                  Text(
+                    g.title.isEmpty ? g.id : g.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: p.text, fontSize: 14),
+                  ),
                   if (g.leaf != null)
-                    Text('फ़ोल्डर: ${_l(g.leaf!.from)} → ${_l(g.leaf!.to)}', style: TextStyle(color: p.subtext, fontSize: 12.5)),
+                    Text(
+                      'फ़ोल्डर: ${_l(g.leaf!.from)} → ${_l(g.leaf!.to)}',
+                      style: TextStyle(color: p.subtext, fontSize: 12.5),
+                    ),
                   if (g.hidden != null)
-                    Text('छिपा: ${g.hidden!.from} → ${g.hidden!.to}', style: TextStyle(color: p.subtext, fontSize: 12.5)),
+                    Text(
+                      'छिपा: ${g.hidden!.from} → ${g.hidden!.to}',
+                      style: TextStyle(color: p.subtext, fontSize: 12.5),
+                    ),
                 ],
               ),
             ),
@@ -856,7 +972,7 @@ class _PublishSheetState extends State<_PublishSheet> {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    final kb = MediaQuery.of(context).viewInsets.bottom;
+    final kb = MediaQuery.viewInsetsOf(context).bottom;
     final d = _draft;
     return Padding(
       padding: EdgeInsets.only(bottom: kb),
@@ -868,7 +984,10 @@ class _PublishSheetState extends State<_PublishSheet> {
               padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
               child: Row(
                 children: [
-                  CupertinoButton(onPressed: _busy ? null : () => Navigator.pop(context, false), child: const Text('बंद')),
+                  CupertinoButton(
+                    onPressed: _busy ? null : () => Navigator.pop(context, false),
+                    child: const Text('बंद'),
+                  ),
                   Expanded(
                     child: Text(
                       'प्रीव्यू और प्रकाशन / Preview & Publish',
@@ -919,16 +1038,26 @@ class _PublishSheetState extends State<_PublishSheet> {
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Icon(CupertinoIcons.exclamationmark_triangle_fill, size: 15, color: AppColors.gold),
+                                    const Icon(
+                                      CupertinoIcons.exclamationmark_triangle_fill,
+                                      size: 15,
+                                      color: AppColors.gold,
+                                    ),
                                     const SizedBox(width: 6),
-                                    Expanded(child: Text(w, style: TextStyle(color: p.text, fontSize: 13))),
+                                    Expanded(
+                                      child: Text(w, style: TextStyle(color: p.text, fontSize: 13)),
+                                    ),
                                   ],
                                 ),
                               ),
                           ],
                           if (d != null && d.exists && !d.diff.isEmpty) ...[
                             const SizedBox(height: 14),
-                            GlassField(label: 'नोट / Note (वैकल्पिक)', controller: _note, placeholder: 'जैसे: नए ग्रंथ जोड़े'),
+                            GlassField(
+                              label: 'नोट / Note (वैकल्पिक)',
+                              controller: _note,
+                              placeholder: 'जैसे: नए ग्रंथ जोड़े',
+                            ),
                             if (d.diff.needsForce)
                               Glass(
                                 radius: 14,
@@ -955,7 +1084,10 @@ class _PublishSheetState extends State<_PublishSheet> {
                             const SizedBox(height: 10),
                             CupertinoButton(
                               onPressed: _busy ? null : _discard,
-                              child: const Text('ड्राफ्ट रद्द करें / Discard draft', style: TextStyle(color: AppColors.red)),
+                              child: const Text(
+                                'ड्राफ्ट रद्द करें / Discard draft',
+                                style: TextStyle(color: AppColors.red),
+                              ),
                             ),
                           ],
                         ],
@@ -974,7 +1106,11 @@ class DraftBanner extends StatelessWidget {
   const DraftBanner({super.key});
   @override
   Widget build(BuildContext context) {
-    final panel = AppScope.of(context, listen: true).panel;
+    final panel = AppScope.of(context).panel;
+    return ListenableBuilder(listenable: panel, builder: (context, _) => _banner(context, panel));
+  }
+
+  Widget _banner(BuildContext context, PanelState panel) {
     final me = panel.me;
     final p = Palette.of(context);
     if (me == null || !me.hasDraft) return const SizedBox.shrink();

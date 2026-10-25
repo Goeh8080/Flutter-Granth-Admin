@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 
 import '../core/app_state.dart';
+import '../core/perf.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
 import '../widgets/animated_items.dart';
@@ -21,42 +22,81 @@ class GranthsScreen extends StatefulWidget {
   State<GranthsScreen> createState() => _GranthsScreenState();
 }
 
-class _GranthsScreenState extends State<GranthsScreen> {
+class _GranthsScreenState extends State<GranthsScreen> with RevisionReload<GranthsScreen> {
   final _search = TextEditingController();
   List<Granth> _all = const [];
   String _local = '', _serverQuery = '';
   bool _loading = true;
   Object? _error;
-  int _rev = -1;
   String _sort = 'position';
   bool _desc = false;
+  final _debounce = Debouncer();
+  final _memo = Memo<(List<Granth>, String, String, bool), ({List<Granth> items, Map<int, int> index})>();
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final rev = AppScope.of(context, listen: true).revision;
-    if (rev != _rev) {
-      _rev = rev;
-      Future.microtask(_load);
+  void initState() {
+    super.initState();
+    // Stale-while-revalidate: show what the app already holds (dashboard/lookups) at once.
+    final cached = AppScope.of(context).granths;
+    if (cached.isNotEmpty) {
+      _all = cached;
+      _loading = false;
     }
   }
 
+  @override
+  void dispose() {
+    _debounce.dispose();
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Future<void> reload() => _load();
+
   Future<void> _load() async {
     final app = AppScope.of(context);
-    setState(() {
-      _error = null;
-      if (_all.isEmpty) _loading = true;
-    });
+    // One rebuild when the request starts (only if something visible changes)...
+    if (_error != null || (_all.isEmpty && !_loading)) {
+      setState(() {
+        _error = null;
+        if (_all.isEmpty) _loading = true;
+      });
+    }
     try {
       final r = await app.api.granths(search: _serverQuery);
       if (_serverQuery.isEmpty) app.granths = r;
-      if (mounted) setState(() => _all = r);
+      // ...and one when it ends.
+      if (mounted) {
+        setState(() {
+          _all = r;
+          _loading = false;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() => _error = e);
+      if (mounted) {
+        setState(() {
+          _error = e;
+          _loading = false;
+        });
+      }
       if (_all.isNotEmpty) showError(e);
-    } finally {
-      if (mounted) setState(() => _loading = false);
     }
+  }
+
+  ({List<Granth> items, Map<int, int> index}) get _view => _memo.get((_all, _local, _sort, _desc), () {
+    final items = _visible;
+    return (items: items, index: {for (var i = 0; i < items.length; i++) items[i].id: i});
+  });
+
+  Object? _titlesFor;
+  List<String> _titlesCache = const [];
+  List<String> get _titles {
+    if (!identical(_titlesFor, _all)) {
+      _titlesFor = _all;
+      _titlesCache = _all.map((e) => oneLine(e.title)).toList();
+    }
+    return _titlesCache;
   }
 
   List<Granth> get _visible => _sorted(_filtered);
@@ -85,8 +125,7 @@ class _GranthsScreenState extends State<GranthsScreen> {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    final items = _visible;
-    final index = {for (var i = 0; i < items.length; i++) items[i].id: i};
+    final (:items, :index) = _view;
     final app = AppScope.of(context);
     return GlassPage(
       title: 'ग्रंथ / Granths',
@@ -117,13 +156,15 @@ class _GranthsScreenState extends State<GranthsScreen> {
                 SuggestSearchField(
                   controller: _search,
                   placeholder: 'ग्रंथ खोजें / Search granth',
-                  suggestions: _all.map((e) => oneLine(e.title)).toList(),
-                  onChanged: (v) => setState(() => _local = v.trim()),
-                  onSubmitted: (v) {
+                  suggestions: _titles,
+                  onChanged: (v) => _debounce(() {
+                    if (mounted) setState(() => _local = v.trim());
+                  }),
+                  onSubmitted: (v) => _debounce.now(() {
                     _serverQuery = v.trim();
                     _local = '';
                     _load();
-                  },
+                  }),
                 ),
                 const SizedBox(height: 10),
                 SortBar(
@@ -155,12 +196,12 @@ class _GranthsScreenState extends State<GranthsScreen> {
                         CupertinoButton(
                           padding: EdgeInsets.zero,
                           minimumSize: const Size(0, 28),
-                          onPressed: () {
+                          onPressed: () => _debounce.now(() {
                             _search.clear();
                             _serverQuery = '';
                             _local = '';
                             _load();
-                          },
+                          }),
                           child: const Text('हटाएँ / Clear', style: TextStyle(fontSize: 13)),
                         ),
                       ],

@@ -1,4 +1,4 @@
-import 'dart:ui';
+import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -112,8 +112,13 @@ class _WnmGate extends StatelessWidget {
   final Widget Function() child;
   @override
   Widget build(BuildContext context) {
-    final app = AppScope.of(context, listen: true);
-    if (app.loggedIn) return child();
+    return AppSelector<bool>(
+      selector: (a) => a.loggedIn,
+      builder: (context, app, loggedIn) => loggedIn ? child() : _prompt(context),
+    );
+  }
+
+  Widget _prompt(BuildContext context) {
     return GlassPage(
       title: title,
       bottomInset: kTabBarHeight + 20,
@@ -132,7 +137,9 @@ class _WnmGate extends StatelessWidget {
                 PrimaryButton(
                   label: 'वेबसाइट लॉगिन / Login',
                   icon: CupertinoIcons.person_crop_circle,
-                  onPressed: () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => const LoginScreen(popOnSuccess: true))),
+                  onPressed: () =>
+                      Navigator.of(context)
+                          .push(CupertinoPageRoute<void>(builder: (_) => const LoginScreen(popOnSuccess: true))),
                 ),
               ],
             ),
@@ -144,28 +151,54 @@ class _WnmGate extends StatelessWidget {
 }
 
 /// Keeps a tab alive; cross-fades + slight scale when switching; disables heroes/tickers offstage.
-class _TabLayer extends StatelessWidget {
+/// Once the fade-out has finished the tab is taken [Offstage] (no layout/paint at all) and put
+/// back before it fades in, so six tab pages never cost frames while one is showing.
+class _TabLayer extends StatefulWidget {
   const _TabLayer({required this.active, required this.child});
   final bool active;
   final Widget child;
   @override
+  State<_TabLayer> createState() => _TabLayerState();
+}
+
+class _TabLayerState extends State<_TabLayer> {
+  late bool _shown = widget.active;
+  Timer? _hide;
+
+  @override
+  void didUpdateWidget(covariant _TabLayer old) {
+    super.didUpdateWidget(old);
+    if (widget.active == old.active) return;
+    _hide?.cancel();
+    if (widget.active) {
+      _shown = true;
+    } else {
+      _hide = Timer(const Duration(milliseconds: 340), () {
+        if (mounted && !widget.active) setState(() => _shown = false);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _hide?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final active = widget.active;
     return Positioned.fill(
-      child: IgnorePointer(
-        ignoring: !active,
-        child: TickerMode(
-          enabled: active,
-          child: HeroMode(
+      child: Offstage(
+        offstage: !_shown,
+        child: IgnorePointer(
+          ignoring: !active,
+          child: TickerMode(
             enabled: active,
-            child: AnimatedOpacity(
-              opacity: active ? 1 : 0,
-              duration: const Duration(milliseconds: 260),
-              curve: Curves.easeOut,
-              child: AnimatedScale(
-                scale: active ? 1 : 0.985,
-                duration: const Duration(milliseconds: 320),
-                curve: Curves.easeOutCubic,
-                child: child,
+            child: HeroMode(
+              enabled: active,
+              child: RepaintBoundary(
+                child: FadeTransitionLike(active: active, child: widget.child),
               ),
             ),
           ),
@@ -173,6 +206,25 @@ class _TabLayer extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Opacity + scale cross-fade driven by two implicit animations (kept from the previous version).
+class FadeTransitionLike extends StatelessWidget {
+  const FadeTransitionLike({super.key, required this.active, required this.child});
+  final bool active;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => AnimatedOpacity(
+    opacity: active ? 1 : 0,
+    duration: const Duration(milliseconds: 260),
+    curve: Curves.easeOut,
+    child: AnimatedScale(
+      scale: active ? 1 : 0.985,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+      child: child,
+    ),
+  );
 }
 
 class _GlassTabBar extends StatelessWidget {
@@ -183,17 +235,18 @@ class _GlassTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    final bottom = MediaQuery.of(context).padding.bottom;
+    final bottom = MediaQuery.paddingOf(context).bottom;
     return Padding(
       padding: EdgeInsets.fromLTRB(14, 0, 14, bottom + 10),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+      // No BackdropFilter: a live blur under the always-visible bar re-rendered the page behind it
+      // on every scrolled frame. A near-opaque fill + RepaintBoundary keeps the glass look cheap.
+      child: RepaintBoundary(
+        child: DecoratedBox(
+          decoration: const BoxDecoration(),
           child: Container(
             height: kTabBarHeight,
             decoration: BoxDecoration(
-              color: p.barFill,
+              color: p.barFill.withValues(alpha: p.dark ? 0.95 : 0.93),
               borderRadius: BorderRadius.circular(32),
               border: Border.all(color: p.glassBorder, width: 0.8),
               gradient: LinearGradient(

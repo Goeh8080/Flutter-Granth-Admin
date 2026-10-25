@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -34,7 +33,11 @@ void showToast(String message, {bool error = false, BuildContext? context}) {
 }
 
 void showError(Object e, {BuildContext? context}) {
-  final msg = e is PanelApiException ? e.fullMessage : e is ApiException ? e.message : 'कुछ गलत हुआ / Something went wrong';
+  final msg = e is PanelApiException
+      ? e.fullMessage
+      : e is ApiException
+      ? e.message
+      : 'कुछ गलत हुआ / Something went wrong';
   showToast(msg, error: true, context: context);
 }
 
@@ -49,6 +52,12 @@ class _Toast extends StatefulWidget {
 class _ToastState extends State<_Toast> with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 450))
     ..forward();
+  late final CurvedAnimation _anim = CurvedAnimation(
+    parent: _c,
+    curve: Curves.easeOutBack,
+    reverseCurve: Curves.easeIn,
+  );
+  late final Animation<Offset> _slide = Tween(begin: const Offset(0, -1.4), end: Offset.zero).animate(_anim);
   @override
   void initState() {
     super.initState();
@@ -59,6 +68,7 @@ class _ToastState extends State<_Toast> with SingleTickerProviderStateMixin {
 
   @override
   void dispose() {
+    _anim.dispose();
     _c.dispose();
     super.dispose();
   }
@@ -66,52 +76,44 @@ class _ToastState extends State<_Toast> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    final top = MediaQuery.of(context).padding.top + 8;
-    final anim = CurvedAnimation(parent: _c, curve: Curves.easeOutBack, reverseCurve: Curves.easeIn);
+    final top = MediaQuery.paddingOf(context).top + 8;
     return Positioned(
       top: top,
       left: 16,
       right: 16,
       child: IgnorePointer(
         child: SlideTransition(
-          position: Tween(begin: const Offset(0, -1.4), end: Offset.zero).animate(anim),
+          position: _slide,
           child: FadeTransition(
             opacity: _c,
             child: Center(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(22),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: p.dark ? const Color(0xCC2A2530) : const Color(0xE6FFFFFF),
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: p.glassBorder),
+              // No BackdropFilter (a live blur under a sliding toast); an almost opaque fill instead.
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: p.dark ? const Color(0xF22A2530) : const Color(0xF2FFFFFF),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: p.glassBorder),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      widget.error ? CupertinoIcons.exclamationmark_circle_fill : CupertinoIcons.checkmark_circle_fill,
+                      color: widget.error ? AppColors.red : AppColors.green,
+                      size: 20,
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          widget.error
-                              ? CupertinoIcons.exclamationmark_circle_fill
-                              : CupertinoIcons.checkmark_circle_fill,
-                          color: widget.error ? AppColors.red : AppColors.green,
-                          size: 20,
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Material(
+                        type: MaterialType.transparency,
+                        child: Text(
+                          widget.message,
+                          style: TextStyle(color: p.text, fontSize: 14, fontFamily: kFont),
                         ),
-                        const SizedBox(width: 10),
-                        Flexible(
-                          child: Material(
-                            type: MaterialType.transparency,
-                            child: Text(
-                              widget.message,
-                              style: TextStyle(color: p.text, fontSize: 14, fontFamily: kFont),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),

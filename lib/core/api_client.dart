@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:http/http.dart' as http;
 
@@ -99,24 +100,33 @@ class ApiClient {
     }
   }
 
-  dynamic _decode(http.Response r) {
+  /// Bodies at least this big (bytes) are UTF-8/JSON decoded on a background isolate, so the
+  /// ~100-granth / pramans lists never stall a frame on the UI thread.
+  /// Mutable only so widget tests (which need a fake clock) can turn background decoding off.
+  static int isolateDecodeThreshold = 64 * 1024;
+
+  /// Test hook: counts background decodes.
+  static int isolateDecodes = 0;
+
+  Future<dynamic> _decode(http.Response r) async {
     if (r.statusCode >= 500) {
       throw ApiException('सर्वर त्रुटि (${r.statusCode}) / Server error');
     }
     if (r.statusCode >= 400) {
       throw ApiException('अनुरोध विफल (${r.statusCode}) / Request failed');
     }
-    final body = utf8.decode(r.bodyBytes).trim();
-    if (body.isEmpty) return <String, dynamic>{};
-    // PHP may emit warnings before the JSON; take from the first brace.
-    final start = body.indexOf(RegExp(r'[\{\[]'));
-    if (start < 0) {
-      throw const ApiException('अमान्य उत्तर / Invalid server response');
-    }
+    final bytes = r.bodyBytes;
+    final res = bytes.length >= isolateDecodeThreshold ? await _runOffThread(bytes) : decodeBody(bytes);
+    if (res.invalid) throw const ApiException('अमान्य उत्तर / Invalid server response');
+    return res.json;
+  }
+
+  Future<DecodedBody> _runOffThread(List<int> bytes) async {
     try {
-      return jsonDecode(body.substring(start));
-    } on FormatException {
-      throw const ApiException('अमान्य उत्तर / Invalid server response');
+      isolateDecodes++;
+      return await Isolate.run(() => decodeBody(bytes));
+    } catch (_) {
+      return decodeBody(bytes); // isolates unavailable: decode in place
     }
   }
 
@@ -154,17 +164,38 @@ class ApiClient {
     return map;
   }
 
+  // GETs currently on the wire, by URL: a second identical request (a tab and its detail page,
+  // a refresh during a reload...) joins the first instead of hitting the server again. Any
+  // write clears the map so nothing read after a write can join a pre-write response.
+  final Map<String, Future<Map<String, dynamic>>> _inflight = {};
+
+  /// Test hook: number of real GETs sent.
+  int getsSent = 0;
+
   Future<Map<String, dynamic>> get(String action, {Map<String, String>? query, bool requireLogin = false}) async {
     await _ensureLoaded();
-    return _guard(() async {
-      final r = await _http.get(actionUri(action, query), headers: _headers());
+    final uri = actionUri(action, query);
+    final key = '${requireLogin ? 'L' : 'P'} $uri';
+    final pending = _inflight[key];
+    if (pending != null) return pending;
+    late final Future<Map<String, dynamic>> f;
+    f = _guard(() async {
+      getsSent++;
+      final r = await _http.get(uri, headers: _headers());
       await _captureCookie(r);
-      return _checkSession(_decode(r), requireLogin: requireLogin);
+      return _checkSession(await _decode(r), requireLogin: requireLogin);
     });
+    _inflight[key] = f;
+    try {
+      return await f;
+    } finally {
+      if (identical(_inflight[key], f)) _inflight.remove(key);
+    }
   }
 
   Future<Map<String, dynamic>> postJson(String action, Map<String, dynamic> body, {bool requireLogin = true}) async {
     await _ensureLoaded();
+    _inflight.clear();
     return _guard(() async {
       final r = await _http.post(
         actionUri(action),
@@ -172,7 +203,8 @@ class ApiClient {
         body: jsonEncode(body),
       );
       await _captureCookie(r);
-      return _checkSession(_decode(r), requireLogin: requireLogin);
+      _inflight.clear();
+      return _checkSession(await _decode(r), requireLogin: requireLogin);
     });
   }
 
@@ -183,6 +215,7 @@ class ApiClient {
     bool requireLogin = true,
   }) async {
     await _ensureLoaded();
+    _inflight.clear();
     return _guard(() async {
       final req = http.MultipartRequest('POST', actionUri(action));
       req.headers.addAll(_headers());
@@ -193,7 +226,29 @@ class ApiClient {
       final streamed = await _http.send(req);
       final r = await http.Response.fromStream(streamed);
       await _captureCookie(r);
-      return _checkSession(_decode(r), requireLogin: requireLogin);
+      _inflight.clear();
+      return _checkSession(await _decode(r), requireLogin: requireLogin);
     }, timeout: _uploadTimeout);
+  }
+}
+
+/// Result of [decodeBody]: the JSON value, or [invalid] when the body is not JSON.
+class DecodedBody {
+  const DecodedBody(this.json, {this.invalid = false});
+  final dynamic json;
+  final bool invalid;
+}
+
+/// UTF-8 + JSON decode of an API body (top-level so it can run on an isolate).
+DecodedBody decodeBody(List<int> bytes) {
+  final body = utf8.decode(bytes).trim();
+  if (body.isEmpty) return DecodedBody(<String, dynamic>{});
+  // PHP may emit warnings before the JSON; take from the first brace.
+  final start = body.indexOf(RegExp(r'[\{\[]'));
+  if (start < 0) return const DecodedBody(null, invalid: true);
+  try {
+    return DecodedBody(jsonDecode(body.substring(start)));
+  } on FormatException {
+    return const DecodedBody(null, invalid: true);
   }
 }

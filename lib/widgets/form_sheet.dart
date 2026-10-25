@@ -23,7 +23,7 @@ class FormSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    final kb = MediaQuery.of(context).viewInsets.bottom;
+    final kb = MediaQuery.viewInsetsOf(context).bottom;
     return Padding(
       padding: EdgeInsets.only(bottom: kb),
       child: Column(
@@ -56,7 +56,7 @@ class FormSheet extends StatelessWidget {
             child: loading
                 ? const Padding(padding: EdgeInsets.all(48), child: CupertinoActivityIndicator(radius: 14))
                 : SingleChildScrollView(
-                    padding: EdgeInsets.fromLTRB(16, 8, 16, 24 + MediaQuery.of(context).padding.bottom),
+                    padding: EdgeInsets.fromLTRB(16, 8, 16, 24 + MediaQuery.paddingOf(context).bottom),
                     keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                     child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
                   ),

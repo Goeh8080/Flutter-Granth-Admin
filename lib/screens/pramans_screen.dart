@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../core/app_state.dart';
+import '../core/perf.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
 import '../widgets/cards.dart';
@@ -24,7 +25,7 @@ class PramansScreen extends StatefulWidget {
   State<PramansScreen> createState() => _PramansScreenState();
 }
 
-class _PramansScreenState extends State<PramansScreen> {
+class _PramansScreenState extends State<PramansScreen> with RevisionReload<PramansScreen> {
   final _search = TextEditingController();
   late PramanFilter _filter = widget.initialFilter;
   Topic? _topic;
@@ -36,24 +37,42 @@ class _PramansScreenState extends State<PramansScreen> {
   String _sort = 'position';
   bool _desc = false;
   Object? _error;
-  int _rev = -1;
+  final _debounce = Debouncer();
+  final _memo = Memo<(List<Praman>, String, String, bool), List<Praman>>();
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final rev = AppScope.of(context, listen: true).revision;
-    if (rev != _rev) {
-      _rev = rev;
-      Future.microtask(_load);
+  void initState() {
+    super.initState();
+    // Stale-while-revalidate for the unfiltered list: show the app's cache at once.
+    final cached = AppScope.of(context).pramans;
+    if (_filter == PramanFilter.all && cached.isNotEmpty) {
+      _all = cached;
+      _loading = false;
     }
   }
 
+  @override
+  void dispose() {
+    _debounce.dispose();
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Future<void> reload() => _load();
+
   Future<void> _load() async {
     final app = AppScope.of(context);
-    setState(() {
-      _error = null;
+    // The spinner only shows while the list is empty, so a refresh with rows on screen
+    // doesn't need a rebuild at its start.
+    if (_error != null || (_all.isEmpty && !_loading)) {
+      setState(() {
+        _error = null;
+        _loading = true;
+      });
+    } else {
       _loading = true;
-    });
+    }
     try {
       final r = switch (_filter) {
         PramanFilter.topic => await app.api.pramans(topicId: _topic!.id),
@@ -63,13 +82,31 @@ class _PramansScreenState extends State<PramansScreen> {
         PramanFilter.all => await app.api.pramans(),
       };
       if (_filter == PramanFilter.all) app.pramans = r;
-      if (mounted) setState(() => _all = r);
+      if (mounted) {
+        setState(() {
+          _all = r;
+          _loading = false;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() => _error = e);
+      if (mounted) {
+        setState(() {
+          _error = e;
+          _loading = false;
+        });
+      }
       if (_all.isNotEmpty) showError(e);
-    } finally {
-      if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Object? _titlesFor;
+  List<String> _titlesCache = const [];
+  List<String> get _titles {
+    if (!identical(_titlesFor, _all)) {
+      _titlesFor = _all;
+      _titlesCache = _all.map((e) => oneLine(e.title)).toList();
+    }
+    return _titlesCache;
   }
 
   void _setFilter(PramanFilter f, {Topic? topic, Granth? granth}) {
@@ -149,7 +186,7 @@ class _PramansScreenState extends State<PramansScreen> {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    final items = _visible;
+    final items = _memo.get((_all, _local, _sort, _desc), () => _visible);
     String? banner;
     if (_filter == PramanFilter.topic) banner = 'विषय: ${oneLine(_topic!.title)}';
     if (_filter == PramanFilter.granth) banner = 'ग्रंथ: ${oneLine(_granth!.title)}';
@@ -179,9 +216,12 @@ class _PramansScreenState extends State<PramansScreen> {
                 SuggestSearchField(
                   controller: _search,
                   placeholder: 'प्रमाण खोजें / Search praman',
-                  suggestions: _all.map((e) => oneLine(e.title)).toList(),
-                  onChanged: (v) => setState(() => _local = v.trim()),
+                  suggestions: _titles,
+                  onChanged: (v) => _debounce(() {
+                    if (mounted) setState(() => _local = v.trim());
+                  }),
                   onSubmitted: (v) {
+                    _debounce.dispose();
                     final q = v.trim();
                     _local = '';
                     if (q.isEmpty) {

@@ -18,6 +18,7 @@ class PrefsCookieStore implements CookieStore {
       return null;
     }
   }
+
   @override
   Future<void> write(String? cookie) async {
     final SharedPreferences p;
@@ -65,12 +66,42 @@ class AppState extends ChangeNotifier {
   /// Increments after any write so open lists can refresh.
   int revision = 0;
 
+  /// Same counter as [revision] as a Listenable: screens reload on it without rebuilding on
+  /// every unrelated [notifyListeners] (panel changes, cache fills, theme...).
+  final ValueNotifier<int> revisionListenable = ValueNotifier<int>(0);
+
+  // ---- optimistic show/hide toggles: the UI flips at once, the write syncs afterwards ----
+  final Map<String, bool> _optimisticActive = {};
+
+  /// Bumps whenever an optimistic override is added/removed.
+  final ValueNotifier<int> optimisticListenable = ValueNotifier<int>(0);
+
+  /// The displayed Active flag: a pending/just-confirmed toggle wins over [server].
+  bool activeOf(String kind, int id, bool server) => _optimisticActive['$kind:$id'] ?? server;
+
+  void setOptimisticActive(String kind, int id, bool active) {
+    _optimisticActive['$kind:$id'] = active;
+    optimisticListenable.value++;
+  }
+
+  void clearOptimisticActive(String kind, int id) {
+    if (_optimisticActive.remove('$kind:$id') != null) optimisticListenable.value++;
+  }
+
+  /// Keeps the override a few seconds so the refetch triggered by [bump] can land first
+  /// (no flicker back to the old value), then drops it.
+  void settleOptimisticActive(String kind, int id, {Duration after = const Duration(seconds: 5)}) {
+    Future.delayed(after, () => clearOptimisticActive(kind, id));
+  }
+
   static const _kTheme = 'granth_admin_theme';
   static const _kUser = 'granth_admin_user';
 
   /// Startup. Whatever happens (plugin failure, no network, slow server, bad JSON)
   /// this always ends with [booting] = false so the UI leaves the loading screen.
   Future<void> boot() async {
+    // The control-server boot only reads local prefs/token now (its network check runs in the
+    // background), so neither session blocks the first frame on the network.
     final panelBoot = panel.boot(); // independent; never throws
     try {
       await _boot().timeout(const Duration(seconds: 15));
@@ -80,6 +111,19 @@ class AppState extends ChangeNotifier {
       await panelBoot;
       booting = false;
       notifyListeners();
+    }
+    if (loggedIn) unawaited(_verifyStoredSession());
+  }
+
+  /// Checks the stored cookie after the UI is already up (a stale cookie ends in the usual
+  /// "session expired" flow instead of a splash screen that waits on the network).
+  Future<void> _verifyStoredSession() async {
+    try {
+      if (!await api.checkSession().timeout(sessionCheckTimeout)) _expired();
+    } on SessionExpiredException {
+      // already handled by onSessionExpired
+    } catch (_) {
+      // offline / server trouble / timeout: keep the stored session
     }
   }
 
@@ -98,21 +142,8 @@ class AppState extends ChangeNotifier {
       debugPrint('GranthAdmin cookie read failed: $e');
       hasCookie = false;
     }
-    if (!hasCookie) return;
-    try {
-      loggedIn = await api.checkSession().timeout(sessionCheckTimeout);
-      if (!loggedIn) await api.client.clearCookie();
-    } on SessionExpiredException {
-      loggedIn = false;
-    } on ApiException {
-      // offline / server trouble: trust the stored cookie; the next protected call verifies it
-      loggedIn = true;
-    } on TimeoutException {
-      loggedIn = true;
-    } catch (e) {
-      debugPrint('GranthAdmin session check failed: $e');
-      loggedIn = true;
-    }
+    // Trust the stored cookie now; [boot] verifies it in the background.
+    loggedIn = hasCookie;
   }
 
   static const sessionCheckTimeout = Duration(seconds: 10);
@@ -134,6 +165,7 @@ class AppState extends ChangeNotifier {
     final ok = await api.login(user, pass);
     if (ok) {
       loggedIn = true;
+      expiredMessage = null;
       username = user;
       try {
         (await SharedPreferences.getInstance()).setString(_kUser, user);
@@ -203,7 +235,91 @@ class AppState extends ChangeNotifier {
 
   void bump() {
     revision++;
+    revisionListenable.value = revision;
     notifyListeners();
+  }
+}
+
+/// Rebuilds only when [selector]'s result changes (like `context.select`), instead of on every
+/// [AppState.notifyListeners].
+class AppSelector<T> extends StatefulWidget {
+  const AppSelector({super.key, required this.selector, required this.builder});
+  final T Function(AppState app) selector;
+  final Widget Function(BuildContext context, AppState app, T value) builder;
+  @override
+  State<AppSelector<T>> createState() => _AppSelectorState<T>();
+}
+
+class _AppSelectorState<T> extends State<AppSelector<T>> {
+  late AppState _app;
+  late T _value;
+
+  @override
+  void initState() {
+    super.initState();
+    _app = AppScope.of(context);
+    _value = widget.selector(_app);
+    _app.addListener(_changed);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final a = AppScope.of(context);
+    if (!identical(a, _app)) {
+      _app.removeListener(_changed);
+      _app = a..addListener(_changed);
+    }
+  }
+
+  void _changed() {
+    final v = widget.selector(_app);
+    if (v != _value) setState(() => _value = v);
+  }
+
+  @override
+  void dispose() {
+    _app.removeListener(_changed);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _value = widget.selector(_app);
+    return widget.builder(context, _app, _value);
+  }
+}
+
+/// Mixin for screens that reload when [AppState.revision] changes (after any write).
+/// Replaces `didChangeDependencies` + `AppScope.of(listen: true)`, which rebuilt the whole screen
+/// on every app notification.
+mixin RevisionReload<T extends StatefulWidget> on State<T> {
+  late final AppState _revApp = AppScope.of(context);
+  int _revSeen = -1;
+
+  /// (Re)load the screen's data.
+  Future<void> reload();
+
+  @override
+  void initState() {
+    super.initState();
+    _revApp.revisionListenable.addListener(_onRevision);
+    _revSeen = _revApp.revision;
+    Future.microtask(() {
+      if (mounted) reload();
+    });
+  }
+
+  void _onRevision() {
+    if (_revApp.revision == _revSeen) return;
+    _revSeen = _revApp.revision;
+    if (mounted) reload();
+  }
+
+  @override
+  void dispose() {
+    _revApp.revisionListenable.removeListener(_onRevision);
+    super.dispose();
   }
 }
 

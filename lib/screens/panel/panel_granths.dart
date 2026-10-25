@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/perf.dart';
 import '../../models/panel_models.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/glass.dart';
@@ -100,6 +101,24 @@ class _PanelGranthsScreenState extends State<PanelGranthsScreen> {
   String? leafFilter;
   PanelGranthList? _data;
   bool _saving = false;
+  // Search is applied 250 ms after typing stops; the filtered list and chip counts are
+  // computed once per data/filter change instead of on every rebuild.
+  final _debounce = Debouncer();
+  final _listMemo = Memo<Object, List<PanelGranth>>();
+  final _countMemo = Memo<Object, Map<GranthFilter, int>>();
+  final _hiddenMemo = Memo<Object, int>();
+  int _pendingRev = 0;
+
+  @override
+  void dispose() {
+    _debounce.dispose();
+    super.dispose();
+  }
+
+  void _clearPending() => setState(() {
+    pending.clear();
+    _pendingRev++;
+  });
 
   @override
   void initState() {
@@ -123,6 +142,7 @@ class _PanelGranthsScreenState extends State<PanelGranthsScreen> {
         if (leaf != null) e.leaf = leaf;
         if (hidden != null) e.hidden = hidden;
       }
+      _pendingRev++;
       _prune();
     });
   }
@@ -167,6 +187,7 @@ class _PanelGranthsScreenState extends State<PanelGranthsScreen> {
           }
         }
         pending.clear();
+        _pendingRev++;
         selected.clear();
         panel.bump();
       } on PanelApiException catch (e) {
@@ -226,15 +247,31 @@ class _PanelGranthsScreenState extends State<PanelGranthsScreen> {
       floatingBuilder: (context, d) => Positioned(
         left: 14,
         right: 14,
-        bottom: 10 + MediaQuery.of(context).padding.bottom,
+        bottom: 10 + MediaQuery.paddingOf(context).bottom,
         child: _bottomBar(context, d),
       ),
       builder: (context, d, reload) {
         _data = d;
         final leafLabels = leafLabelMap(d.leaves);
-        final list = filterGranths(d.items, filters: filters, query: query, leaf: leafFilter, pending: pending);
-        int count(GranthFilter f) => filterGranths(d.items, filter: f, pending: pending).length;
-        final hiddenNow = hiddenAfter(d.items, pending);
+        final fkey = (filters.map((f) => f.index).toList()..sort()).join(',');
+        final list = _listMemo.get((
+          d.items,
+          _pendingRev,
+          fkey,
+          query,
+          leafFilter,
+        ), () => filterGranths(d.items, filters: filters, query: query, leaf: leafFilter, pending: pending));
+        final counts = _countMemo.get((d.items, _pendingRev), () {
+          int one(GranthFilter f) => filterGranths(d.items, filter: f, pending: pending).length;
+          return {
+            GranthFilter.isNew: one(GranthFilter.isNew),
+            GranthFilter.other: one(GranthFilter.other),
+            GranthFilter.hidden: one(GranthFilter.hidden),
+            GranthFilter.noPraman: one(GranthFilter.noPraman),
+          };
+        });
+        int count(GranthFilter f) => counts[f] ?? 0;
+        final hiddenNow = _hiddenMemo.get((d.items, _pendingRev), () => hiddenAfter(d.items, pending));
         Widget chip(String label, GranthFilter f) => Padding(
           padding: const EdgeInsets.only(right: 8),
           child: FilterChipX(label, selected: filters.contains(f), count: count(f), onTap: () => _toggleFilter(f)),
@@ -252,7 +289,9 @@ class _PanelGranthsScreenState extends State<PanelGranthsScreen> {
                         placeholder: 'ग्रंथ या लेखक खोजें',
                         style: TextStyle(color: p.text, fontFamily: kFont),
                         backgroundColor: p.fieldFill,
-                        onChanged: (v) => setState(() => query = v),
+                        onChanged: (v) => _debounce(() {
+                          if (mounted) setState(() => query = v);
+                        }),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -401,7 +440,8 @@ class _PanelGranthsScreenState extends State<PanelGranthsScreen> {
     final me = panelOf(context).me;
     if (d != null && selected.isNotEmpty) {
       return Glass(
-        blur: 20,
+        blur: 0,
+        tint: p.dark ? const Color(0xF2262230) : const Color(0xF5FFFFFF),
         strong: true,
         radius: 22,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -442,7 +482,8 @@ class _PanelGranthsScreenState extends State<PanelGranthsScreen> {
     final draft = me?.hasDraft ?? false;
     if (n == 0 && !draft) return const SizedBox.shrink();
     return Glass(
-      blur: 20,
+      blur: 0,
+      tint: p.dark ? const Color(0xF2262230) : const Color(0xF5FFFFFF),
       strong: true,
       radius: 22,
       padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
@@ -457,7 +498,7 @@ class _PanelGranthsScreenState extends State<PanelGranthsScreen> {
           if (n > 0)
             CupertinoButton(
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              onPressed: _saving ? null : () => setState(pending.clear),
+              onPressed: _saving ? null : _clearPending,
               child: const Text('हटाएँ', style: TextStyle(color: AppColors.red)),
             ),
           CupertinoButton.filled(

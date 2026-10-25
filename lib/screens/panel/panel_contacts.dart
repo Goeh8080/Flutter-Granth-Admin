@@ -142,7 +142,7 @@ class _PanelContactsScreenState extends State<PanelContactsScreen> {
           : Positioned(
               left: 14,
               right: 14,
-              bottom: 10 + MediaQuery.of(context).padding.bottom,
+              bottom: 10 + MediaQuery.paddingOf(context).bottom,
               child: Glass(
                 padding: const EdgeInsets.all(8),
                 child: PrimaryButton(
@@ -158,30 +158,37 @@ class _PanelContactsScreenState extends State<PanelContactsScreen> {
         return [
           PadSliver(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-            child: SliverList(
-              delegate: SliverChildListDelegate([
-                const DraftBanner(),
-                GlassField(
-                  label: 'पेज का शीर्षक / Page title',
-                  controller: _title,
-                  placeholder: kContactsTitle,
-                  prefix: CupertinoIcons.textformat,
-                  onSubmitted: (_) => setState(() => _dirty = true),
+            child: SliverMainAxisGroup(
+              slivers: [
+                SliverList(
+                  delegate: SliverChildListDelegate([
+                    const DraftBanner(),
+                    GlassField(
+                      label: 'पेज का शीर्षक / Page title',
+                      controller: _title,
+                      placeholder: kContactsTitle,
+                      prefix: CupertinoIcons.textformat,
+                      onSubmitted: (_) => setState(() => _dirty = true),
+                    ),
+                    PrimaryButton(
+                      label: 'संपर्क जोड़ें / Add contact',
+                      icon: CupertinoIcons.person_add_solid,
+                      onPressed: () => _edit(null, d),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      '${_items.length}/${d.maxContacts} संपर्क${_dirty ? ' • बिना सहेजे बदलाव' : ''}',
+                      style: TextStyle(color: p.subtext, fontSize: 12.5),
+                    ),
+                    const SizedBox(height: 8),
+                    if (_items.isEmpty) const EmptyNote('अभी कोई संपर्क नहीं'),
+                  ]),
                 ),
-                PrimaryButton(
-                  label: 'संपर्क जोड़ें / Add contact',
-                  icon: CupertinoIcons.person_add_solid,
-                  onPressed: () => _edit(null, d),
+                SliverList.builder(
+                  itemCount: _items.length,
+                  itemBuilder: (context, i) => _ContactRow(c: _items[i], onTap: () => _menu(i, d)),
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  '${_items.length}/${d.maxContacts} संपर्क${_dirty ? ' • बिना सहेजे बदलाव' : ''}',
-                  style: TextStyle(color: p.subtext, fontSize: 12.5),
-                ),
-                const SizedBox(height: 8),
-                if (_items.isEmpty) const EmptyNote('अभी कोई संपर्क नहीं'),
-                for (var i = 0; i < _items.length; i++) _ContactRow(c: _items[i], onTap: () => _menu(i, d)),
-              ]),
+              ],
             ),
           ),
         ];

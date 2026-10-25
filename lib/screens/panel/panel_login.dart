@@ -63,7 +63,7 @@ class _PanelLoginCardState extends State<PanelLoginCard> {
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     return Glass(
-      blur: 24,
+      blur: 0,
       radius: 28,
       padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
       child: AutofillGroup(
@@ -75,7 +75,10 @@ class _PanelLoginCardState extends State<PanelLoginCard> {
                 const Icon(CupertinoIcons.slider_horizontal_3, color: AppColors.saffron),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text('ऐप कंट्रोल लॉगिन', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: p.text)),
+                  child: Text(
+                    'ऐप कंट्रोल लॉगिन',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: p.text),
+                  ),
                 ),
               ],
             ),
@@ -112,12 +115,19 @@ class _PanelLoginCardState extends State<PanelLoginCard> {
                         children: [
                           const Icon(CupertinoIcons.exclamationmark_circle, color: AppColors.red, size: 18),
                           const SizedBox(width: 6),
-                          Expanded(child: Text(_error!, style: const TextStyle(color: AppColors.red, fontSize: 13))),
+                          Expanded(
+                            child: Text(_error!, style: const TextStyle(color: AppColors.red, fontSize: 13)),
+                          ),
                         ],
                       ),
                     ),
             ),
-            PrimaryButton(label: 'लॉगिन / Login', icon: CupertinoIcons.arrow_right_circle, busy: _busy, onPressed: _login),
+            PrimaryButton(
+              label: 'लॉगिन / Login',
+              icon: CupertinoIcons.arrow_right_circle,
+              busy: _busy,
+              onPressed: _login,
+            ),
           ],
         ),
       ),
@@ -135,9 +145,7 @@ class PanelLoginScreen extends StatelessWidget {
       previousPageTitle: 'वापस',
       slivers: [
         PadSliver(
-          child: SliverToBoxAdapter(
-            child: PanelLoginCard(onDone: () => Navigator.of(context).maybePop()),
-          ),
+          child: SliverToBoxAdapter(child: PanelLoginCard(onDone: () => Navigator.of(context).maybePop())),
         ),
       ],
     );
@@ -150,7 +158,13 @@ class PanelLoggedOutView extends StatelessWidget {
   final double bottomInset;
   @override
   Widget build(BuildContext context) {
-    final app = AppScope.of(context, listen: true);
+    return AppSelector<String?>(
+      selector: (a) => a.panel.expiredMessage,
+      builder: (context, app, _) => _page(context, app),
+    );
+  }
+
+  Widget _page(BuildContext context, AppState app) {
     final p = Palette.of(context);
     return GlassPage(
       title: 'ऐप कंट्रोल',

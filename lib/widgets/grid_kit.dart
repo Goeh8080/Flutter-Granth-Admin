@@ -118,6 +118,10 @@ class PaperCard extends StatefulWidget {
 
 class _PaperCardState extends State<PaperCard> {
   bool _down = false;
+  void _set(bool v) {
+    if (_down != v) setState(() => _down = v);
+  }
+
   @override
   Widget build(BuildContext context) {
     final dark = Palette.of(context).dark;
@@ -141,13 +145,14 @@ class _PaperCardState extends State<PaperCard> {
         child: widget.child,
       ),
     );
-    final c = Opacity(opacity: widget.dim ? 0.55 : 1, child: card);
+    // Opacity only when dimmed: an Opacity widget costs a saveLayer even at 1.0 on older paths.
+    final c = RepaintBoundary(child: widget.dim ? Opacity(opacity: 0.55, child: card) : card);
     if (widget.onTap == null && widget.onLongPress == null) return c;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTapDown: (_) => setState(() => _down = true),
-      onTapCancel: () => setState(() => _down = false),
-      onTapUp: (_) => setState(() => _down = false),
+      onTapDown: (_) => _set(true),
+      onTapCancel: () => _set(false),
+      onTapUp: (_) => _set(false),
       onTap: widget.onTap,
       onLongPress: widget.onLongPress,
       child: c,
@@ -168,6 +173,7 @@ class GridRowsSliver extends StatelessWidget {
     final rows = (count + cols - 1) ~/ cols;
     return SliverList.builder(
       itemCount: rows,
+      addAutomaticKeepAlives: false,
       itemBuilder: (context, r) => Padding(
         padding: EdgeInsets.only(bottom: g),
         child: IntrinsicHeight(
@@ -205,16 +211,26 @@ class CoverImage extends StatelessWidget {
     );
     return Padding(
       padding: const EdgeInsets.only(top: 8),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: CachedNetworkImage(
-          imageUrl: u,
-          width: double.infinity,
-          fit: BoxFit.fitWidth,
-          fadeInDuration: const Duration(milliseconds: 200),
-          placeholder: (_, _) => skeleton(),
-          errorWidget: (_, _, _) => skeleton(CupertinoIcons.photo),
-        ),
+      child: LayoutBuilder(
+        builder: (context, box) {
+          // Decode at the card's width (dpr-aware, capped) rather than the full-size source.
+          final dpr = MediaQuery.devicePixelRatioOf(context).clamp(1.0, 3.0);
+          final w = box.maxWidth.isFinite ? box.maxWidth : MediaQuery.sizeOf(context).width;
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: CachedNetworkImage(
+              imageUrl: u,
+              width: double.infinity,
+              fit: BoxFit.fitWidth,
+              fadeInDuration: const Duration(milliseconds: 100),
+              fadeOutDuration: Duration.zero,
+              placeholderFadeInDuration: Duration.zero,
+              memCacheWidth: (w * dpr).round(),
+              placeholder: (_, _) => skeleton(),
+              errorWidget: (_, _, _) => skeleton(CupertinoIcons.photo),
+            ),
+          );
+        },
       ),
     );
   }

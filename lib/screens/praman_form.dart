@@ -118,7 +118,14 @@ class _PramanFormState extends State<_PramanForm> {
 
   @override
   Widget build(BuildContext context) {
-    final app = AppScope.of(context, listen: true);
+    // Only the lookup lists matter here (labels); other AppState notifications don't rebuild the form.
+    return AppSelector<(Object, Object)>(
+      selector: (a) => (a.topics, a.granths),
+      builder: (context, app, _) => _form(context, app),
+    );
+  }
+
+  Widget _form(BuildContext context, AppState app) {
     String? topicLabel, granthLabel;
     for (final t in app.topics) {
       if (t.id == _topicId) topicLabel = '${t.position}. ${oneLine(t.title)}';

@@ -574,9 +574,10 @@ class _PanelFoldersScreenState extends State<PanelFoldersScreen> {
             : Positioned(
                 left: 14,
                 right: 14,
-                bottom: 10 + MediaQuery.of(context).padding.bottom,
+                bottom: 10 + MediaQuery.paddingOf(context).bottom,
                 child: Glass(
-                  blur: 20,
+                  blur: 0,
+                  tint: Palette.of(context).dark ? const Color(0xF2262230) : const Color(0xF5FFFFFF),
                   strong: true,
                   radius: 22,
                   padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),

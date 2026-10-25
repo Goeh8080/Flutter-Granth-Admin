@@ -55,16 +55,20 @@ class PanelState extends ChangeNotifier {
       }
     } catch (_) {}
     if (!await api.hasToken) return;
+    // Trust the stored token now; the session check runs in the background so the first
+    // frame never waits on the network (a 401 ends in the usual "session expired" flow).
+    loggedIn = true;
+    unawaited(_verifyStored());
+  }
+
+  Future<void> _verifyStored() async {
     try {
       me = await api.me().timeout(sessionCheckTimeout);
-      loggedIn = true;
+      notifyListeners();
     } on PanelUnauthorized {
-      loggedIn = false;
-    } on PanelApiException {
-      // offline / server trouble: keep the stored token, the next call verifies it
-      loggedIn = true;
-    } on TimeoutException {
-      loggedIn = true;
+      _expired();
+    } catch (_) {
+      // offline / server trouble / timeout: keep the stored token, the next call verifies it
     }
   }
 

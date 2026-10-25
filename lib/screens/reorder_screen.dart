@@ -121,7 +121,7 @@ class _ReorderScreenState extends State<ReorderScreen> {
                   child: Material(
                     type: MaterialType.transparency,
                     child: ReorderableListView.builder(
-                      padding: EdgeInsets.fromLTRB(16, 8, 16, 24 + MediaQuery.of(context).padding.bottom),
+                      padding: EdgeInsets.fromLTRB(16, 8, 16, 24 + MediaQuery.paddingOf(context).bottom),
                       buildDefaultDragHandles: false,
                       itemCount: _items.length,
                       onReorderItem: (a, b) => _move(a, b),

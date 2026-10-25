@@ -24,20 +24,11 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen> with RevisionReload<DashboardScreen> {
   List<FeedbackItem> _feedbacks = const [];
   bool _loading = true;
-  int _rev = -1;
-
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final rev = AppScope.of(context, listen: true).revision;
-    if (rev != _rev) {
-      _rev = rev;
-      Future.microtask(_load);
-    }
-  }
+  Future<void> reload() => _load();
 
   Future<void> _load() async {
     final app = AppScope.of(context);
@@ -55,7 +46,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final app = AppScope.of(context, listen: true);
+    // Rebuild only when the stats or the user name change (not on every AppState notification).
+    return AppSelector<(Object?, String)>(
+      selector: (a) => (a.stats, a.username),
+      builder: (context, app, _) => _page(context, app),
+    );
+  }
+
+  Widget _page(BuildContext context, AppState app) {
     final p = Palette.of(context);
     final s = app.stats;
     return GlassPage(
@@ -238,7 +236,7 @@ class _Stat extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     return PressableGlass(
-      blur: 16,
+      blur: 0,
       padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
       onTap: onTap,
       child: Column(

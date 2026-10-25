@@ -88,7 +88,8 @@ class _SettingsFormState extends State<_SettingsForm> {
     final now = DateTime.now();
     final d = await showDatePicker(context: context, initialDate: now.add(const Duration(days: 7)), firstDate: now, lastDate: now.add(const Duration(days: 730)));
     if (d != null) {
-      setState(() => _expires = DateTime.utc(d.year, d.month, d.day, 23, 59, 59).toIso8601String().replaceFirst(RegExp(r'\.\d+'), ''));
+      // end of the chosen day in IST (23:59:59 IST = 18:29:59 UTC), not 05:29 IST of the next day
+      setState(() => _expires = DateTime.utc(d.year, d.month, d.day, 18, 29, 59).toIso8601String().replaceFirst(RegExp(r'\.\d+'), ''));
     }
   }
 
@@ -108,10 +109,16 @@ class _SettingsFormState extends State<_SettingsForm> {
       return;
     }
     final s = widget.settings;
+    final exp = _expires == null ? null : DateTime.tryParse(_expires!);
+    if (_annOn && exp != null && !exp.isAfter(DateTime.now().toUtc())) {
+      showToast('समाप्ति का समय बीत चुका है / Expiry is in the past', error: true);
+      return;
+    }
     final panel = panelOf(context);
     setState(() => _busy = true);
     try {
-      final textChanged = text != s.announcement.text;
+      // a changed message, or switching the banner on again, needs a NEW id: phones that dismissed the old banner never show the same id again
+      final textChanged = text != s.announcement.text || (_annOn && !s.announcement.enabled);
       await panel.api.putSettings(
         aiEnabled: _ai,
         analyticsEnabled: _analytics,
@@ -122,7 +129,8 @@ class _SettingsFormState extends State<_SettingsForm> {
           'level': _level,
           // a new id re-shows the banner to people who dismissed the old one
           if (textChanged) 'id': 'a${DateTime.now().millisecondsSinceEpoch ~/ 1000}',
-          'expires_at': ?_expires,
+          // null = remove the expiry (omitting the key would keep the old one on the server)
+          'expires_at': _expires,
         },
         aiEndpoint: endpoint,
       );
@@ -193,7 +201,7 @@ class _SettingsFormState extends State<_SettingsForm> {
               Row(
                 children: [
                   Expanded(
-                    child: Text(_expires == null ? 'समाप्ति: कभी नहीं' : 'समाप्ति: ${_expires!.substring(0, 10)}', style: TextStyle(color: p.subtext, fontSize: 13)),
+                    child: Text(_expires == null ? 'समाप्ति: कभी नहीं' : 'समाप्ति: ${_expiryLabel(_expires!)}', style: TextStyle(color: p.subtext, fontSize: 13)),
                   ),
                   CupertinoButton(padding: EdgeInsets.zero, minimumSize: Size.zero, onPressed: _pickExpiry, child: const Text('तारीख चुनें')),
                   if (_expires != null)
@@ -217,6 +225,13 @@ class _SettingsFormState extends State<_SettingsForm> {
         PrimaryButton(label: 'ड्राफ्ट में सहेजें / प्रीव्यू', icon: CupertinoIcons.eye, busy: _busy, onPressed: _busy ? null : (_dirty ? _save : () => showToast('कोई बदलाव नहीं / No changes'))),
       ],
     );
+  }
+
+  /// `2026-12-31T18:29:59Z` → `2026-12-31` in IST (the panel and the app both talk IST to the owner).
+  static String _expiryLabel(String iso) {
+    final d = DateTime.tryParse(iso);
+    if (d == null) return iso.length >= 10 ? iso.substring(0, 10) : iso;
+    return d.toUtc().add(const Duration(hours: 5, minutes: 30)).toIso8601String().substring(0, 10);
   }
 
   static String _levelLabel(String l) => switch (l) {

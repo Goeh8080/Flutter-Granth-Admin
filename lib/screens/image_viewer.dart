@@ -66,6 +66,7 @@ class _ViewerState extends State<_Viewer> {
                   Widget w = CachedNetworkImage(
                     imageUrl: img.url,
                     fit: BoxFit.contain,
+                    memCacheWidth: 2048, // cap decode size for huge originals; still sharp when zoomed
                     placeholder: (_, _) => const Center(child: CupertinoActivityIndicator(color: Colors.white)),
                     errorWidget: (_, _, _) => const Center(
                       child: Icon(CupertinoIcons.exclamationmark_triangle, color: Colors.white54, size: 40),

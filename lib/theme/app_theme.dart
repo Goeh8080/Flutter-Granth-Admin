@@ -18,7 +18,8 @@ const kSerif = 'TiroDeva';
 class Palette {
   final bool dark;
   const Palette(this.dark);
-  static Palette of(BuildContext context) => Palette(Theme.of(context).brightness == Brightness.dark);
+  static const _dark = Palette(true), _light = Palette(false);
+  static Palette of(BuildContext context) => Theme.brightnessOf(context) == Brightness.dark ? _dark : _light;
 
   Color get text => dark ? const Color(0xFFF5F2EE) : const Color(0xFF1C1917);
   Color get subtext => dark ? const Color(0xB3EDE6DE) : const Color(0x99332A22);

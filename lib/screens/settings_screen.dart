@@ -23,7 +23,13 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final app = AppScope.of(context, listen: true);
+    return AppSelector<(String, ThemeMode, bool, bool)>(
+      selector: (a) => (a.username, a.themeMode, a.loggedIn, a.panel.loggedIn),
+      builder: (context, app, _) => _page(context, app),
+    );
+  }
+
+  Widget _page(BuildContext context, AppState app) {
     final p = Palette.of(context);
     void push(Widget w) => Navigator.of(context).push(CupertinoPageRoute(builder: (_) => w));
     return GlassPage(
@@ -34,7 +40,7 @@ class SettingsScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: SliverToBoxAdapter(
             child: Glass(
-              blur: 16,
+              blur: 0,
               child: Row(
                 children: [
                   Container(
@@ -130,7 +136,9 @@ class SettingsScreen extends StatelessWidget {
                 _Row(
                   CupertinoIcons.person_crop_circle_badge_checkmark,
                   'वेबसाइट (ग्रंथ डेटा) में लॉगिन',
-                  () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => const LoginScreen(popOnSuccess: true))),
+                  () =>
+                      Navigator.of(context)
+                          .push(CupertinoPageRoute<void>(builder: (_) => const LoginScreen(popOnSuccess: true))),
                 ),
               if (app.panel.loggedIn)
                 _Row(CupertinoIcons.square_arrow_right, 'ऐप कंट्रोल से लॉग आउट', () async {
