@@ -211,15 +211,34 @@ async function render() {
 }
 window.addEventListener('hashchange', () => { if (S.me) render(); });
 
+// password input wrapped with a show/hide (eye) toggle; returns the wrapper (the <input> itself is kept as-is)
+function pwField(inp) {
+  inp.classList.add('pw-in');
+  const b = h('button', { type: 'button', class: 'pw-eye', 'aria-label': 'पासवर्ड दिखाएँ', 'aria-pressed': 'false', title: 'पासवर्ड दिखाएँ' }, ic('eye'));
+  b.addEventListener('click', () => {
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    const l = show ? 'पासवर्ड छिपाएँ' : 'पासवर्ड दिखाएँ';
+    b.setAttribute('aria-label', l); b.title = l; b.setAttribute('aria-pressed', String(show));
+    b.replaceChildren(ic(show ? 'eyeoff' : 'eye'));
+    inp.focus();
+  });
+  b.addEventListener('mousedown', (e) => e.preventDefault()); // keep keyboard open / focus on mobile
+  return h('div', { class: 'pw-wrap' }, inp, b);
+}
+
 // ---------- login ----------
 function renderLogin() {
   document.querySelectorAll('.scrim,.toast').forEach((n) => n.remove());
-  const u = h('input', { type: 'text', value: 'goutam', autocomplete: 'username', autocapitalize: 'none', spellcheck: 'false' });
-  const p = h('input', { type: 'password', autocomplete: 'current-password' });
+  const u = h('input', { type: 'text', name: 'username', id: 'login-username', placeholder: 'यूज़रनेम', autocomplete: 'username', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', 'aria-label': 'यूज़रनेम' });
+  const p = h('input', { type: 'password', name: 'password', id: 'login-password', placeholder: 'पासवर्ड', autocomplete: 'current-password', 'aria-label': 'पासवर्ड' });
   const err = h('div', { class: 'err', role: 'alert' });
   const btn = h('button', { class: 'btn primary', type: 'submit', style: 'width:100%;margin-top:16px' }, 'लॉग इन');
   const form = h('form', { onsubmit: async (e) => {
-    e.preventDefault(); err.textContent = ''; setBusy(btn, true);
+    e.preventDefault(); err.textContent = '';
+    if (!u.value.trim()) { err.textContent = 'यूज़रनेम लिखें'; u.focus(); return; }
+    if (!p.value) { err.textContent = 'पासवर्ड लिखें'; p.focus(); return; }
+    setBusy(btn, true);
     try {
       await post('/login', { username: u.value.trim(), password: p.value });
       p.value = ''; await refreshMe(); if (!location.hash) location.hash = '#/dashboard'; render();
@@ -229,7 +248,7 @@ function renderLogin() {
       else if (ex.status === 401) err.textContent = 'यूज़रनेम या पासवर्ड ग़लत है';
       else err.textContent = errText(ex);
     }
-  } }, h('label', { class: 'f' }, 'यूज़रनेम'), u, h('label', { class: 'f' }, 'पासवर्ड'), p, btn, err);
+  } }, h('label', { class: 'f' }, 'यूज़रनेम'), u, h('label', { class: 'f' }, 'पासवर्ड'), pwField(p), btn, err);
   $app.replaceChildren(h('div', { class: 'login' }, h('div', { class: 'card' }, h('div', { class: 'logo', style: 'background-image:url(logo-192.png)' }), h('h1', null, 'ग्रंथ एडमिन'), h('p', { class: 'sub', style: 'text-align:center;margin:4px 0 10px' }, 'केवल एडमिन के लिए'), form)));
 }
 
@@ -579,7 +598,7 @@ function toLocalIst(iso) { const d = new Date(new Date(iso).getTime() + 5.5 * 36
 function adminsCard(adm) {
   const root = h('div', { class: 'card' }, h('h3', null, ic('users'), 'एडमिन (admins)'), h('div', { class: 'sub' }, 'owner = एडमिन संभाल सकता है · admin = बदलाव/प्रकाशन कर सकता है, एडमिन नहीं संभाल सकता.'));
   const ask = (title, label) => new Promise((res) => { const inp = h('input', { type: 'password', autocomplete: 'new-password', placeholder: label }); const err = h('div', { class: 'err' }); let fin = false;
-    modal(title, h('div', null, inp, err), [{ label: 'रद्द करें', fn: () => { if (!fin) res(null); } }, { label: 'ठीक है', cls: 'primary', keep: true, fn: (b, close) => { if (inp.value.length < 10) { err.textContent = 'कम से कम 10 अक्षर'; return false; } fin = true; res(inp.value); close(); } }]); });
+    modal(title, h('div', null, pwField(inp), err), [{ label: 'रद्द करें', fn: () => { if (!fin) res(null); } }, { label: 'ठीक है', cls: 'primary', keep: true, fn: (b, close) => { if (inp.value.length < 10) { err.textContent = 'कम से कम 10 अक्षर'; return false; } fin = true; res(inp.value); close(); } }]); });
   const run = async (fn, msg) => { try { await fn(); toast(msg); render(); } catch (e) { fail(e); } };
   for (const a of adm.items) {
     const u = encodeURIComponent(a.username);
@@ -595,7 +614,7 @@ function adminsCard(adm) {
   const role = h('select', null, adm.roles.slice().reverse().map((r) => h('option', { value: r }, r)));
   const msg = h('div', { class: 'err' });
   const add = h('button', { class: 'btn primary', onclick: async () => { msg.textContent = ''; setBusy(add, true); try { await post('/admins', { username: un.value.trim(), password: pw.value, role: role.value }); un.value = pw.value = ''; toast('एडमिन बना'); render(); } catch (e) { msg.textContent = errText(e); } setBusy(add, false); } }, ic('check'), 'एडमिन जोड़ें');
-  root.append(h('h4', { style: 'margin:14px 0 4px' }, 'नया एडमिन'), un, h('div', { style: 'height:6px' }), pw, h('div', { style: 'height:6px' }), role, msg, h('div', { style: 'margin-top:10px' }, add));
+  root.append(h('h4', { style: 'margin:14px 0 4px' }, 'नया एडमिन'), un, h('div', { style: 'height:6px' }), pwField(pw), h('div', { style: 'height:6px' }), role, msg, h('div', { style: 'margin-top:10px' }, add));
   return root;
 }
 function passwordCard() {
@@ -610,7 +629,7 @@ function passwordCard() {
     catch (e) { msg.textContent = e.status === 401 ? 'मौजूदा पासवर्ड ग़लत है' : e.status === 429 ? 'बहुत कोशिशें — बाद में' : errText(e); }
     setBusy(btn, false);
   } }, 'पासवर्ड बदलें');
-  return h('div', { class: 'card' }, h('h3', null, 'पासवर्ड बदलें'), h('label', { class: 'f' }, 'मौजूदा पासवर्ड'), cur, h('label', { class: 'f' }, 'नया पासवर्ड (10+ अक्षर)'), n1, h('label', { class: 'f' }, 'नया फिर से'), n2, msg, h('div', { style: 'margin-top:10px' }, btn));
+  return h('div', { class: 'card' }, h('h3', null, 'पासवर्ड बदलें'), h('label', { class: 'f' }, 'मौजूदा पासवर्ड'), pwField(cur), h('label', { class: 'f' }, 'नया पासवर्ड (10+ अक्षर)'), pwField(n1), h('label', { class: 'f' }, 'नया फिर से'), pwField(n2), msg, h('div', { style: 'margin-top:10px' }, btn));
 }
 
 // ---------- contacts (विशेष जानकार) ----------

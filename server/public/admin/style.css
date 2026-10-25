@@ -161,3 +161,11 @@ svg.chart{width:100%;height:auto;display:block}
 .menu a,.menu button.m{display:flex;gap:12px;align-items:center;width:100%;padding:14px 10px;border:0;background:none;text-decoration:none;color:var(--text);font-weight:600;border-bottom:1px solid var(--pill);cursor:pointer;font-size:16px}
 .spin{display:inline-block;width:18px;height:18px;border:3px solid var(--track);border-top-color:var(--saffron);border-radius:50%;animation:sp .8s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
+/* password show/hide (eye) toggle */
+.pw-wrap{position:relative;display:block}
+.pw-wrap input.pw-in{padding-right:50px}
+.pw-eye{position:absolute;top:50%;right:2px;transform:translateY(-50%);width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--muted);border-radius:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.pw-eye .ic{width:22px;height:22px}
+.pw-eye:hover{color:var(--maroon)}
+.pw-eye[aria-pressed=true]{color:var(--saffron-dark)}
+.pw-eye:focus-visible{outline:2px solid var(--saffron);outline-offset:-2px}
