@@ -14,6 +14,8 @@ import '../../widgets/common.dart';
 import '../../widgets/glass_scaffold.dart';
 import '../../widgets/motion.dart';
 import '../../widgets/toast.dart';
+import '../../../admin_ui/admin_data.dart';
+import '../../../admin_ui/folder_picker.dart';
 
 // ------------------------------------------------------------------ formatting
 
@@ -725,6 +727,17 @@ Future<String?> pickLeaf(
   String? current,
   String title = 'फ़ोल्डर चुनें / Choose folder',
 }) {
+  // Round 2: the same file-manager style drill-down as the Granth tab (religion → group →
+  // sub-folder, "यहाँ रखें" inside); the flat list below is only the fallback when the
+  // folder structure is not loaded.
+  if (AdminData.isSet && AdminData.I.structure.religions.isNotEmpty) {
+    return showFolderPicker(
+      context,
+      structure: AdminData.I.structure,
+      granthTitle: title,
+      current: current,
+    );
+  }
   return showGlassSheet<String>(
     context,
     (ctx) => _LeafSheet(leaves: leaves, current: current, title: title),

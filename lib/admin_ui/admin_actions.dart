@@ -11,8 +11,8 @@ import '../models/models.dart' as u;
 import '../models/structure.dart';
 import '../theme/colors.dart';
 import '../widgets/common.dart';
-import '../widgets/overlays.dart';
 import 'admin_data.dart';
+import 'folder_picker.dart';
 
 /// The admin-only buttons shared by the Granth / Topic / Pramaan cards. Every write goes
 /// through the existing admin flows (`item_actions.dart`) or [AdminData]; every destructive
@@ -45,78 +45,19 @@ Future<void> toggleGranthHidden(BuildContext context, u.Granth g) async {
 Future<void> pickFolder(BuildContext context, u.Granth g) async {
   final data = AdminData.I;
   final current = data.index.placements[g.id]?.key ?? kOtherId;
-  final leaves = [
-    for (final l in data.structure.leaves())
-      (
-        key: l.key,
-        label: [l.religion.title, ?l.parent?.title, l.leaf.title].join(' › '),
-      ),
-  ];
-  final picked = await showPop<String>(
+  final index = data.index;
+  final picked = await showFolderPicker(
     context,
-    (ctx) => SheetCard(
-      children: [
-        SheetHead(title: 'फ़ोल्डर चुनें', onBack: () => Navigator.pop(ctx)),
-        Text(
-          g.title,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: GText.sans(size: 14, color: GColors.muted),
-        ),
-        const SizedBox(height: 10),
-        Flexible(
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              for (final l in [
-                ...leaves,
-                (key: kOtherId, label: data.structure.other.title),
-              ])
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Pressable(
-                    scale: 0.98,
-                    onTap: () => Navigator.pop(ctx, l.key),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: l.key == current
-                            ? const Color(0xFFFFF4EA)
-                            : GColors.paper,
-                        border: Border.all(
-                          color: l.key == current
-                              ? GColors.maroon
-                              : const Color(0xFFE7D7B8),
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              l.label,
-                              style: GText.sans(
-                                size: 15,
-                                weight: FontWeight.w700,
-                                color: GColors.text,
-                              ),
-                            ),
-                          ),
-                          if (l.key == current)
-                            GIcon('check', size: 16, color: GColors.maroon),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ],
-    ),
+    structure: data.structure,
+    granthTitle: g.title,
+    current: current,
+    countFor: (path) => switch (path) {
+      [final r] when r == kOtherId => index.other.length,
+      [final r] => index.inReligion(r).length,
+      [final r, final gr] => index.inGroup(r, gr).length,
+      [final r, final gr, final sub] => index.inGroup(r, gr, sub).length,
+      _ => 0,
+    },
   );
   if (picked == null || picked == current) return;
   await runWrite(
