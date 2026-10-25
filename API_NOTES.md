@@ -152,3 +152,18 @@ Every app entry point listed above is implemented. The status column below shows
 | Topic, granth, praman and feedback forms (open/cancel), action sheet, delete confirm, picker sheet, theme | UI-tested |
 | All write payloads (create_* / delete_* / order / favourite) | API-tested against a mock only. **Never exercised on the live server**, so the server's acceptance of the app's multipart/JSON is not proven |
 | Image upload from gallery/camera, PDF/YouTube/mail external open, share sheet | Built, but not run on a device (no working emulator on the box) |
+
+---
+
+## Control server (second backend)
+
+Separate from everything above. Base `https://granth-admin.vedpuran8090.workers.dev` (single constant
+`kPanelDefaultBase`, overridable). Full contract: `server/CONTRACT.md` (§1 config.json, §2 `/events`, §3 admin API under
+`/admin/api`). The app uses the bearer flow: `POST /admin/api/login` with header `X-Client: app` and
+`{username,password}` returns `{token}`; every later call sends `Authorization: Bearer <token>` (no CSRF). A 401 (other
+than `bad_credentials` on `/password`) means the session ended, so the app returns to the control login. 429 carries
+`retry_after`.
+
+Used by the app: login/logout/me/sessions/password, granths (+sort), granths/bulk, structure, draft, draft/diff,
+draft/discard, publish, rollback, versions, alerts (+ack), sync, settings, audit, stats/overview|granths|folders|series.
+Not used yet: `/admins` and `/contacts` (owner-only user management and the contacts page).
