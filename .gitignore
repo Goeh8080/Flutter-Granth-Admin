@@ -53,3 +53,9 @@ app.*.map.json
 *.jks
 *.keystore
 key.properties
+
+# control server (Cloudflare Worker) - never commit secrets or deps
+server/node_modules
+server/secrets
+server/.dev.vars
+server/.wrangler/

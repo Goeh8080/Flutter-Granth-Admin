@@ -1,0 +1,10 @@
+# Used only to bundle the embedded-assets variant (see deploy/entry.mjs). Normal deploys use wrangler.toml.
+name = "granth-admin"
+main = "deploy/entry.mjs"
+compatibility_date = "2025-10-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "granth-admin-db"
+database_id = "00000000-0000-0000-0000-000000000000"

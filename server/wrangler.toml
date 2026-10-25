@@ -1,0 +1,25 @@
+name = "granth-admin"
+main = "src/index.js"
+compatibility_date = "2025-10-01"
+workers_dev = true
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "granth-admin-db"
+database_id = "00000000-0000-0000-0000-000000000000"   # replaced by the real id on deploy (not a secret)
+migrations_dir = "migrations"
+
+[vars]
+# Public base URL used to build endpoints{} inside config.json. Empty = derive from the request origin.
+# When you move to a custom domain: set BASE = "https://granth.example.com", deploy, then PUBLISH once so endpoints are rebuilt.
+BASE = ""
+PBKDF2_ITERS = "50000"
+SIGNING_PUBLIC_KEY = ""     # public half of the Ed25519 config-signing key (base64 raw), informational
+
+[triggers]
+crons = ["*/15 * * * *", "30 21 * * *"]   # catalog diff every 15 min; daily prune 03:00 IST

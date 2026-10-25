@@ -1,0 +1,10 @@
+secrets/
+.dev.vars
+.wrangler/
+node_modules/
+deploy/*.generated*
+deploy/out/
+dist/
+*.hash.sql
+*.log
+.local/
