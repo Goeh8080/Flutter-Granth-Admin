@@ -13,7 +13,9 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.wnmsolutions.granthadmin"
+    // The code namespace is the one the (unmodified) Photo Highlighter / MainActivity Kotlin files declare;
+    // the applicationId below is what makes this a separate app from the user app.
+    namespace = "com.wnm.granthprabandhan"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -23,7 +25,6 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.wnmsolutions.granthadmin"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
