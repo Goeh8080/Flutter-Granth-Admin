@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../core/api_client.dart';
+import '../services/panel_api.dart' show PanelApiException;
 import '../theme/app_theme.dart';
 
 final GlobalKey<NavigatorState> rootNavKey = GlobalKey<NavigatorState>();
@@ -33,7 +34,7 @@ void showToast(String message, {bool error = false, BuildContext? context}) {
 }
 
 void showError(Object e, {BuildContext? context}) {
-  final msg = e is ApiException ? e.message : 'कुछ गलत हुआ / Something went wrong';
+  final msg = e is PanelApiException ? e.fullMessage : e is ApiException ? e.message : 'कुछ गलत हुआ / Something went wrong';
   showToast(msg, error: true, context: context);
 }
 

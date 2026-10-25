@@ -66,28 +66,34 @@ class _Gate extends StatefulWidget {
 }
 
 class _GateState extends State<_Gate> {
-  bool? _wasLoggedIn;
+  bool? _wasLoggedIn; // wnm website session
+  bool? _wasAny; // wnm or control-server session
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context, listen: true);
-    if (_wasLoggedIn == true && !app.loggedIn) {
+    final wnmDropped = _wasLoggedIn == true && !app.loggedIn;
+    if (wnmDropped) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        rootNavKey.currentState?.popUntil((r) => r.isFirst);
+        // Control-server screens stay when that session is still alive.
+        if (app.panel.panelDepth == 0) rootNavKey.currentState?.popUntil((r) => r.isFirst);
         final msg = app.expiredMessage;
         if (msg != null) {
           app.expiredMessage = null;
           showToast(msg, error: true);
         }
       });
+    } else if (_wasAny == true && !app.anyLoggedIn) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => rootNavKey.currentState?.popUntil((r) => r.isFirst));
     }
     _wasLoggedIn = app.booting ? null : app.loggedIn;
+    _wasAny = app.booting ? null : app.anyLoggedIn;
     final Widget child;
     if (app.booting) {
       child = const GlassBackdrop(
         key: ValueKey('boot'),
         child: Scaffold(backgroundColor: Colors.transparent, body: LoadingView()),
       );
-    } else if (app.loggedIn) {
+    } else if (app.anyLoggedIn) {
       child = const HomeShell(key: ValueKey('home'));
     } else {
       child = const LoginScreen(key: ValueKey('login'));

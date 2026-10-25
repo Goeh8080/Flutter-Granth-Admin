@@ -11,6 +11,10 @@ import '../widgets/links.dart';
 import '../widgets/motion.dart';
 import 'feedback_screen.dart';
 import 'home_shell.dart';
+import 'login_screen.dart';
+import 'panel/panel_login.dart';
+import 'panel/panel_settings.dart';
+import 'panel/panel_widgets.dart';
 import 'pramans_screen.dart';
 import 'topics_screen.dart';
 
@@ -52,7 +56,7 @@ class SettingsScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          app.username,
+                          app.username.isEmpty ? 'Admin' : app.username,
                           style: TextStyle(color: p.text, fontSize: 18, fontWeight: FontWeight.w700),
                         ),
                         Text('Admin • granth.wnmsolutions.com', style: TextStyle(color: p.subtext, fontSize: 12.5)),
@@ -114,12 +118,32 @@ class SettingsScreen extends StatelessWidget {
         ),
         const PadSliver(child: SliverToBoxAdapter(child: SectionTitle('खाता / Account'))),
         PadSliver(
-          child: SliverToBoxAdapter(
-            child: _Row(CupertinoIcons.square_arrow_right, 'लॉग आउट / Logout', () async {
-              if (await confirmDialog(context, title: 'लॉग आउट करें? / Log out?', confirm: 'Logout')) {
-                await app.logout();
-              }
-            }, destructive: true),
+          child: SliverList.list(
+            children: [
+              if (app.loggedIn)
+                _Row(CupertinoIcons.square_arrow_right, 'वेबसाइट से लॉग आउट / Logout', () async {
+                  if (await confirmDialog(context, title: 'लॉग आउट करें? / Log out?', confirm: 'Logout')) {
+                    await app.logout();
+                  }
+                }, destructive: true)
+              else
+                _Row(
+                  CupertinoIcons.person_crop_circle_badge_checkmark,
+                  'वेबसाइट (ग्रंथ डेटा) में लॉगिन',
+                  () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => const LoginScreen(popOnSuccess: true))),
+                ),
+              if (app.panel.loggedIn)
+                _Row(CupertinoIcons.square_arrow_right, 'ऐप कंट्रोल से लॉग आउट', () async {
+                  if (await confirmLogout(context)) await app.panel.logout();
+                }, destructive: true)
+              else
+                _Row(
+                  CupertinoIcons.slider_horizontal_3,
+                  'ऐप कंट्रोल में लॉगिन',
+                  () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => const PanelLoginScreen())),
+                ),
+              _Row(CupertinoIcons.link, 'कंट्रोल सर्वर पता', () => showPanelBaseSheet(context)),
+            ],
           ),
         ),
         PadSliver(

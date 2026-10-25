@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
 import '../services/granth_api.dart';
+import 'panel_state.dart';
 
 class PrefsCookieStore implements CookieStore {
   static const _k = 'granth_admin_cookie';
@@ -36,11 +37,21 @@ class PrefsCookieStore implements CookieStore {
 
 /// Global app state: API, login state, theme, and shared caches used by pickers/suggestions.
 class AppState extends ChangeNotifier {
-  AppState({GranthApi? api}) : api = api ?? GranthApi(ApiClient(store: PrefsCookieStore())) {
+  AppState({GranthApi? api, PanelState? panel})
+    : api = api ?? GranthApi(ApiClient(store: PrefsCookieStore())),
+      panel = panel ?? PanelState() {
     this.api.client.onSessionExpired = _expired;
+    // The control-server session is separate; forward its changes so the gate/tabs rebuild.
+    this.panel.addListener(notifyListeners);
   }
 
   final GranthApi api;
+
+  /// Second login: the control server (app control + analytics). Independent of [loggedIn].
+  final PanelState panel;
+
+  /// True when at least one of the two sessions is active (the app works with only one).
+  bool get anyLoggedIn => loggedIn || panel.loggedIn;
   bool loggedIn = false;
   bool booting = true;
   String username = '';
@@ -60,11 +71,13 @@ class AppState extends ChangeNotifier {
   /// Startup. Whatever happens (plugin failure, no network, slow server, bad JSON)
   /// this always ends with [booting] = false so the UI leaves the loading screen.
   Future<void> boot() async {
+    final panelBoot = panel.boot(); // independent; never throws
     try {
       await _boot().timeout(const Duration(seconds: 15));
     } catch (e, st) {
       debugPrint('GranthAdmin boot failed: $e\n$st');
     } finally {
+      await panelBoot;
       booting = false;
       notifyListeners();
     }
@@ -106,6 +119,7 @@ class AppState extends ChangeNotifier {
 
   /// Re-check on app resume.
   Future<void> verifySession() async {
+    unawaited(panel.verify());
     if (!loggedIn) return;
     try {
       if (!await api.checkSession().timeout(sessionCheckTimeout)) _expired();

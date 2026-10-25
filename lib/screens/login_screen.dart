@@ -9,9 +9,12 @@ import '../theme/app_theme.dart';
 import '../theme/glass.dart';
 import '../widgets/common.dart';
 import '../widgets/toast.dart';
+import 'panel/panel_login.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  /// [popOnSuccess]: shown on top of the app (website login from the app-control side) — close after login.
+  const LoginScreen({super.key, this.popOnSuccess = false});
+  final bool popOnSuccess;
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -63,6 +66,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         _shake.forward(from: 0);
       } else if (ok) {
         showToast('स्वागत है / Welcome, $u');
+        if (widget.popOnSuccess && mounted) Navigator.of(context).maybePop();
       }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -80,7 +84,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(
-          child: Center(
+          child: Stack(children: [
+          Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: AnimatedBuilder(
@@ -187,12 +192,27 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       ),
                       const SizedBox(height: 18),
                       Text('granth.wnmsolutions.com', style: TextStyle(color: p.subtext, fontSize: 12)),
+                      if (!widget.popOnSuccess)
+                        CupertinoButton(
+                          onPressed: () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => const PanelLoginScreen())),
+                          child: const Text('सिर्फ़ ऐप कंट्रोल में लॉगिन करें →', style: TextStyle(fontSize: 14)),
+                        ),
                     ],
                   ),
                 ),
               ),
             ),
           ),
+            if (widget.popOnSuccess)
+              Positioned(
+                top: 4,
+                right: 8,
+                child: CupertinoButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  child: const Icon(CupertinoIcons.xmark_circle_fill, size: 28),
+                ),
+              ),
+          ]),
         ),
       ),
     );

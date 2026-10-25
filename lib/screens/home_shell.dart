@@ -3,9 +3,14 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../core/app_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/common.dart';
+import '../widgets/glass_scaffold.dart';
 import 'dashboard_screen.dart';
 import 'granths_screen.dart';
+import 'login_screen.dart';
+import 'panel/panel_home.dart';
 import 'pramans_screen.dart';
 import 'settings_screen.dart';
 import 'topics_screen.dart';
@@ -30,20 +35,39 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
   final _built = <int>{0};
+  bool _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    // Only the control server is logged in → open on its tab.
+    final app = AppScope.of(context);
+    if (!app.loggedIn && app.panel.loggedIn) {
+      _index = _kPanelTab;
+      _built.add(_kPanelTab);
+    }
+  }
+
+  static const _kPanelTab = 4;
 
   static const _tabs = [
     (CupertinoIcons.square_grid_2x2, CupertinoIcons.square_grid_2x2_fill, 'डैशबोर्ड'),
     (CupertinoIcons.list_bullet, CupertinoIcons.list_bullet, 'विषय'),
     (CupertinoIcons.book, CupertinoIcons.book_fill, 'ग्रंथ'),
     (CupertinoIcons.photo_on_rectangle, CupertinoIcons.photo_fill_on_rectangle_fill, 'प्रमाण'),
+    (CupertinoIcons.slider_horizontal_3, CupertinoIcons.slider_horizontal_3, 'कंट्रोल'),
     (CupertinoIcons.ellipsis_circle, CupertinoIcons.ellipsis_circle_fill, 'अधिक'),
   ];
 
+  /// Tabs 0–3 need the website login; the control tab needs the control-server login.
   Widget _page(int i) => switch (i) {
-    0 => const DashboardScreen(),
-    1 => const TopicsScreen(),
-    2 => const GranthsScreen(),
-    3 => const PramansScreen(),
+    0 => _WnmGate(title: 'डैशबोर्ड', child: () => const DashboardScreen()),
+    1 => _WnmGate(title: 'विषय', child: () => const TopicsScreen()),
+    2 => _WnmGate(title: 'ग्रंथ', child: () => const GranthsScreen()),
+    3 => _WnmGate(title: 'प्रमाण', child: () => const PramansScreen()),
+    4 => const PanelHome(bottomInset: kTabBarHeight + 20),
     _ => const SettingsScreen(),
   };
 
@@ -77,6 +101,44 @@ class _HomeShellState extends State<HomeShell> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Shows the website-data tab only while that login is alive; otherwise a prompt to log in.
+class _WnmGate extends StatelessWidget {
+  const _WnmGate({required this.title, required this.child});
+  final String title;
+  final Widget Function() child;
+  @override
+  Widget build(BuildContext context) {
+    final app = AppScope.of(context, listen: true);
+    if (app.loggedIn) return child();
+    return GlassPage(
+      title: title,
+      bottomInset: kTabBarHeight + 20,
+      slivers: [
+        PadSliver(
+          child: SliverFillRemaining(
+            hasScrollBody: false,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const MessageView(
+                  icon: CupertinoIcons.lock,
+                  title: 'वेबसाइट में लॉगिन चाहिए',
+                  subtitle: 'ग्रंथ/विषय/प्रमाण का डेटा granth.wnmsolutions.com के लॉगिन से चलता है। \'ऐप कंट्रोल\' टैब उससे अलग काम करता है।',
+                ),
+                PrimaryButton(
+                  label: 'वेबसाइट लॉगिन / Login',
+                  icon: CupertinoIcons.person_crop_circle,
+                  onPressed: () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => const LoginScreen(popOnSuccess: true))),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
