@@ -23,6 +23,7 @@ import '../widgets/pop.dart';
 import '../admin/screens/granth_form.dart';
 import '../admin_ui/admin_actions.dart';
 import '../admin_ui/admin_data.dart';
+import '../admin_ui/arrange_granths.dart';
 
 /// `Dh` — Granths / Sacred texts and scriptures.
 ///
@@ -174,15 +175,47 @@ class _GranthsPanelState extends State<GranthsPanel> with LivePanel {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.only(top: 12),
-              child: SortChips<GranthSort>(
-                options: const [
-                  (GranthSort.number, 'क्रम'),
-                  (GranthSort.name, 'नाम'),
-                  (GranthSort.pramans, 'प्रमाण'),
-                  (GranthSort.hidden, 'छिपे पहले'),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SortChips<GranthSort>(
+                      options: const [
+                        (GranthSort.number, 'क्रम'),
+                        (GranthSort.name, 'नाम'),
+                        (GranthSort.pramans, 'प्रमाण'),
+                        (GranthSort.hidden, 'छिपे पहले'),
+                      ],
+                      value: _sort,
+                      onChanged: (v) => setState(() => _sort = v),
+                    ),
+                  ),
+                  if (_q.trim().isEmpty && pool.length > 1) ...[
+                    const SizedBox(width: 8),
+                    KeyedSubtree(
+                      key: const ValueKey('arrange-granths'),
+                      child: AdminPill(
+                        label: 'क्रम बदलें',
+                        icon: 'arrow-up-down',
+                        fontSize: 13,
+                        height: 38,
+                        onTap: () {
+                          final list = [...pool];
+                          stableSort(
+                            list,
+                            (a, b) => numericCompare(a.position, b.position),
+                          );
+                          showArrangeGranths(
+                            context,
+                            granths: list,
+                            folderTitle: widget.scope == null
+                                ? 'सभी ग्रंथ'
+                                : widget.title,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ],
-                value: _sort,
-                onChanged: (v) => setState(() => _sort = v),
               ),
             ),
           ),

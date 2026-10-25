@@ -9,6 +9,7 @@ import '../models/models.dart' as u;
 import '../models/structure.dart';
 import '../services/catalog_store.dart';
 import '../services/shelves.dart';
+import 'arrange_granths.dart';
 
 /// The admin app's data hub. It loads the two back ends (the wnm site: topics / granths / pramans,
 /// and the control server: structure, granth placement, hidden ids, settings) and hands the
@@ -227,6 +228,23 @@ class AdminData extends ChangeNotifier {
     }
     await refreshControl();
     app.panel.bump();
+  }
+
+  /// Saves a manual order for the granths of ONE folder ([folderIds] in the wanted order).
+  ///
+  /// The reader app orders a folder by the API `position`, and the wnm site's
+  /// `update_granth_order` renumbers the whole catalogue from the array it gets, so the
+  /// catalogue is sent with the folder's granths re-ordered inside the slots they already
+  /// hold ([catalogueForFolderOrder]). Live immediately (not a draft). Throws on failure.
+  Future<void> saveGranthOrder(List<int> folderIds) async {
+    final all = [...app.granths];
+    final idx = {for (var i = 0; i < all.length; i++) all[i].id: i};
+    all.sort((a, b) {
+      final c = a.position.compareTo(b.position);
+      return c != 0 ? c : idx[a.id]!.compareTo(idx[b.id]!);
+    });
+    await app.api.saveGranthOrder(catalogueForFolderOrder(all, folderIds));
+    app.bump();
   }
 
   Future<void> setLeaf(String id, String leaf) async {
