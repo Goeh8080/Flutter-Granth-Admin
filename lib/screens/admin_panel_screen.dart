@@ -111,31 +111,13 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
           )
         else ...[
           Entry(index: 1, child: _analytics()),
-          const AdminLabel('पाठकों के लिए सेटिंग'),
-          Entry(index: 2, child: const AiToggleCard()),
-          const SizedBox(height: 10),
-          Entry(index: 3, child: _gridCard(grid)),
-          const SizedBox(height: 10),
-          Entry(index: 4, child: _announcementCard()),
-          const AdminLabel('AI प्रबंधन'),
+          const AdminLabel('AI (सेटिंग)'),
           Entry(
-            index: 5,
-            child: AdminTile(
-              icon: 'lightbulb',
-              title: 'AI Key Points',
-              sub: _ai == null
-                  ? '"अगर सवाल X, तो जवाब Y" जोड़ें / बदलें'
-                  : '${_ai!.kbVisible} दिखते · कुल ${_ai!.kbTotal}/${_ai!.kbMax} — तुरंत लाइव',
-              tone: Tone.saffron,
-              onTap: () => _open(const AiKnowledgeScreen()),
-            ),
-          ),
-          Entry(
-            index: 6,
+            index: 2,
             child: AdminTile(
               icon: 'inbox',
-              title: 'यूज़र के सवाल',
-              sub: 'पाठकों के सवाल देखें, जवाब दें',
+              title: 'AI Question',
+              sub: 'पाठकों के सवाल देखें, जवाब दें — जवाब यूज़र की चैट में जाता है',
               badge: _ai?.unread ?? 0,
               tone: Tone.saffron,
               onTap: () async {
@@ -144,6 +126,24 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
               },
             ),
           ),
+          Entry(
+            index: 3,
+            child: AdminTile(
+              icon: 'lightbulb',
+              title: 'AI Key Notes',
+              sub: _ai == null
+                  ? 'Title + Description जोड़ें, बदलें, छिपाएँ'
+                  : '${_ai!.kbVisible} दिखते · कुल ${_ai!.kbTotal}/${_ai!.kbMax} — तुरंत लाइव',
+              tone: Tone.saffron,
+              onTap: () => _open(const AiKnowledgeScreen()),
+            ),
+          ),
+          const AdminLabel('पाठकों के लिए सेटिंग'),
+          Entry(index: 4, child: const AiToggleCard()),
+          const SizedBox(height: 10),
+          Entry(index: 5, child: _gridCard(grid)),
+          const SizedBox(height: 10),
+          Entry(index: 6, child: _announcementCard()),
           const AdminLabel('ग्रंथ और फ़ोल्डर'),
           Entry(
             index: 7,
@@ -237,7 +237,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
         const SizedBox(height: 6),
         Center(
           child: Text(
-            'ग्रंथ एडमिन · संस्करण $_version${me == null ? '' : ' · लाइव कॉन्फ़िग v${me.version}'}',
+            'ग्रंथ एडमिन · Round 2 · संस्करण $_version${me == null ? '' : ' · लाइव कॉन्फ़िग v${me.version}'}',
             key: const ValueKey('version-line'),
             textAlign: TextAlign.center,
             style: GText.sans(size: 12.5, color: GColors.muted),
