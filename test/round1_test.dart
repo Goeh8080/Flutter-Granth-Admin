@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:granthadmin/admin/core/app_state.dart';
 import 'package:granthadmin/admin/core/panel_state.dart';
 import 'package:granthadmin/admin/models/ai_models.dart';
+import 'package:granthadmin/admin/screens/panel/panel_settings.dart';
 import 'package:granthadmin/admin/models/panel_models.dart' show StatsOverview;
 import 'package:granthadmin/admin/services/granth_api.dart';
 import 'package:granthadmin/admin/services/panel_api.dart';
@@ -169,9 +170,9 @@ void main() {
     test('validateKnowledge mirrors server limits (q 5..500, a 50..2000)', () {
       final a = 'क' * 50;
       expect(validateKnowledge('सवाल है', a), isNull);
-      expect(validateKnowledge('abc', a), contains('सवाल'));
-      expect(validateKnowledge('सवाल है', 'छोटा'), contains('जवाब'));
-      expect(validateKnowledge('सवाल है', 'क' * 2001), contains('जवाब'));
+      expect(validateKnowledge('abc', a), contains('Title'));
+      expect(validateKnowledge('सवाल है', 'छोटा'), contains('Description'));
+      expect(validateKnowledge('सवाल है', 'क' * 2001), contains('Description'));
     });
     test('announcement bodies', () {
       final b = announcementBody(
@@ -276,8 +277,8 @@ void main() {
       expect(find.byKey(const ValueKey('ai-toggle')), findsOneWidget);
       expect(find.byKey(const ValueKey('grid-card')), findsOneWidget);
       expect(find.byKey(const ValueKey('announcement-card')), findsOneWidget);
-      expect(find.text('AI Key Points'), findsOneWidget);
-      expect(find.text('यूज़र के सवाल'), findsOneWidget);
+      expect(find.text('AI Key Notes'), findsOneWidget);
+      expect(find.text('AI Question'), findsOneWidget);
       expect(
         find.text('एडमिन जोड़ें / हटाएँ'),
         findsOneWidget,
@@ -525,6 +526,80 @@ void main() {
       ];
       expect(shown, ['2', '1', '3']);
       await settle(t, 30);
+    },
+  );
+
+  testWidgets(
+    'Settings: AI Question (unread badge) + AI Key Notes → Title/Description',
+    (t) async {
+      t.view.physicalSize = const Size(1080, 4000);
+      t.view.devicePixelRatio =
+          1; // wide: the test font is far wider than the real one
+      addTearDown(t.view.reset);
+      final rig = _Rig();
+      await rig.up(t);
+      await t.pumpWidget(
+        AppScope(
+          state: rig.state,
+          child: const MaterialApp(home: PanelSettingsScreen()),
+        ),
+      );
+      await io(t);
+      await settle(t);
+      expect(find.text('AI Question'), findsOneWidget);
+      expect(find.text('AI Key Notes'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('settings-ai-question')),
+          matching: find.text('3'),
+        ),
+        findsOneWidget,
+        reason: 'unread badge',
+      );
+
+      // AI Question opens the inbox.
+      await t.tap(find.text('AI Question'));
+      await io(t);
+      await settle(t, 20);
+      expect(find.text('AI Question'), findsOneWidget);
+      expect(find.text('सब पढ़ा'), findsOneWidget);
+      await t.tap(find.text('पीछे'));
+      await settle(t, 20);
+
+      // AI Key Notes: Title + Description → POST /ai/knowledge {question, answer}.
+      await t.tap(find.text('AI Key Notes'));
+      await io(t);
+      await settle(t, 20);
+      await t.tap(find.text('नया नोट'));
+      await settle(t, 20);
+      expect(find.textContaining('Title'), findsWidgets);
+      expect(find.textContaining('Description'), findsWidgets);
+      final fields = find.byType(TextField);
+      await t.enterText(fields.at(0), 'एकादशी कब है?');
+      await t.enterText(fields.at(1), 'छोटा');
+      await t.tap(find.text('सहेजें'));
+      await io(t);
+      await settle(t, 6);
+      expect(
+        rig.calls.where((c) => c == 'POST /admin/api/ai/knowledge'),
+        isEmpty,
+      );
+
+      final desc =
+          'यह विवरण पचास अक्षरों से लंबा है ताकि सर्वर इसे स्वीकार करे। ' * 2;
+      await t.enterText(fields.at(1), desc);
+      await t.tap(find.text('सहेजें'));
+      await io(t);
+      await settle(t, 6);
+      final posted = rig.bodies
+          .map((b) => jsonDecode(b))
+          .whereType<Map>()
+          .where((m) => m.containsKey('question') && m.containsKey('answer'))
+          .toList();
+      expect(posted, hasLength(1));
+      expect(posted.single['question'], 'एकादशी कब है?');
+      expect(posted.single['answer'], desc.trim());
+      await settle(t, 40);
     },
   );
 }

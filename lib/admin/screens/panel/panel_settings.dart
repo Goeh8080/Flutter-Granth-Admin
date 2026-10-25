@@ -11,6 +11,7 @@ import '../../widgets/form_sheet.dart';
 import '../../widgets/glass_scaffold.dart';
 import '../../widgets/motion.dart';
 import '../../widgets/toast.dart';
+import '../../../admin_ui/ai_admin_screens.dart' show AiSettingsEntries;
 import 'panel_widgets.dart';
 
 /// सेटिंग्स: flags, announcement, AI endpoint (saved to the draft, then published), password, sessions, audit.
@@ -29,6 +30,7 @@ class PanelSettingsScreen extends StatelessWidget {
           child: SliverList(
             delegate: SliverChildListDelegate([
               const DraftBanner(),
+              const AiSettingsEntries(),
               _SettingsForm(key: ValueKey(identityHashCode(s)), settings: s),
               const SizedBox(height: 18),
               MenuRow(

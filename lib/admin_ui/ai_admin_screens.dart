@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../admin/models/ai_models.dart';
-import '../admin/screens/panel/panel_widgets.dart' show shortTs;
+import '../admin/screens/panel/panel_widgets.dart' show pushPanel, shortTs;
 import '../admin/services/panel_api.dart';
 import '../admin/widgets/form_sheet.dart' show runWrite;
 import '../admin/widgets/toast.dart';
@@ -27,7 +27,8 @@ List<String> parseTags(String raw) {
   return out;
 }
 
-/// Client-side check mirroring the server (question 5..500, answer 50..2000). Null = ok.
+/// Client-side check mirroring the server. AI Key Notes: Title = the server's `question`
+/// (5..500), Description = its `answer` (50..2000). Null = ok.
 String? validateKnowledge(
   String q,
   String a, {
@@ -37,8 +38,9 @@ String? validateKnowledge(
   int aMax = 2000,
 }) {
   final ql = q.trim().runes.length, al = a.trim().runes.length;
-  if (ql < qMin || ql > qMax) return 'सवाल $qMin–$qMax अक्षर का हो (अभी $ql)';
-  if (al < aMin || al > aMax) return 'जवाब $aMin–$aMax अक्षर का हो (अभी $al)';
+  if (ql < qMin || ql > qMax) return 'Title $qMin–$qMax अक्षर का हो (अभी $ql)';
+  if (al < aMin || al > aMax)
+    return 'Description $aMin–$aMax अक्षर का हो (अभी $al)';
   return null;
 }
 
@@ -93,6 +95,67 @@ class _LoadState<T> extends State<_Load<T>> {
   }
 }
 
+/// "AI Question" + "AI Key Notes" entries for a Settings page: the question inbox (with its
+/// unread badge) and the key-notes list. Needs the control-server login (hidden otherwise).
+class AiSettingsEntries extends StatefulWidget {
+  const AiSettingsEntries({super.key});
+  @override
+  State<AiSettingsEntries> createState() => _AiSettingsEntriesState();
+}
+
+class _AiSettingsEntriesState extends State<AiSettingsEntries> {
+  AiSummary? _s;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final s = await _api.aiSummary();
+      if (mounted) setState(() => _s = s);
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = _s;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const AdminLabel('AI'),
+        AdminTile(
+          key: const ValueKey('settings-ai-question'),
+          icon: 'inbox',
+          title: 'AI Question',
+          sub: 'पाठकों के सवाल देखें, जवाब दें — जवाब यूज़र की चैट में जाता है',
+          badge: s?.unread ?? 0,
+          tone: Tone.saffron,
+          onTap: () async {
+            await pushPanel(context, const AiQuestionsScreen());
+            _load();
+          },
+        ),
+        AdminTile(
+          key: const ValueKey('settings-ai-notes'),
+          icon: 'lightbulb',
+          title: 'AI Key Notes',
+          sub: s == null
+              ? 'Title + Description जोड़ें, बदलें, छिपाएँ'
+              : '${s.kbVisible} दिखते · कुल ${s.kbTotal}/${s.kbMax} — तुरंत लाइव',
+          tone: Tone.saffron,
+          onTap: () async {
+            await pushPanel(context, const AiKnowledgeScreen());
+            _load();
+          },
+        ),
+      ],
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------- key points
 
 class AiKnowledgeScreen extends StatefulWidget {
@@ -107,10 +170,10 @@ class _AiKnowledgeScreenState extends State<AiKnowledgeScreen> {
 
   @override
   Widget build(BuildContext context) => AdminSubPage(
-    title: 'AI Key Points',
+    title: 'AI Key Notes',
     trailing: Pill(
       icon: 'plus',
-      label: 'नया',
+      label: 'नया नोट',
       tone: PillTone.maroon,
       onTap: () async {
         if (await showKnowledgeEditor(context)) _reload();
@@ -127,7 +190,7 @@ class _AiKnowledgeScreenState extends State<AiKnowledgeScreen> {
               GCard(
                 padding: const EdgeInsets.all(12),
                 child: Text(
-                  '"अगर सवाल यह हो, तो जवाब यह" — यहाँ जोड़ा गया हर बिंदु तुरंत लाइव होता है (प्रकाशित करने की ज़रूरत नहीं)। ${list.total}/${list.maxItems} बिंदु।',
+                  'हर नोट में Title और Description होता है। AI यूज़र को जवाब देते समय इन नोट्स को पढ़ता है और इन्हीं में से जवाब निकालता है। नोट तुरंत लाइव होता है (प्रकाशित करने की ज़रूरत नहीं)। ${list.total}/${list.maxItems} नोट।',
                   style: GText.sans(
                     size: 13,
                     color: GColors.muted,
@@ -138,8 +201,8 @@ class _AiKnowledgeScreenState extends State<AiKnowledgeScreen> {
               const SizedBox(height: 10),
               if (list.items.isEmpty)
                 const EmptyState(
-                  title: 'अभी कोई key point नहीं',
-                  body: 'ऊपर "नया" दबाकर जोड़ें।',
+                  title: 'अभी कोई key note नहीं',
+                  body: 'ऊपर "नया नोट" दबाकर Title और Description जोड़ें।',
                 ),
               for (final k in list.items) _KbCard(k, onChanged: refresh),
             ],
@@ -167,7 +230,7 @@ class _KbCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'प्र. ${k.question}',
+                k.question,
                 style: GText.sans(
                   size: 15,
                   weight: FontWeight.w800,
@@ -177,7 +240,7 @@ class _KbCard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                'उ. ${k.answer}',
+                k.answer,
                 maxLines: 5,
                 overflow: TextOverflow.ellipsis,
                 style: GText.sans(size: 14, height: 1.45),
@@ -216,7 +279,7 @@ class _KbCard extends StatelessWidget {
                     onTap: () async {
                       final yes = await confirmPopTitled(
                         context,
-                        title: 'यह key point हटाएँ?',
+                        title: 'यह key note हटाएँ?',
                         message: k.question,
                         confirm: 'हटाएँ',
                         destructive: true,
@@ -318,33 +381,35 @@ class _KbSheetState extends State<_KbSheet> {
   Widget build(BuildContext context) => SheetCard(
     children: [
       SheetHead(
-        title: widget.item == null ? 'नया key point' : 'key point संपादित',
+        title: widget.item == null ? 'नया key note' : 'key note संपादित',
         onBack: () => Navigator.pop(context, false),
       ),
       AdminField(
         controller: _q,
-        label: 'अगर सवाल यह हो… (5–500)',
+        label: 'Title (5–500 अक्षर)',
+        hint: 'जैसे: एकादशी व्रत कब है?',
         maxLines: 3,
-        counter: '${_q.text.trim().runes.length}',
+        counter: '${_q.text.trim().runes.length}/500',
         onChanged: (_) => setState(() {}),
       ),
       AdminField(
         controller: _a,
-        label: 'तो जवाब यह है… (50–2000)',
+        label: 'Description (50–2000 अक्षर)',
+        hint: 'AI इसी जानकारी से जवाब बनाएगा',
         maxLines: 8,
-        counter: '${_a.text.trim().runes.length}',
+        counter: '${_a.text.trim().runes.length}/2000',
         onChanged: (_) => setState(() {}),
       ),
       AdminField(
         controller: _t,
-        label: 'टैग (अल्पविराम से, अधिकतम 10)',
+        label: 'टैग — वैकल्पिक (अल्पविराम से, अधिकतम 10)',
         hint: 'व्रत, पूजा',
       ),
       Row(
         children: [
           Expanded(
             child: Text(
-              'पाठकों के लिए दिखे',
+              'AI इस्तेमाल करे (दिखे)',
               style: GText.sans(
                 size: 15,
                 weight: FontWeight.w800,
@@ -393,7 +458,7 @@ class _AiQuestionsScreenState extends State<AiQuestionsScreen> {
 
   @override
   Widget build(BuildContext context) => AdminSubPage(
-    title: 'यूज़र के सवाल',
+    title: 'AI Question',
     trailing: Pill(
       label: 'सब पढ़ा',
       onTap: () async {
@@ -612,13 +677,13 @@ class _AnswerSheetState extends State<_AnswerSheet> {
       return showToast('जवाब 1–2000 अक्षर का हो (अभी $len)', error: true);
     if (_kb && validateKnowledge(widget.q.question.padRight(5), a) != null)
       return showToast(
-        'key point बनाने के लिए जवाब 50–2000 अक्षर का हो (अभी $len)',
+        'key note बनाने के लिए Description 50–2000 अक्षर का हो (अभी $len)',
         error: true,
       );
     setState(() => _busy = true);
     final ok = await runWrite(() async {
       await _api.aiQuestionAnswer(widget.q.id, a, addToKnowledge: _kb);
-    }, success: _kb ? 'जवाब भेजा और key point जोड़ा' : 'जवाब भेजा गया');
+    }, success: _kb ? 'जवाब भेजा और key note जोड़ा' : 'जवाब भेजा गया');
     if (!mounted) return;
     if (ok) {
       Navigator.pop(context, true);
@@ -645,14 +710,14 @@ class _AnswerSheetState extends State<_AnswerSheet> {
         controller: _a,
         label: 'आपका जवाब (1–2000)',
         maxLines: 8,
-        counter: '${_a.text.trim().runes.length}',
+        counter: '${_a.text.trim().runes.length}/2000',
         onChanged: (_) => setState(() {}),
       ),
       Row(
         children: [
           Expanded(
             child: Text(
-              'AI key point में भी जोड़ें',
+              'AI key note में भी जोड़ें',
               style: GText.sans(
                 size: 15,
                 weight: FontWeight.w800,
