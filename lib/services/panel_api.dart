@@ -46,14 +46,16 @@ class PanelUnauthorized extends PanelApiException {
 
 class PanelRateLimited extends PanelApiException {
   const PanelRateLimited(this.retryAfter)
-    : super('बहुत ज़्यादा कोशिशें — थोड़ी देर बाद फिर करें / Too many attempts, try later', code: 'rate_limited', status: 429);
+    : super(
+        'बहुत ज़्यादा कोशिशें — थोड़ी देर बाद फिर करें / Too many attempts, try later',
+        code: 'rate_limited',
+        status: 429,
+      );
   final int retryAfter;
   @override
   String get fullMessage {
     final m = (retryAfter / 60).ceil();
-    return m > 0
-        ? 'बहुत ज़्यादा कोशिशें — $m मिनट बाद फिर करें / Too many attempts, retry in $m min'
-        : message;
+    return m > 0 ? 'बहुत ज़्यादा कोशिशें — $m मिनट बाद फिर करें / Too many attempts, retry in $m min' : message;
   }
 }
 
@@ -101,6 +103,24 @@ String panelErrorText(String code, int? status) {
       return 'AI endpoint गलत (https चाहिए) / Invalid endpoint (https required)';
     case 'weak_password':
       return 'नया पासवर्ड 10 से 256 अक्षर का हो / New password must be 10–256 characters';
+    case 'forbidden':
+      return 'सिर्फ़ मालिक (owner) के लिए / Owner only';
+    case 'admin_not_found':
+      return 'एडमिन नहीं मिला / Admin not found';
+    case 'username_taken':
+      return 'यह यूज़रनेम पहले से है / Username already taken';
+    case 'bad_username':
+      return 'यूज़रनेम गलत (3–32: a-z 0-9 _ . -) / Bad username';
+    case 'bad_role':
+      return 'भूमिका गलत / Bad role';
+    case 'cannot_modify_self':
+      return 'अपने खाते पर यह नहीं हो सकता / You cannot do this to yourself';
+    case 'last_owner':
+      return 'कम से कम एक सक्रिय owner ज़रूरी है / At least one active owner is required';
+    case 'use_change_password':
+      return 'अपना पासवर्ड सेटिंग्स से बदलें / Use change password for yourself';
+    case 'contact_not_found':
+      return 'संपर्क नहीं मिला / Contact not found';
     case 'rate_limited':
       return 'बहुत ज़्यादा कोशिशें / Too many attempts';
     case 'too_soon':
@@ -298,12 +318,45 @@ class PanelApi {
   Future<void> changePassword(String current, String next) async =>
       _post('/password', {'current': current, 'new': next});
 
+  // ------------------------------------------------------------------ admins (owner only)
+
+  Future<PanelAdminList> admins() async => PanelAdminList.fromJson(await _get('/admins'));
+
+  Future<PanelAdmin> createAdmin(String username, String password, {String role = 'admin'}) async =>
+      PanelAdmin.fromJson(
+        pMap((await _post('/admins', {'username': username, 'password': password, 'role': role}))['admin']),
+      );
+
+  /// Change [role] and/or [disabled] of an admin (not yourself).
+  Future<PanelAdmin> updateAdmin(String username, {String? role, bool? disabled}) async => PanelAdmin.fromJson(
+    pMap((await _put('/admins/${Uri.encodeComponent(username)}', {'role': ?role, 'disabled': ?disabled}))['admin']),
+  );
+
+  Future<void> resetAdminPassword(String username, String password) async =>
+      _post('/admins/${Uri.encodeComponent(username)}/password', {'password': password});
+
+  Future<int> revokeAdminSessions(String username) async =>
+      pInt((await _post('/admins/${Uri.encodeComponent(username)}/revoke_sessions'))['revoked']);
+
+  Future<void> deleteAdmin(String username) async => _call('DELETE', '/admins/${Uri.encodeComponent(username)}');
+
+  // ------------------------------------------------------------------ contacts (विशेष जानकार)
+
+  Future<PanelContacts> contacts() async => PanelContacts.fromJson(await _get('/contacts'));
+
+  /// "Save screen": replaces the title and the whole list (array order = display order). Goes to the draft.
+  Future<PanelContacts> putContacts({String? title, required List<PanelContact> items}) async => PanelContacts.fromJson(
+    await _put('/contacts', {
+      'title': ?title,
+      'items': [for (final c in items) c.toJson()],
+    }),
+  );
+
   // ------------------------------------------------------------------ granths
 
   /// [sort]: number|position|id|title|opens|watch|praman|newest (server default: catalogue number, #1 first).
-  Future<PanelGranthList> granths({String? sort, String? order}) async => PanelGranthList.fromJson(
-    await _get('/granths', {'sort': ?sort, 'order': ?order}),
-  );
+  Future<PanelGranthList> granths({String? sort, String? order}) async =>
+      PanelGranthList.fromJson(await _get('/granths', {'sort': ?sort, 'order': ?order}));
 
   /// Change one granth in the shared draft. Pass [leaf] to move it, [clearLeaf] to drop the override
   /// (`leaf:null` = default placement) and/or [hidden] to show/hide it.
@@ -358,9 +411,8 @@ class PanelApi {
 
   Future<PanelVersions> versions() async => PanelVersions.fromJson(await _get('/versions'));
 
-  Future<PanelVersionDetail> version(int v, {int? against}) async => PanelVersionDetail.fromJson(
-    await _get('/versions/$v', against == null ? null : {'against': '$against'}),
-  );
+  Future<PanelVersionDetail> version(int v, {int? against}) async =>
+      PanelVersionDetail.fromJson(await _get('/versions/$v', against == null ? null : {'against': '$against'}));
 
   // ------------------------------------------------------------------ alerts / sync
 
@@ -381,7 +433,11 @@ class PanelApi {
     Map<String, Object?>? announcement,
     String? aiEndpoint,
   }) async {
-    final flags = <String, Object?>{'ai_enabled': ?aiEnabled, 'analytics_enabled': ?analyticsEnabled, 'analytics_sample': ?analyticsSample};
+    final flags = <String, Object?>{
+      'ai_enabled': ?aiEnabled,
+      'analytics_enabled': ?analyticsEnabled,
+      'analytics_sample': ?analyticsSample,
+    };
     final b = <String, Object?>{
       if (flags.isNotEmpty) 'flags': flags,
       'announcement': ?announcement,

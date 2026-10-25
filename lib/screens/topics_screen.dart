@@ -8,6 +8,7 @@ import '../widgets/animated_items.dart';
 import '../widgets/cards.dart';
 import '../widgets/common.dart';
 import '../widgets/glass_scaffold.dart';
+import '../widgets/grid_kit.dart';
 import '../widgets/toast.dart';
 import 'home_shell.dart';
 import 'item_actions.dart';
@@ -30,6 +31,8 @@ class _TopicsScreenState extends State<TopicsScreen> {
   String _serverQuery = '';
   late bool _inactive = widget.inactiveOnly;
   bool _loading = true;
+  String _sort = 'position';
+  bool _desc = false;
   Object? _error;
   int _rev = -1;
 
@@ -64,13 +67,25 @@ class _TopicsScreenState extends State<TopicsScreen> {
   }
 
   List<Topic> get _visible {
-    if (_local.isEmpty) return _all;
-    final q = _local.toLowerCase();
-    return _all
-        .where(
-          (t) => t.title.toLowerCase().contains(q) || t.description.toLowerCase().contains(q) || '${t.position}' == q,
-        )
-        .toList();
+    final base = _local.isEmpty
+        ? _all
+        : () {
+            final q = _local.toLowerCase();
+            return _all
+                .where(
+                  (t) =>
+                      t.title.toLowerCase().contains(q) ||
+                      t.description.toLowerCase().contains(q) ||
+                      '${t.position}' == q,
+                )
+                .toList();
+          }();
+    return switch (_sort) {
+      'title' => sortedBy(base, (t) => t.title, desc: _desc),
+      'praman' => sortedBy(base, (t) => t.pramanCount, desc: _desc),
+      'granth' => sortedBy(base, (t) => t.granthCount, desc: _desc),
+      _ => _desc ? base.reversed.toList() : base,
+    };
   }
 
   void _open(Topic t) => Navigator.of(context).push(CupertinoPageRoute(builder: (_) => TopicDetailScreen(topic: t)));
@@ -122,6 +137,21 @@ class _TopicsScreenState extends State<TopicsScreen> {
                     _local = '';
                     _load();
                   },
+                ),
+                const SizedBox(height: 10),
+                SortBar(
+                  options: const [
+                    SortOpt('position', 'क्रम'),
+                    SortOpt('title', 'नाम'),
+                    SortOpt('praman', 'प्रमाण'),
+                    SortOpt('granth', 'ग्रंथ'),
+                  ],
+                  sortKey: _sort,
+                  desc: _desc,
+                  onChanged: (k, d) => setState(() {
+                    _desc = k != _sort && (k == 'praman' || k == 'granth') ? true : d;
+                    _sort = k;
+                  }),
                 ),
                 if (!widget.inactiveOnly) ...[
                   const SizedBox(height: 10),

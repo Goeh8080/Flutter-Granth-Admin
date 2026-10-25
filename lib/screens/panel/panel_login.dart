@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 
 import '../../core/app_state.dart';
-import '../../core/panel_config.dart';
 import '../../services/panel_api.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/glass.dart';
@@ -19,7 +18,7 @@ class PanelLoginCard extends StatefulWidget {
 }
 
 class _PanelLoginCardState extends State<PanelLoginCard> {
-  final _user = TextEditingController(text: kPanelUsername);
+  final _user = TextEditingController();
   final _pass = TextEditingController();
   bool _busy = false;
   String? _error;
@@ -33,6 +32,10 @@ class _PanelLoginCardState extends State<PanelLoginCard> {
 
   Future<void> _login() async {
     final pw = _pass.text;
+    if (_user.text.trim().isEmpty) {
+      setState(() => _error = 'कृपया यूज़रनेम डालें / Please enter username');
+      return;
+    }
     if (pw.trim().isEmpty) {
       setState(() => _error = 'कृपया पासवर्ड डालें / Please enter password');
       return;
@@ -45,7 +48,7 @@ class _PanelLoginCardState extends State<PanelLoginCard> {
     });
     try {
       // The password is only passed to the API call; it is never stored or logged.
-      await panel.loginAs(_user.text.trim().isEmpty ? kPanelUsername : _user.text.trim(), pw);
+      await panel.loginAs(_user.text.trim(), pw);
       _pass.clear();
       showToast('कंट्रोल पैनल से जुड़ गए / Connected');
       widget.onDone?.call();

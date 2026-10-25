@@ -7,6 +7,7 @@ import '../widgets/animated_items.dart';
 import '../widgets/cards.dart';
 import '../widgets/common.dart';
 import '../widgets/glass_scaffold.dart';
+import '../widgets/grid_kit.dart';
 import '../widgets/toast.dart';
 import 'granth_detail_screen.dart';
 import 'granth_form.dart';
@@ -27,6 +28,8 @@ class _GranthsScreenState extends State<GranthsScreen> {
   bool _loading = true;
   Object? _error;
   int _rev = -1;
+  String _sort = 'position';
+  bool _desc = false;
 
   @override
   void didChangeDependencies() {
@@ -56,7 +59,17 @@ class _GranthsScreenState extends State<GranthsScreen> {
     }
   }
 
-  List<Granth> get _visible {
+  List<Granth> get _visible => _sorted(_filtered);
+
+  List<Granth> _sorted(List<Granth> l) => switch (_sort) {
+    'title' => sortedBy(l, (g) => g.title, desc: _desc),
+    'author' => sortedBy(l, (g) => g.author, desc: _desc),
+    'praman' => sortedBy(l, (g) => g.pramanCount, desc: _desc),
+    'newest' => sortedBy(l, (g) => g.createdAt, desc: _desc),
+    _ => _desc ? l.reversed.toList() : l,
+  };
+
+  List<Granth> get _filtered {
     if (_local.isEmpty) return _all;
     final q = _local.toLowerCase();
     return _all
@@ -111,6 +124,22 @@ class _GranthsScreenState extends State<GranthsScreen> {
                     _local = '';
                     _load();
                   },
+                ),
+                const SizedBox(height: 10),
+                SortBar(
+                  options: const [
+                    SortOpt('position', 'क्रम'),
+                    SortOpt('title', 'नाम'),
+                    SortOpt('author', 'लेखक'),
+                    SortOpt('praman', 'प्रमाण'),
+                    SortOpt('newest', 'नए'),
+                  ],
+                  sortKey: _sort,
+                  desc: _desc,
+                  onChanged: (k, d) => setState(() {
+                    _desc = k != _sort && (k == 'newest' || k == 'praman') ? true : d;
+                    _sort = k;
+                  }),
                 ),
                 if (_serverQuery.isNotEmpty)
                   Padding(

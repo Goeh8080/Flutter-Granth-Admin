@@ -224,7 +224,7 @@ class MessageView extends StatelessWidget {
 }
 
 /// Glass text field with a label.
-class GlassField extends StatelessWidget {
+class GlassField extends StatefulWidget {
   const GlassField({
     super.key,
     required this.label,
@@ -251,8 +251,19 @@ class GlassField extends StatelessWidget {
   final ValueChanged<String>? onSubmitted;
   final Iterable<String>? autofillHints;
   @override
+  State<GlassField> createState() => _GlassFieldState();
+}
+
+class _GlassFieldState extends State<GlassField> {
+  bool _show = false;
+
+  @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
+    final label = widget.label, controller = widget.controller, placeholder = widget.placeholder;
+    final maxLines = widget.maxLines, keyboardType = widget.keyboardType, required = widget.required;
+    final obscure = widget.obscure, prefix = widget.prefix, textInputAction = widget.textInputAction;
+    final onSubmitted = widget.onSubmitted, autofillHints = widget.autofillHints;
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Column(
@@ -270,11 +281,20 @@ class GlassField extends StatelessWidget {
             placeholder: placeholder,
             minLines: maxLines > 1 ? 2 : 1,
             maxLines: obscure ? 1 : maxLines,
-            obscureText: obscure,
+            obscureText: obscure && !_show,
             keyboardType: keyboardType ?? (maxLines > 1 ? TextInputType.multiline : null),
             textInputAction: textInputAction,
             onSubmitted: onSubmitted,
             autofillHints: autofillHints,
+            suffix: obscure
+                ? CupertinoButton(
+                    key: const ValueKey('toggle-password'),
+                    padding: const EdgeInsets.only(right: 12),
+                    minimumSize: Size.zero,
+                    onPressed: () => setState(() => _show = !_show),
+                    child: Icon(_show ? CupertinoIcons.eye_slash : CupertinoIcons.eye, color: p.subtext, size: 20),
+                  )
+                : null,
             prefix: prefix == null
                 ? null
                 : Padding(

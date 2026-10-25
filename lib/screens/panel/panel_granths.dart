@@ -6,6 +6,8 @@ import '../../theme/app_theme.dart';
 import '../../theme/glass.dart';
 import '../../widgets/common.dart';
 import '../../widgets/glass_scaffold.dart';
+import '../../widgets/grid_kit.dart';
+import '../../widgets/icons/folder_tokens.dart';
 import '../../widgets/motion.dart';
 import '../../widgets/toast.dart';
 import '../../services/panel_api.dart';
@@ -27,7 +29,11 @@ const kGranthSorts = <String, String>{
   'watch': 'ज़्यादा समय (7 दिन)',
   'praman': 'प्रमाण संख्या',
   'newest': 'सबसे नए',
+  'id': 'ID (संख्या)',
 };
+
+/// Default direction per sort key (CONTRACT 3.5): asc for number/id/title, desc for the rest.
+String defaultOrder(String sort) => const {'number', 'position', 'id', 'title'}.contains(sort) ? 'asc' : 'desc';
 
 enum GranthFilter { all, isNew, other, hidden, noPraman }
 
@@ -38,25 +44,37 @@ List<PanelGranth> filterGranths(
   String query = '',
   String? leaf,
   Map<String, PendingGranth> pending = const {},
+
+  /// Several filters at once (all must match); combined with [filter].
+  Set<GranthFilter> filters = const {},
 }) {
   final q = query.trim().toLowerCase();
   bool hiddenOf(PanelGranth g) => pending[g.id]?.hidden ?? g.hidden;
   String leafOf(PanelGranth g) => pending[g.id]?.leaf ?? g.leaf;
-  return all.where((g) {
-    switch (filter) {
+  bool passes(GranthFilter f, PanelGranth g) {
+    switch (f) {
       case GranthFilter.all:
-        break;
+        return true;
       case GranthFilter.isNew:
-        if (!g.isNew) return false;
+        return g.isNew;
       case GranthFilter.other:
-        if (leafOf(g) != 'other') return false;
+        return leafOf(g) == 'other';
       case GranthFilter.hidden:
-        if (!hiddenOf(g)) return false;
+        return hiddenOf(g);
       case GranthFilter.noPraman:
-        if (!g.noPraman) return false;
+        return g.noPraman;
+    }
+  }
+
+  return all.where((g) {
+    if (!passes(filter, g)) return false;
+    for (final f in filters) {
+      if (!passes(f, g)) return false;
     }
     if (leaf != null && leafOf(g) != leaf) return false;
-    if (q.isNotEmpty && !(g.title.toLowerCase().contains(q) || g.author.toLowerCase().contains(q) || g.id == q)) return false;
+    if (q.isNotEmpty && !(g.title.toLowerCase().contains(q) || g.author.toLowerCase().contains(q) || g.id == q)) {
+      return false;
+    }
     return true;
   }).toList();
 }
@@ -74,12 +92,29 @@ class PanelGranthsScreen extends StatefulWidget {
 class _PanelGranthsScreenState extends State<PanelGranthsScreen> {
   final pending = <String, PendingGranth>{};
   final selected = <String>{};
-  GranthFilter filter = GranthFilter.all;
+  final Set<GranthFilter> filters = {};
   String sort = 'number';
+  String order = 'asc';
+  int _cols = 2;
   String query = '';
   String? leafFilter;
   PanelGranthList? _data;
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    readGridCols(kGridPrefPanelGranths, 2).then((v) {
+      if (mounted && v != _cols) setState(() => _cols = v);
+    });
+  }
+
+  void _setCols(int v) {
+    setState(() => _cols = v);
+    saveGridCols(kGridPrefPanelGranths, v);
+  }
+
+  void _toggleFilter(GranthFilter f) => setState(() => filters.contains(f) ? filters.remove(f) : filters.add(f));
 
   void _edit(Iterable<String> ids, {String? leaf, bool? hidden}) {
     setState(() {
@@ -155,7 +190,17 @@ class _PanelGranthsScreenState extends State<PanelGranthsScreen> {
   void _pickSort() => showActions(
     context,
     title: 'क्रम / Sort',
-    actions: [for (final e in kGranthSorts.entries) SheetAction(e.value, e.key == sort ? CupertinoIcons.checkmark : CupertinoIcons.sort_down, () => setState(() => sort = e.key))],
+    actions: [
+      for (final e in kGranthSorts.entries)
+        SheetAction(
+          e.value,
+          e.key == sort ? CupertinoIcons.checkmark : CupertinoIcons.sort_down,
+          () => setState(() {
+            sort = e.key;
+            order = defaultOrder(e.key);
+          }),
+        ),
+    ],
   );
 
   Future<void> _pickFilterLeaf(PanelGranthList d) async {
@@ -167,13 +212,17 @@ class _PanelGranthsScreenState extends State<PanelGranthsScreen> {
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     return PanelPage<PanelGranthList>(
-      key: ValueKey('granths$sort'),
+      key: ValueKey('granths$sort$order'),
       title: 'ग्रंथ / Granths',
       previousPageTitle: 'कंट्रोल',
-      load: (api) => api.granths(sort: sort),
+      load: (api) => api.granths(sort: sort, order: order),
       trailing: selected.isEmpty
           ? null
-          : CupertinoButton(padding: EdgeInsets.zero, onPressed: () => setState(selected.clear), child: const Text('चयन हटाएँ')),
+          : CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () => setState(selected.clear),
+              child: const Text('चयन हटाएँ'),
+            ),
       floatingBuilder: (context, d) => Positioned(
         left: 14,
         right: 14,
@@ -183,36 +232,51 @@ class _PanelGranthsScreenState extends State<PanelGranthsScreen> {
       builder: (context, d, reload) {
         _data = d;
         final leafLabels = leafLabelMap(d.leaves);
-        final list = filterGranths(d.items, filter: filter, query: query, leaf: leafFilter, pending: pending);
+        final list = filterGranths(d.items, filters: filters, query: query, leaf: leafFilter, pending: pending);
         int count(GranthFilter f) => filterGranths(d.items, filter: f, pending: pending).length;
         final hiddenNow = hiddenAfter(d.items, pending);
+        Widget chip(String label, GranthFilter f) => Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: FilterChipX(label, selected: filters.contains(f), count: count(f), onTap: () => _toggleFilter(f)),
+        );
         return [
+          // The toolbar scrolls away with the list (not sticky).
           PadSliver(
             child: SliverList(
               delegate: SliverChildListDelegate([
                 const DraftBanner(),
-                CupertinoSearchTextField(
-                  placeholder: 'ग्रंथ या लेखक खोजें',
-                  style: TextStyle(color: p.text, fontFamily: kFont),
-                  backgroundColor: p.fieldFill,
-                  onChanged: (v) => setState(() => query = v),
+                Row(
+                  children: [
+                    Expanded(
+                      child: CupertinoSearchTextField(
+                        placeholder: 'ग्रंथ या लेखक खोजें',
+                        style: TextStyle(color: p.text, fontFamily: kFont),
+                        backgroundColor: p.fieldFill,
+                        onChanged: (v) => setState(() => query = v),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GridSwitch(cols: _cols, onChanged: _setCols),
+                  ],
                 ),
                 const SizedBox(height: 10),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      FilterChipX('सब', selected: filter == GranthFilter.all, count: d.items.length, onTap: () => setState(() => filter = GranthFilter.all)),
-                      const SizedBox(width: 8),
-                      FilterChipX('नया', selected: filter == GranthFilter.isNew, count: count(GranthFilter.isNew), onTap: () => setState(() => filter = GranthFilter.isNew)),
-                      const SizedBox(width: 8),
-                      FilterChipX('अन्य', selected: filter == GranthFilter.other, count: count(GranthFilter.other), onTap: () => setState(() => filter = GranthFilter.other)),
-                      const SizedBox(width: 8),
-                      FilterChipX('छिपा', selected: filter == GranthFilter.hidden, count: count(GranthFilter.hidden), onTap: () => setState(() => filter = GranthFilter.hidden)),
-                      const SizedBox(width: 8),
-                      FilterChipX('बिना प्रमाण', selected: filter == GranthFilter.noPraman, count: count(GranthFilter.noPraman), onTap: () => setState(() => filter = GranthFilter.noPraman)),
-                      const SizedBox(width: 8),
-                      FilterChipX('क्रम: ${kGranthSorts[sort] ?? sort} ▾', selected: false, onTap: _pickSort),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FilterChipX(
+                          'सब',
+                          selected: filters.isEmpty,
+                          count: d.items.length,
+                          onTap: () => setState(filters.clear),
+                        ),
+                      ),
+                      chip('नया', GranthFilter.isNew),
+                      chip('अन्य', GranthFilter.other),
+                      chip('छिपा', GranthFilter.hidden),
+                      chip('बिना प्रमाण', GranthFilter.noPraman),
                     ],
                   ),
                 ),
@@ -251,16 +315,28 @@ class _PanelGranthsScreenState extends State<PanelGranthsScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
+                Row(
+                  children: [
+                    FilterChipX('क्रम: ${kGranthSorts[sort] ?? sort} ▾', selected: false, onTap: _pickSort),
+                    const SizedBox(width: 8),
+                    FilterChipX(
+                      order == 'asc' ? '↑ बढ़ते' : '↓ घटते',
+                      selected: false,
+                      onTap: () => setState(() => order = order == 'asc' ? 'desc' : 'asc'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 Text(
                   '${list.length} ग्रंथ • छिपे: $hiddenNow / ${d.items.length}${selected.isEmpty ? '  (लंबा दबाकर कई चुनें)' : ''}',
                   style: TextStyle(color: p.subtext, fontSize: 12.5),
                 ),
                 if (d.items.isNotEmpty && hiddenNow * 2 > d.items.length)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
+                  const Padding(
+                    padding: EdgeInsets.only(top: 6),
                     child: Text(
                       '⚠ 50% से ज़्यादा ग्रंथ छिपे हैं — प्रकाशित करते समय "फ़ोर्स" चाहिए होगा।',
-                      style: const TextStyle(color: AppColors.red, fontSize: 12.5),
+                      style: TextStyle(color: AppColors.red, fontSize: 12.5),
                     ),
                   ),
                 const SizedBox(height: 10),
@@ -270,29 +346,47 @@ class _PanelGranthsScreenState extends State<PanelGranthsScreen> {
           if (list.isEmpty)
             const SliverFillRemaining(
               hasScrollBody: false,
-              child: MessageView(icon: CupertinoIcons.book, title: 'कोई ग्रंथ नहीं मिला', subtitle: 'फ़िल्टर या खोज बदलकर देखें'),
+              child: MessageView(
+                icon: CupertinoIcons.book,
+                title: 'कोई ग्रंथ नहीं मिला',
+                subtitle: 'फ़िल्टर या खोज बदलकर देखें',
+              ),
             )
           else
             PadSliver(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 90),
-              child: SliverList.builder(
-                itemCount: list.length,
+              child: GridRowsSliver(
+                cols: _cols,
+                count: list.length,
                 itemBuilder: (context, i) {
                   final g = list[i];
                   final e = pending[g.id];
-                  return _GranthRow(
+                  return _GranthCard(
                     g: g,
+                    cols: _cols,
+                    total: d.total,
                     leafLabel: e?.leaf != null ? (leafLabels[e!.leaf!] ?? e.leaf!) : g.leafLabel,
                     hidden: e?.hidden ?? g.hidden,
                     changed: e != null,
                     selected: selected.contains(g.id),
                     selecting: selected.isNotEmpty,
-                    onToggleSelect: () => setState(() => selected.contains(g.id) ? selected.remove(g.id) : selected.add(g.id)),
+                    onToggleSelect: () =>
+                        setState(() => selected.contains(g.id) ? selected.remove(g.id) : selected.add(g.id)),
                     onMove: () async {
                       final k = await pickLeaf(context, d.leaves, current: e?.leaf ?? g.leaf, title: g.title);
                       if (k != null) _edit([g.id], leaf: k);
                     },
                     onVisible: (v) => _edit([g.id], hidden: !v),
+                    onRemove: () async {
+                      final ok = await confirmDialog(
+                        context,
+                        title: '"${g.title.isEmpty ? g.id : g.title}" हटाएँ?',
+                        message:
+                            'ग्रंथ ऐप में छिप जाएगा (हटाना = छिपाना)। प्रीव्यू/प्रकाशित करने तक बदलाव लागू नहीं होगा।',
+                        confirm: 'छिपाएँ / Hide',
+                      );
+                      if (ok) _edit([g.id], hidden: true);
+                    },
                   );
                 },
               ),
@@ -313,8 +407,17 @@ class _PanelGranthsScreenState extends State<PanelGranthsScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: Row(
           children: [
-            Expanded(child: Text('${selected.length} चुने', style: TextStyle(color: p.text, fontWeight: FontWeight.w700))),
-            CupertinoButton(padding: const EdgeInsets.symmetric(horizontal: 8), onPressed: () => _moveSelected(d), child: const Text('फ़ोल्डर')),
+            Expanded(
+              child: Text(
+                '${selected.length} चुने',
+                style: TextStyle(color: p.text, fontWeight: FontWeight.w700),
+              ),
+            ),
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              onPressed: () => _moveSelected(d),
+              child: const Text('फ़ोल्डर'),
+            ),
             CupertinoButton(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               onPressed: () {
@@ -370,9 +473,12 @@ class _PanelGranthsScreenState extends State<PanelGranthsScreen> {
   }
 }
 
-class _GranthRow extends StatelessWidget {
-  const _GranthRow({
+/// Cover card of the reader app (tokens §4) with only admin buttons in the footer.
+class _GranthCard extends StatelessWidget {
+  const _GranthCard({
     required this.g,
+    required this.cols,
+    required this.total,
     required this.leafLabel,
     required this.hidden,
     required this.changed,
@@ -381,57 +487,166 @@ class _GranthRow extends StatelessWidget {
     required this.onToggleSelect,
     required this.onMove,
     required this.onVisible,
+    required this.onRemove,
   });
   final PanelGranth g;
+  final int cols, total;
   final String leafLabel;
   final bool hidden, changed, selected, selecting;
-  final VoidCallback onToggleSelect, onMove;
+  final VoidCallback onToggleSelect, onMove, onRemove;
   final ValueChanged<bool> onVisible;
 
   @override
   Widget build(BuildContext context) {
-    final p = Palette.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: PressableGlass(
-        radius: 18,
-        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-        onTap: selecting ? onToggleSelect : onMove,
-        onLongPress: onToggleSelect,
-        child: Row(
-          children: [
-            if (selecting)
-              Padding(
-                padding: const EdgeInsets.only(right: 10),
-                child: Icon(selected ? CupertinoIcons.checkmark_circle_fill : CupertinoIcons.circle, color: selected ? AppColors.saffron : p.subtext),
-              ),
-            Expanded(
-              child: Opacity(
-                opacity: hidden ? 0.55 : 1,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(g.position == null ? (g.title.isEmpty ? g.id : g.title) : '#${g.position}  ${g.title.isEmpty ? g.id : g.title}', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.text, fontSize: 15, fontWeight: FontWeight.w600)),
-                    if (g.author.isNotEmpty) Text(g.author, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.subtext, fontSize: 12.5)),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      children: [
-                        Tag(leafLabel.isEmpty ? g.leaf : leafLabel, icon: CupertinoIcons.folder_fill, color: AppColors.blue),
-                        if (g.isNew) const Tag('नया', color: AppColors.green),
-                        if (g.noPraman) const Tag('बिना प्रमाण', color: AppColors.gold),
-                        if (changed) const Tag('बदला', color: AppColors.saffron),
-                      ],
-                    ),
-                  ],
-                ),
+    final width = MediaQuery.sizeOf(context).width;
+    // inner width of one card (page padding 16, gaps per tokens, card padding 10/16)
+    final inner = (width - 32 - gridGap(cols) * (cols - 1)) / cols - (cols == 1 ? 32 : 20);
+    final tiny = inner <= 155;
+    final titleSize = tiny ? 12.0 : (cols == 1 ? 18.0 : (cols == 2 ? 15.0 : 13.0));
+    final title = g.title.isEmpty ? g.id : g.title;
+    final label = leafLabel.isEmpty ? g.leaf : leafLabel;
+    final compact = cols == 3 || tiny; // icon-only admin buttons
+    return PaperCard(
+      key: ValueKey('granth-card-${g.id}'),
+      dim: hidden,
+      selected: selected,
+      padding: EdgeInsets.all(cols == 1 ? 16 : 10),
+      onTap: selecting ? onToggleSelect : onMove,
+      onLongPress: onToggleSelect,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (selecting)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Icon(
+                selected ? CupertinoIcons.checkmark_circle_fill : CupertinoIcons.circle,
+                size: 20,
+                color: selected ? GColors.saffron : GColors.muted,
               ),
             ),
-            CupertinoSwitch(value: !hidden, activeTrackColor: AppColors.green, onChanged: onVisible),
-          ],
-        ),
+          Text(
+            g.position == null ? title : '${g.position}. $title',
+            maxLines: tiny ? 4 : 6,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontFamily: kSerif, color: GColors.maroon, fontSize: titleSize, height: 1.3),
+          ),
+          if (g.author.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 1),
+                    child: Icon(CupertinoIcons.pencil, size: 14, color: GColors.saffronDark),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      g.author,
+                      maxLines: tiny ? 2 : 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: kFont,
+                        fontWeight: FontWeight.w700,
+                        color: GColors.saffronDark,
+                        fontSize: cols == 1 ? 13 : 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          CoverImage(g.cover),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            children: [
+              _Flag(label, GColors.muted, icon: CupertinoIcons.folder_fill),
+              if (g.isNew) const _Flag('नया', Color(0xFF2E9B4F)),
+              if (g.noPraman) const _Flag('बिना प्रमाण', GColors.saffronDark),
+              if (hidden) const _Flag('छिपा', Color(0xFFB3261E)),
+              if (changed) const _Flag('बदला', GColors.saffron),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.only(top: 10),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: GColors.creamDark)),
+            ),
+            width: double.infinity,
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (g.pramanCount > 0)
+                  CardPill(
+                    '${g.pramanCount} प्रमाण',
+                    icon: CupertinoIcons.photo,
+                    tone: PillTone.maroon,
+                    cols: cols,
+                    tiny: tiny,
+                  ),
+                if (g.position != null)
+                  CardPill('${g.position}/$total', icon: CupertinoIcons.collections, cols: cols, tiny: tiny),
+                CardPill(
+                  compact ? '' : 'फ़ोल्डर',
+                  icon: CupertinoIcons.pencil,
+                  tone: PillTone.topic,
+                  onTap: onMove,
+                  cols: cols,
+                  tiny: tiny,
+                ),
+                CardPill(
+                  compact ? '' : (hidden ? 'दिखाएँ' : 'छिपाएँ'),
+                  icon: hidden ? CupertinoIcons.eye : CupertinoIcons.eye_slash,
+                  onTap: () => onVisible(hidden),
+                  cols: cols,
+                  tiny: tiny,
+                ),
+                if (!hidden)
+                  CardPill(
+                    compact ? '' : 'हटाएँ',
+                    icon: CupertinoIcons.delete,
+                    tone: PillTone.danger,
+                    onTap: onRemove,
+                    cols: cols,
+                    tiny: tiny,
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
+}
+
+class _Flag extends StatelessWidget {
+  const _Flag(this.text, this.color, {this.icon});
+  final String text;
+  final Color color;
+  final IconData? icon;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+    decoration: BoxDecoration(color: color.withValues(alpha: 0.13), borderRadius: BorderRadius.circular(10)),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (icon != null) ...[Icon(icon, size: 11, color: color), const SizedBox(width: 3)],
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w700),
+          ),
+        ),
+      ],
+    ),
+  );
 }

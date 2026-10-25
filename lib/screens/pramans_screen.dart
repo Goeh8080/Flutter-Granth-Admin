@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import '../widgets/cards.dart';
 import '../widgets/common.dart';
 import '../widgets/glass_scaffold.dart';
+import '../widgets/grid_kit.dart';
 import '../widgets/praman_sliver.dart';
 import '../widgets/toast.dart';
 import 'home_shell.dart';
@@ -32,6 +33,8 @@ class _PramansScreenState extends State<PramansScreen> {
   String _local = '';
   List<Praman> _all = const [];
   bool _loading = true;
+  String _sort = 'position';
+  bool _desc = false;
   Object? _error;
   int _rev = -1;
 
@@ -119,18 +122,28 @@ class _PramansScreenState extends State<PramansScreen> {
   }
 
   List<Praman> get _visible {
-    if (_local.isEmpty) return _all;
-    final q = _local.toLowerCase();
-    return _all
-        .where(
-          (p) =>
-              p.title.toLowerCase().contains(q) ||
-              p.description.toLowerCase().contains(q) ||
-              p.granthTitle.toLowerCase().contains(q) ||
-              p.topicTitle.toLowerCase().contains(q) ||
-              '${p.id}' == q,
-        )
-        .toList();
+    final base = _local.isEmpty
+        ? _all
+        : () {
+            final q = _local.toLowerCase();
+            return _all
+                .where(
+                  (p) =>
+                      p.title.toLowerCase().contains(q) ||
+                      p.description.toLowerCase().contains(q) ||
+                      p.granthTitle.toLowerCase().contains(q) ||
+                      p.topicTitle.toLowerCase().contains(q) ||
+                      '${p.id}' == q,
+                )
+                .toList();
+          }();
+    return switch (_sort) {
+      'title' => sortedBy(base, (p) => p.title, desc: _desc),
+      'granth' => sortedBy(base, (p) => p.granthTitle, desc: _desc),
+      'page' => sortedBy(base, (p) => p.pageNumber, desc: _desc),
+      'newest' => sortedBy(base, (p) => p.id, desc: _desc),
+      _ => _desc ? base.reversed.toList() : base,
+    };
   }
 
   @override
@@ -210,6 +223,22 @@ class _PramansScreenState extends State<PramansScreen> {
                       ),
                     ],
                   ),
+                ),
+                const SizedBox(height: 10),
+                SortBar(
+                  options: const [
+                    SortOpt('position', 'क्रम'),
+                    SortOpt('title', 'नाम'),
+                    SortOpt('granth', 'ग्रंथ'),
+                    SortOpt('page', 'पृष्ठ'),
+                    SortOpt('newest', 'नए'),
+                  ],
+                  sortKey: _sort,
+                  desc: _desc,
+                  onChanged: (k, d) => setState(() {
+                    _desc = k != _sort && k == 'newest' ? true : d;
+                    _sort = k;
+                  }),
                 ),
                 AnimatedSize(
                   duration: const Duration(milliseconds: 280),

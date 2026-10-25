@@ -74,6 +74,10 @@ class PanelMe {
   final bool hasDraft;
   final int baseVersion;
   final int nextVersion;
+
+  /// `owner` or `admin` (contract 3.3 `/me`).
+  final String role;
+  final bool canManageAdmins;
   const PanelMe({
     required this.username,
     required this.auth,
@@ -81,15 +85,23 @@ class PanelMe {
     required this.hasDraft,
     required this.baseVersion,
     required this.nextVersion,
+    this.role = 'admin',
+    this.canManageAdmins = false,
   });
-  factory PanelMe.fromJson(Map<String, dynamic> j) => PanelMe(
-    username: pStr(j['username']),
-    auth: pStr(j['auth']),
-    version: pInt(j['version']),
-    hasDraft: pBool(j['has_draft']),
-    baseVersion: pInt(j['base_version']),
-    nextVersion: pInt(j['next_version']),
-  );
+  factory PanelMe.fromJson(Map<String, dynamic> j) {
+    final role = pStr(j['role'], 'admin');
+    return PanelMe(
+      username: pStr(j['username']),
+      auth: pStr(j['auth']),
+      version: pInt(j['version']),
+      hasDraft: pBool(j['has_draft']),
+      baseVersion: pInt(j['base_version']),
+      nextVersion: pInt(j['next_version']),
+      role: role,
+      canManageAdmins: pBool(j['can_manage_admins'], role == 'owner'),
+    );
+  }
+  bool get isOwner => role == 'owner';
 }
 
 class PanelSession {
@@ -193,8 +205,11 @@ class PanelSync {
   final int lastCount;
   final String? lastError;
   const PanelSync({this.lastOk, this.lastCount = 0, this.lastError});
-  factory PanelSync.fromJson(Map<String, dynamic> j) =>
-      PanelSync(lastOk: pStrN(j['sync_last_ok']), lastCount: pInt(j['sync_last_count']), lastError: pStrN(j['sync_last_error']));
+  factory PanelSync.fromJson(Map<String, dynamic> j) => PanelSync(
+    lastOk: pStrN(j['sync_last_ok']),
+    lastCount: pInt(j['sync_last_count']),
+    lastError: pStrN(j['sync_last_error']),
+  );
 }
 
 class PanelGranthList {
@@ -343,7 +358,13 @@ class PanelDraft {
   final int baseVersion, nextVersion;
   final String? updatedAt;
   final PanelDiff diff;
-  const PanelDraft({required this.exists, required this.baseVersion, required this.nextVersion, this.updatedAt, required this.diff});
+  const PanelDraft({
+    required this.exists,
+    required this.baseVersion,
+    required this.nextVersion,
+    this.updatedAt,
+    required this.diff,
+  });
   factory PanelDraft.fromJson(Map<String, dynamic> j) => PanelDraft(
     exists: pBool(j['exists']),
     baseVersion: pInt(j['base_version'] ?? j['from_version']),
@@ -359,7 +380,13 @@ class PublishResult {
   final bool signed;
   final List<String> warnings;
   final int? rolledBackTo;
-  const PublishResult({required this.version, required this.etag, required this.signed, required this.warnings, this.rolledBackTo});
+  const PublishResult({
+    required this.version,
+    required this.etag,
+    required this.signed,
+    required this.warnings,
+    this.rolledBackTo,
+  });
   factory PublishResult.fromJson(Map<String, dynamic> j) => PublishResult(
     version: pInt(j['version']),
     etag: pStr(j['etag']),
@@ -441,7 +468,13 @@ class NewGranth {
 
 class PanelAlert {
   final String id, kind, ref, message, createdAt;
-  const PanelAlert({required this.id, required this.kind, required this.ref, required this.message, required this.createdAt});
+  const PanelAlert({
+    required this.id,
+    required this.kind,
+    required this.ref,
+    required this.message,
+    required this.createdAt,
+  });
   factory PanelAlert.fromJson(Map<String, dynamic> j) => PanelAlert(
     id: pStr(j['id']),
     kind: pStr(j['kind']),
@@ -459,7 +492,11 @@ class PanelAlerts {
   factory PanelAlerts.fromJson(Map<String, dynamic> j) {
     final n = pList(j['new_granths'], NewGranth.fromJson);
     final a = pList(j['alerts'], PanelAlert.fromJson);
-    return PanelAlerts(newGranths: n, alerts: a, count: j.containsKey('count') ? pInt(j['count']) : n.length + a.length);
+    return PanelAlerts(
+      newGranths: n,
+      alerts: a,
+      count: j.containsKey('count') ? pInt(j['count']) : n.length + a.length,
+    );
   }
 }
 
@@ -468,7 +505,14 @@ class SyncResult {
   final int count, changed;
   final List<String> added, removed;
   final String? error;
-  const SyncResult({required this.ok, required this.count, required this.changed, required this.added, required this.removed, this.error});
+  const SyncResult({
+    required this.ok,
+    required this.count,
+    required this.changed,
+    required this.added,
+    required this.removed,
+    this.error,
+  });
   factory SyncResult.fromJson(Map<String, dynamic> j) => SyncResult(
     ok: pBool(j['ok']),
     count: pInt(j['count']),
@@ -540,7 +584,13 @@ class PanelSettings {
 class AuditItem {
   final int id;
   final String ts, actor, action, detail;
-  const AuditItem({required this.id, required this.ts, required this.actor, required this.action, required this.detail});
+  const AuditItem({
+    required this.id,
+    required this.ts,
+    required this.actor,
+    required this.action,
+    required this.detail,
+  });
   factory AuditItem.fromJson(Map<String, dynamic> j) => AuditItem(
     id: pInt(j['id']),
     ts: pStr(j['ts']),
@@ -555,7 +605,13 @@ class AuditItem {
 class TopGranth {
   final String id, title;
   final int opens, watchS, avgWatchS;
-  const TopGranth({required this.id, required this.title, required this.opens, required this.watchS, required this.avgWatchS});
+  const TopGranth({
+    required this.id,
+    required this.title,
+    required this.opens,
+    required this.watchS,
+    required this.avgWatchS,
+  });
   factory TopGranth.fromJson(Map<String, dynamic> j) => TopGranth(
     id: pStr(j['id']),
     title: pStr(j['title']),
@@ -568,7 +624,13 @@ class TopGranth {
 class TopFolder {
   final String key, label;
   final int opens, watchS, avgWatchS;
-  const TopFolder({required this.key, required this.label, required this.opens, required this.watchS, this.avgWatchS = 0});
+  const TopFolder({
+    required this.key,
+    required this.label,
+    required this.opens,
+    required this.watchS,
+    this.avgWatchS = 0,
+  });
   factory TopFolder.fromJson(Map<String, dynamic> j) => TopFolder(
     key: pStr(j['key']),
     label: pStr(j['label'], pStr(j['key'])),
@@ -766,4 +828,156 @@ class StatsSeries {
     pStr(j['id']),
     pList(j['series'], (m) => SeriesPoint(pStr(m['day']), pInt(m['opens']), pInt(m['watch_s']))),
   );
+}
+
+// ---------------------------------------------------------------- admins (owner only, contract 3.5)
+
+class PanelAdmin {
+  final String username, role, createdAt, updatedAt;
+  final String? createdBy, lastSeen;
+  final bool disabled, you;
+  final int activeSessions;
+  const PanelAdmin({
+    required this.username,
+    required this.role,
+    required this.disabled,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.createdBy,
+    required this.activeSessions,
+    required this.lastSeen,
+    required this.you,
+  });
+  factory PanelAdmin.fromJson(Map<String, dynamic> j) => PanelAdmin(
+    username: pStr(j['username']),
+    role: pStr(j['role'], 'admin'),
+    disabled: pBool(j['disabled']),
+    createdAt: pStr(j['created_at']),
+    updatedAt: pStr(j['updated_at']),
+    createdBy: pStrN(j['created_by']),
+    activeSessions: pInt(j['active_sessions']),
+    lastSeen: pStrN(j['last_seen']),
+    you: pBool(j['you']),
+  );
+  bool get isOwner => role == 'owner';
+}
+
+class PanelAdminList {
+  final List<PanelAdmin> items;
+  final List<String> roles;
+  final int minPasswordLength;
+  const PanelAdminList({required this.items, required this.roles, required this.minPasswordLength});
+  factory PanelAdminList.fromJson(Map<String, dynamic> j) {
+    final roles = pStrList(j['roles']);
+    return PanelAdminList(
+      items: pList(j['items'], PanelAdmin.fromJson),
+      roles: roles.isEmpty ? const ['owner', 'admin'] : roles,
+      minPasswordLength: pInt(j['min_password_length'], 10),
+    );
+  }
+}
+
+/// Username rule of `POST /admins` (contract 3.5).
+final RegExp kAdminUsername = RegExp(r'^[a-z0-9][a-z0-9_.-]{2,31}$');
+
+/// Error text for a new admin username / password, or null when fine.
+String? adminUsernameError(String raw) {
+  final u = raw.trim().toLowerCase();
+  if (!kAdminUsername.hasMatch(u)) return 'यूज़रनेम: 3–32 अक्षर, a-z 0-9 _ . - / username 3–32 chars';
+  return null;
+}
+
+String? adminPasswordError(String pw, String username, {int min = 10}) {
+  if (pw.length < min || pw.length > 256) return 'पासवर्ड $min–256 अक्षर का हो / password $min–256 chars';
+  if (pw.toLowerCase() == username.trim().toLowerCase()) {
+    return 'पासवर्ड यूज़रनेम जैसा नहीं हो सकता / must differ from username';
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------- contacts / विशेष जानकार (contract 3.6)
+
+class PanelContact {
+  final String id, name, role, phone;
+  final bool whatsapp, visible;
+  final int order;
+  const PanelContact({
+    required this.id,
+    required this.name,
+    this.role = '',
+    this.phone = '',
+    this.whatsapp = false,
+    this.visible = true,
+    this.order = 0,
+  });
+  factory PanelContact.fromJson(Map<String, dynamic> j) => PanelContact(
+    id: pStr(j['id']),
+    name: pStr(j['name']),
+    role: pStr(j['role']),
+    phone: pStr(j['phone']),
+    whatsapp: pBool(j['whatsapp']),
+    visible: pBool(j['visible'], true),
+    order: pInt(j['order']),
+  );
+  PanelContact copyWith({String? name, String? role, String? phone, bool? whatsapp, bool? visible}) => PanelContact(
+    id: id,
+    name: name ?? this.name,
+    role: role ?? this.role,
+    phone: phone ?? this.phone,
+    whatsapp: whatsapp ?? this.whatsapp,
+    visible: visible ?? this.visible,
+    order: order,
+  );
+
+  /// Body item for `PUT /contacts` (a missing id is generated by the server).
+  Map<String, dynamic> toJson() => {
+    if (id.isNotEmpty) 'id': id,
+    'name': name,
+    'role': role,
+    'phone': phone,
+    'whatsapp': phone.isNotEmpty && whatsapp,
+    'visible': visible,
+  };
+}
+
+class PanelContacts {
+  final String title;
+  final List<PanelContact> items;
+  final int maxContacts, baseVersion, nextVersion;
+  final bool hasDraft;
+  const PanelContacts({
+    required this.title,
+    required this.items,
+    required this.maxContacts,
+    required this.hasDraft,
+    required this.baseVersion,
+    required this.nextVersion,
+  });
+  factory PanelContacts.fromJson(Map<String, dynamic> j) => PanelContacts(
+    title: pStr(pMap(j['page'])['title'], kContactsTitle),
+    items: pList(j['items'], PanelContact.fromJson),
+    maxContacts: pInt(j['max_contacts'], 50),
+    hasDraft: pBool(j['has_draft']),
+    baseVersion: pInt(j['base_version']),
+    nextVersion: pInt(j['next_version']),
+  );
+}
+
+const kContactsTitle = 'विशेष जानकार';
+
+final RegExp kPhoneRe = RegExp(r'^(\+[0-9]{1,19}|[0-9]{1,20})$');
+
+/// Spaces / hyphens are stripped (the server does the same); returns the cleaned number.
+String cleanPhone(String raw) => raw.replaceAll(RegExp(r'[\s\-]'), '');
+
+/// Error text for one contact, or null when valid (mirrors the server rules of contract 1.8).
+String? contactError(PanelContact c) {
+  final n = c.name.trim();
+  if (n.isEmpty || n.length > 80) return 'नाम ज़रूरी है (≤80 अक्षर) / name required';
+  if (c.role.trim().length > 80) return 'भूमिका ≤80 अक्षर / role max 80 chars';
+  if (c.phone.isNotEmpty && !kPhoneRe.hasMatch(c.phone)) {
+    return 'फ़ोन: अंक, शुरू में एक + (≤20) / phone: digits, optional leading +';
+  }
+  if (c.whatsapp && c.phone.isEmpty) return 'व्हाट्सऐप के लिए नंबर चाहिए / WhatsApp needs a number';
+  return null;
 }
