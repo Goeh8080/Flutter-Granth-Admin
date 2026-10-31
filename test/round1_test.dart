@@ -88,6 +88,19 @@ class _Rig {
               'info': {'published_version': 7},
             });
           }
+          if (p.endsWith('/ga/overview'))
+            return statsStatus == 200
+                ? _json({
+                    'totals': {
+                      'active_users': 16,
+                      'ai_answer': 8,
+                      'cite_tap': 8,
+                      'app_opens': 20,
+                      'pdf_download': 3,
+                    },
+                    'all_time': {'installs': 40},
+                  })
+                : _json({'error': 'ga_api_disabled'}, statsStatus);
           if (p.endsWith('/stats/overview'))
             return statsStatus == 200
                 ? _json(overviewJson)
@@ -255,7 +268,7 @@ void main() {
       expect(find.byKey(const ValueKey('analytics-card')), findsOneWidget);
       expect(
         find.descendant(
-          of: find.byKey(const ValueKey('ai-asked')),
+          of: find.byKey(const ValueKey('ga-active')),
           matching: find.text('16'),
         ),
         findsOneWidget,

@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../admin/models/ai_models.dart';
-import '../admin/models/panel_models.dart';
 import '../admin/screens/panel/panel_admins.dart';
 import '../admin/screens/panel/panel_contacts.dart';
-import '../admin/screens/panel/panel_dashboard.dart';
 import '../admin/screens/panel/panel_folders.dart';
 import '../admin/screens/panel/panel_granths.dart';
 import '../admin/screens/panel/panel_history.dart';
@@ -34,7 +32,7 @@ class AdminPanelScreen extends StatefulWidget {
 }
 
 class _AdminPanelScreenState extends State<AdminPanelScreen> {
-  StatsOverview? _stats;
+  Map<String, dynamic>? _stats; // GA4 /ga/overview?days=7
   AiSummary? _ai;
   String? _statsErr;
   String _version = kAppVersion;
@@ -64,7 +62,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     if (!_d.controlReady) return;
     try {
       final api = _d.app.panel.api;
-      final s = await api.statsOverview(days: 7);
+      final s = await api.raw('GET', '/ga/overview', query: {'days': '7'});
       AiSummary? a;
       try {
         a = await api.aiSummary();
@@ -264,13 +262,13 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'आँकड़े · 7 दिन',
+                  'आँकड़े (GA4) · 7 दिन',
                   style: GText.display(size: 20, color: GColors.maroon),
                 ),
               ),
               Pill(
                 label: 'पूरे आँकड़े',
-                onTap: () => _open(const PanelDashboardScreen()),
+                onTap: () => _open(const EventsScreen()),
               ),
             ],
           ),
@@ -285,17 +283,48 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _stat('इंस्टॉल', s.totals.totalInstalls),
-                _stat('ग्रंथ खुले', s.totals.granthOpens),
-                _stat('AI सवाल', s.aiAsked, key: 'ai-asked'),
-                _stat('AI जवाब', s.aiAnswered, key: 'ai-answered'),
-                _stat('स्रोत टैप', s.aiCiteTap, key: 'ai-cite-tap'),
+                _stat(
+                  'इंस्टॉल (अब तक)',
+                  _gi(s, 'all_time', 'installs'),
+                  key: 'ga-installs',
+                ),
+                _stat(
+                  'सक्रिय यूज़र',
+                  _gi(s, 'totals', 'active_users'),
+                  key: 'ga-active',
+                ),
+                _stat(
+                  'ऐप खुला',
+                  _gi(s, 'totals', 'app_opens'),
+                  key: 'ga-opens',
+                ),
+                _stat(
+                  'PDF डाउनलोड',
+                  _gi(s, 'totals', 'pdf_download'),
+                  key: 'ga-pdf',
+                ),
+                _stat(
+                  'AI जवाब',
+                  _gi(s, 'totals', 'ai_answer'),
+                  key: 'ai-answered',
+                ),
+                _stat(
+                  'स्रोत टैप',
+                  _gi(s, 'totals', 'cite_tap'),
+                  key: 'ai-cite-tap',
+                ),
               ],
             ),
           ],
         ],
       ),
     );
+  }
+
+  static int _gi(Map<String, dynamic> m, String g, String k) {
+    final x = m[g];
+    final v = x is Map ? x[k] : null;
+    return v is num ? v.toInt() : 0;
   }
 
   Widget _stat(String label, int v, {String? key}) => Container(

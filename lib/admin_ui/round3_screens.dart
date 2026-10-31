@@ -98,8 +98,8 @@ class _Round3EntriesState extends State<Round3Entries> {
       AdminTile(
         key: const ValueKey('r3-events'),
         icon: 'bar-chart',
-        title: 'इवेंट एनालिटिक्स',
-        sub: 'फ़ोल्डर/ग्रंथ खुले, PDF, AI जवाब/फेल',
+        title: 'एनालिटिक्स (GA4)',
+        sub: 'इंस्टॉल, ऐप खुला, ग्रंथ/फ़ोल्डर, PDF, AI फेल, रियलटाइम',
         tone: Tone.saffron,
         onTap: () => _go(const EventsScreen()),
       ),
@@ -682,6 +682,22 @@ class _HighlightsFormState extends State<_HighlightsForm> {
 
 // ---------------------------------------------------------------------------- analytics
 
+/// GA4 kinds served by `GET /admin/api/ga/top?kind=`.
+const kGaKinds = <(String, String)>[
+  ('granths', 'ग्रंथ खुले'),
+  ('folders', 'फ़ोल्डर खुले'),
+  ('downloads', 'PDF डाउनलोड'),
+  ('pdf_generate', 'PDF बने'),
+  ('praman', 'प्रमाण'),
+  ('topics', 'विषय'),
+  ('ai_fail', 'AI फेल प्रश्न'),
+  ('sync_fail', 'Sync फेल'),
+];
+
+const kGaDimsUrl =
+    'https://analytics.google.com/analytics/web/#/p561197991/admin/customdefinitions/hub';
+
+/// Analytics = Google Analytics 4 only (server proxies the GA Data API).
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
   @override
@@ -690,88 +706,159 @@ class EventsScreen extends StatefulWidget {
 
 class _EventsScreenState extends State<EventsScreen> {
   int _days = 30;
+  String _kind = 'granths';
 
-  Widget _top(String title, List<Map<String, dynamic>> rows, String labelKey) =>
-      _card(ValueKey(title), [
+  Widget _row(String a, Object? n) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Row(
+      children: [
+        Expanded(child: _body(a)),
+        Text(
+          '${n is String ? n : _i(n)}',
+          style: GText.sans(size: 14, weight: FontWeight.w800),
+        ),
+      ],
+    ),
+  );
+
+  Widget _days7(String title, List<Map<String, dynamic>> byDay, String key) =>
+      _card(ValueKey('day-$key'), [
         _title(title),
         const SizedBox(height: 6),
-        if (rows.isEmpty) _sub('अभी कोई डेटा नहीं'),
-        for (final r in rows)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _body(
-                    _s(r[labelKey]).isEmpty
-                        ? _s(r['id'] ?? r['key'])
-                        : _s(r[labelKey]),
-                  ),
-                ),
-                Text(
-                  '${_i(r['n'])}',
-                  style: GText.sans(size: 14, weight: FontWeight.w800),
-                ),
-              ],
-            ),
-          ),
+        if (byDay.isEmpty) _sub('अभी कोई डेटा नहीं'),
+        for (final r in byDay.reversed.take(14)) _row(_s(r['day']), r[key]),
       ]);
+
+  Widget _list(
+    String title,
+    List<Map<String, dynamic>> rows,
+    String l,
+    String n,
+  ) => _card(ValueKey('list-$title'), [
+    _title(title),
+    const SizedBox(height: 6),
+    if (rows.isEmpty) _sub('अभी कोई डेटा नहीं'),
+    for (final r in rows.take(10)) _row(_s(r[l]), r[n]),
+  ]);
 
   @override
   Widget build(BuildContext context) => AdminSubPage(
-    title: 'इवेंट एनालिटिक्स',
+    title: 'एनालिटिक्स (GA4)',
     slivers: [
       SliverToBoxAdapter(
-        child: _Load(
-          key: ValueKey(_days),
-          load: () =>
-              _api.raw('GET', '/stats/events', query: {'days': '$_days'}),
-          builder: (context, d, refresh) {
-            final t = _m(d['totals']);
-            final sup = _m(d['support']), fl = _m(d['ai_flags']);
-            final rate =
-                (d['ai_fail_rate'] is num ? d['ai_fail_rate'] as num : 0) * 100;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SortChips<int>(
-                  options: const [(7, '7 दिन'), (30, '30 दिन'), (90, '90 दिन')],
-                  value: _days,
-                  onChanged: (v) => setState(() => _days = v),
-                ),
-                const SizedBox(height: 10),
-                _card(const ValueKey('totals'), [
-                  _body('ऐप खुला (app_open): ${_i(t['app_open'])}'),
-                  _body('फ़ोल्डर खुले: ${_i(t['folder_open'])}'),
-                  _body('ग्रंथ खुले: ${_i(t['granth_open'])}'),
-                  _body('PDF डाउनलोड: ${_i(t['pdf_download'])}'),
-                  _body(
-                    'AI जवाब: ${_i(t['ai_answer'])} · फेल: ${_i(t['ai_fail'])} (${rate.toStringAsFixed(1)}%)',
-                  ),
-                  _body(
-                    'सपोर्ट खुले: ${_i(sup['open'])} · नए: ${_i(sup['unread'])}',
-                  ),
-                  _body('AI फ़्लैग नए: ${_i(fl['new'])}'),
-                  if (d['ready'] == false)
-                    _sub('सर्वर माइग्रेशन बाकी — अभी डेटा नहीं'),
-                ]),
-                _top('टॉप फ़ोल्डर', _l(d['top_folders']), 'label'),
-                _top('टॉप ग्रंथ', _l(d['top_granths']), 'title'),
-                _top('टॉप डाउनलोड', _l(d['top_downloads']), 'title'),
-                _card(const ValueKey('fails'), [
-                  _title('AI फेल प्रश्न'),
-                  if (_l(d['ai_fails']).isEmpty) _sub('कोई नहीं'),
-                  for (final f in _l(d['ai_fails']))
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: _body(
-                        '${_s(f['question'])}  ·  ${_s(f['day'])}${_s(f['reason']).isEmpty ? '' : ' · ${f['reason']}'}',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SortChips<int>(
+              options: const [(7, '7 दिन'), (30, '30 दिन'), (90, '90 दिन')],
+              value: _days,
+              onChanged: (v) => setState(() => _days = v),
+            ),
+            const SizedBox(height: 10),
+            _Load(
+              key: ValueKey('ov$_days'),
+              load: () async {
+                final r = await Future.wait([
+                  _api.raw('GET', '/ga/overview', query: {'days': '$_days'}),
+                  _api.raw('GET', '/support/unread'),
+                ]);
+                return {...r[0], 'support': r[1]};
+              },
+              builder: (context, d, refresh) {
+                final t = _m(d['totals']), at = _m(d['all_time']);
+                final rt = _m(d['retention']), sup = _m(d['support']);
+                final byDay = _l(d['by_day']);
+                final rate =
+                    (t['ai_fail_rate'] is num ? t['ai_fail_rate'] as num : 0) *
+                    100;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _card(const ValueKey('ga-totals'), [
+                      _title('कुल'),
+                      _row('अभी सक्रिय (रियलटाइम)', d['realtime_active_users']),
+                      _row('इंस्टॉल अब तक (first_open)', at['installs']),
+                      _row('इंस्टॉल इस अवधि में', t['installs']),
+                      _row('सक्रिय यूज़र', t['active_users']),
+                      _row('नए यूज़र', t['new_users']),
+                      _row(
+                        'DAU / WAU / MAU',
+                        '${_i(rt['dau'])} / ${_i(rt['wau'])} / ${_i(rt['mau'])}',
                       ),
+                      _row('ऐप खुला (सेशन)', t['app_opens']),
+                      _row('ऐप खुला अब तक', at['app_opens']),
+                      _row('स्क्रीन व्यू', t['screen_views']),
+                      _row(
+                        'फ़ोल्डर / ग्रंथ खुले',
+                        '${_i(t['folder_open'])} / ${_i(t['granth_open'])}',
+                      ),
+                      _row(
+                        'PDF डाउनलोड (अब तक ${_i(at['pdf_download'])})',
+                        t['pdf_download'],
+                      ),
+                      _row(
+                        'PDF बने (अब तक ${_i(at['pdf_generate'])})',
+                        t['pdf_generate'],
+                      ),
+                      _row(
+                        'AI जवाब / फेल',
+                        '${_i(t['ai_answer'])} / ${_i(t['ai_fail'])} (${rate.toStringAsFixed(1)}%)',
+                      ),
+                      _row('Sync फेल', t['sync_fail']),
+                      _row(
+                        'सपोर्ट खुले / नए',
+                        '${_i(sup['open'])} / ${_i(sup['unread'])}',
+                      ),
+                    ]),
+                    _days7('रोज़ के इंस्टॉल', byDay, 'installs'),
+                    _days7('रोज़ ऐप खुला', byDay, 'app_opens'),
+                    _days7('रोज़ के सक्रिय यूज़र', byDay, 'active_users'),
+                    _days7('रोज़ के PDF डाउनलोड', byDay, 'pdf_download'),
+                    _list(
+                      'ऐप वर्ज़न',
+                      _l(d['versions']),
+                      'version',
+                      'active_users',
                     ),
-                ]),
-              ],
-            );
-          },
+                    _list('Android वर्ज़न', _l(d['os']), 'os', 'active_users'),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 10),
+            SortChips<String>(
+              options: kGaKinds,
+              value: _kind,
+              onChanged: (v) => setState(() => _kind = v),
+            ),
+            const SizedBox(height: 10),
+            _Load(
+              key: ValueKey('top$_kind$_days'),
+              load: () => _api.raw(
+                'GET',
+                '/ga/top',
+                query: {'kind': _kind, 'days': '$_days'},
+              ),
+              builder: (context, d, refresh) => Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _card(const ValueKey('ga-top'), [
+                    _title('कुल: ${_i(d['total'])}'),
+                    if (d['dims_missing'] == true)
+                      _sub(
+                        'GA4 में कस्टम डाइमेंशन "${_s(d['param'])}" बनाना बाकी — तब तक सिर्फ़ कुल गिनती। $kGaDimsUrl',
+                      ),
+                    for (final r in _l(d['items']).take(25))
+                      _row(
+                        _s(r['label']).isEmpty ? _s(r['id']) : _s(r['label']),
+                        r['n'],
+                      ),
+                  ]),
+                  _days7('रोज़ाना', _l(d['by_day']), 'n'),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     ],
