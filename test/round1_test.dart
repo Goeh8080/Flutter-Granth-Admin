@@ -317,7 +317,8 @@ void main() {
       await settle(t);
       expect(t.takeException(), isNull);
       expect(find.text('एडमिन जोड़ें / हटाएँ'), findsNothing);
-      expect(find.text('आँकड़े लोड नहीं हुए'), findsOneWidget);
+      expect(find.textContaining('GA उपलब्ध नहीं'), findsOneWidget);
+      expect(find.byKey(const ValueKey('ga-installs')), findsOneWidget);
       expect(
         find.byKey(const ValueKey('ai-toggle')),
         findsOneWidget,

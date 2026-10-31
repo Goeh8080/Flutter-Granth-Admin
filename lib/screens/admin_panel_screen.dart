@@ -63,7 +63,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     if (!_d.controlReady) return;
     try {
       final api = _d.app.panel.api;
-      final s = await api.raw('GET', '/ga/overview', query: {'days': '7'});
+      final s = await gaSafe(api, '/ga/overview', query: {'days': '7'});
       AiSummary? a;
       try {
         a = await api.aiSummary();
@@ -72,7 +72,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
         setState(() {
           _stats = s;
           _ai = a;
-          _statsErr = null;
+          _statsErr = s['_ga_error'] as String?;
         });
     } catch (e) {
       if (mounted) setState(() => _statsErr = '$e');
@@ -253,7 +253,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
         const SizedBox(height: 6),
         Center(
           child: Text(
-            'ग्रंथ एडमिन · Round 5 · संस्करण $_version${me == null ? '' : ' · लाइव कॉन्फ़िग v${me.version}'}',
+            'ग्रंथ एडमिन · Round 6 · संस्करण $_version${me == null ? '' : ' · लाइव कॉन्फ़िग v${me.version}'}',
             key: const ValueKey('version-line'),
             textAlign: TextAlign.center,
             style: GText.sans(size: 12.5, color: GColors.muted),
@@ -294,6 +294,14 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
               style: GText.sans(size: 13.5, color: GColors.muted),
             )
           else ...[
+            if (_statsErr != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  _statsErr!,
+                  style: GText.sans(size: 12.5, color: GColors.muted),
+                ),
+              ),
             Wrap(
               spacing: 8,
               runSpacing: 8,

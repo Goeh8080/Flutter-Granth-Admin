@@ -682,6 +682,24 @@ class _HighlightsFormState extends State<_HighlightsForm> {
 
 // ---------------------------------------------------------------------------- analytics
 
+/// Round 6: GA reads never fail the screen. On any error (e.g. 503 ga_not_configured)
+/// returns an empty map with `_ga_error` set, so the UI renders zeros plus a notice.
+Future<Map<String, dynamic>> gaSafe(
+  PanelApi api,
+  String path, {
+  Map<String, String>? query,
+}) async {
+  try {
+    return await api.raw('GET', path, query: query);
+  } catch (e) {
+    return {'_ga_error': gaErrorText(e)};
+  }
+}
+
+String gaErrorText(Object e) => e is PanelApiException
+    ? 'GA उपलब्ध नहीं (${e.code}${e.status == null ? '' : ' · ${e.status}'}) — शून्य दिखाए गए हैं'
+    : 'GA उपलब्ध नहीं — शून्य दिखाए गए हैं';
+
 /// GA4 kinds served by `GET /admin/api/ga/top?kind=`.
 const kGaKinds = <(String, String)>[
   ('granths', 'ग्रंथ खुले'),
@@ -759,8 +777,8 @@ class _EventsScreenState extends State<EventsScreen> {
               key: ValueKey('ov$_days'),
               load: () async {
                 final r = await Future.wait([
-                  _api.raw('GET', '/ga/overview', query: {'days': '$_days'}),
-                  _api.raw('GET', '/support/unread'),
+                  gaSafe(_api, '/ga/overview', query: {'days': '$_days'}),
+                  gaSafe(_api, '/support/unread'),
                 ]);
                 return {...r[0], 'support': r[1]};
               },
@@ -776,6 +794,7 @@ class _EventsScreenState extends State<EventsScreen> {
                   children: [
                     _card(const ValueKey('ga-totals'), [
                       _title('कुल'),
+                      if (d['_ga_error'] != null) _sub(_s(d['_ga_error'])),
                       _row('अभी सक्रिय (रियलटाइम)', d['realtime_active_users']),
                       _row('इंस्टॉल अब तक (first_open)', at['installs']),
                       _row('इंस्टॉल इस अवधि में', t['installs']),
@@ -834,8 +853,8 @@ class _EventsScreenState extends State<EventsScreen> {
             const SizedBox(height: 10),
             _Load(
               key: ValueKey('top$_kind$_days'),
-              load: () => _api.raw(
-                'GET',
+              load: () => gaSafe(
+                _api,
                 '/ga/top',
                 query: {'kind': _kind, 'days': '$_days'},
               ),
@@ -844,6 +863,7 @@ class _EventsScreenState extends State<EventsScreen> {
                 children: [
                   _card(const ValueKey('ga-top'), [
                     _title('कुल: ${_i(d['total'])}'),
+                    if (d['_ga_error'] != null) _sub(_s(d['_ga_error'])),
                     if (d['dims_missing'] == true)
                       _sub(
                         'GA4 में कस्टम डाइमेंशन "${_s(d['param'])}" बनाना बाकी — तब तक सिर्फ़ कुल गिनती। $kGaDimsUrl',
