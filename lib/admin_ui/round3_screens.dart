@@ -1,3 +1,4 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../admin/screens/panel/panel_widgets.dart' show pushPanel, shortTs;
@@ -912,48 +913,383 @@ const kGaDimsUrl =
     'https://analytics.google.com/analytics/web/#/p561197991/admin/customdefinitions/hub';
 
 /// Analytics = Google Analytics 4 only (server proxies the GA Data API).
+/// Round-2: folder sections with charts (fl_chart) like the old design.
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
   @override
   State<EventsScreen> createState() => _EventsScreenState();
 }
 
+String _dur(Object? s) {
+  final n = _i(s);
+  if (n < 60) return '$n से.';
+  final h = n ~/ 3600, m = (n % 3600) ~/ 60;
+  return h > 0 ? '$h घं. $m मि.' : '$m मि.';
+}
+
+const _kChartColors = [
+  GColors.saffron,
+  GColors.maroon,
+  GColors.gold,
+  GColors.online,
+  GColors.brown,
+  GColors.maroonLight,
+  GColors.saffronDark,
+  GColors.muted,
+];
+
+Widget _tile(String label, String value, {Color color = GColors.maroon}) =>
+    Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: GColors.pill,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: GColors.creamDark),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: GText.sans(
+                size: 20,
+                weight: FontWeight.w800,
+                color: color,
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GText.sans(size: 11.5, color: GColors.muted, height: 1.25),
+          ),
+        ],
+      ),
+    );
+
+Widget _tiles(List<(String, String, Color)> items) => LayoutBuilder(
+  builder: (context, c) {
+    final cols = c.maxWidth > 520 ? 4 : (c.maxWidth > 340 ? 3 : 2);
+    final w = (c.maxWidth - (cols - 1) * 8) / cols;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final it in items)
+          SizedBox(
+            width: w,
+            child: _tile(it.$1, it.$2, color: it.$3),
+          ),
+      ],
+    );
+  },
+);
+
+/// One line (or bar) chart of `key` over `by_day` rows (`day`: yyyy-mm-dd).
+Widget _dayChart(
+  List<Map<String, dynamic>> rows,
+  String key, {
+  Color color = GColors.saffron,
+  bool bars = false,
+  double Function(num v)? map,
+}) {
+  if (rows.isEmpty)
+    return _sub('अभी कोई डेटा नहीं (GA की रिपोर्ट में 24-48 घंटे लग सकते हैं)');
+  final ys = [
+    for (final r in rows)
+      map == null
+          ? (r[key] is num ? (r[key] as num).toDouble() : 0.0)
+          : map(r[key] is num ? r[key] as num : 0),
+  ];
+  final maxY = ys.fold<double>(0, (a, b) => b > a ? b : a);
+  final top = maxY <= 0 ? 1.0 : maxY * 1.2;
+  final step = rows.length <= 8 ? 1 : (rows.length / 6).ceil();
+  Widget bottom(double v, TitleMeta m) {
+    final i = v.round();
+    if (i < 0 || i >= rows.length || i % step != 0 || (v - i).abs() > 0.01) {
+      return const SizedBox.shrink();
+    }
+    final d = _s(rows[i]['day']);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(
+        d.length >= 10 ? '${d.substring(8, 10)}/${d.substring(5, 7)}' : d,
+        style: GText.sans(size: 9.5, color: GColors.muted),
+      ),
+    );
+  }
+
+  Widget left(double v, TitleMeta m) => v == m.max
+      ? const SizedBox.shrink()
+      : Text(
+          v >= 1000
+              ? '${(v / 1000).toStringAsFixed(1)}k'
+              : v.toStringAsFixed(0),
+          style: GText.sans(size: 9.5, color: GColors.muted),
+        );
+  final titles = FlTitlesData(
+    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+    bottomTitles: AxisTitles(
+      sideTitles: SideTitles(
+        showTitles: true,
+        reservedSize: 20,
+        interval: 1,
+        getTitlesWidget: bottom,
+      ),
+    ),
+    leftTitles: AxisTitles(
+      sideTitles: SideTitles(
+        showTitles: true,
+        reservedSize: 32,
+        getTitlesWidget: left,
+      ),
+    ),
+  );
+  final grid = FlGridData(
+    drawVerticalLine: false,
+    getDrawingHorizontalLine: (_) =>
+        const FlLine(color: GColors.meterTrack, strokeWidth: 1),
+  );
+  return SizedBox(
+    height: 170,
+    child: bars
+        ? BarChart(
+            BarChartData(
+              maxY: top,
+              minY: 0,
+              gridData: grid,
+              borderData: FlBorderData(show: false),
+              titlesData: titles,
+              barGroups: [
+                for (var i = 0; i < ys.length; i++)
+                  BarChartGroupData(
+                    x: i,
+                    barRods: [
+                      BarChartRodData(
+                        toY: ys[i],
+                        color: color,
+                        width: rows.length > 40
+                            ? 3
+                            : (rows.length > 14 ? 6 : 12),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          )
+        : LineChart(
+            LineChartData(
+              maxY: top,
+              minY: 0,
+              gridData: grid,
+              borderData: FlBorderData(show: false),
+              titlesData: titles,
+              lineBarsData: [
+                LineChartBarData(
+                  spots: [
+                    for (var i = 0; i < ys.length; i++)
+                      FlSpot(i.toDouble(), ys[i]),
+                  ],
+                  isCurved: true,
+                  preventCurveOverShooting: true,
+                  color: color,
+                  barWidth: 2.5,
+                  dotData: FlDotData(show: rows.length <= 14),
+                  belowBarData: BarAreaData(
+                    show: true,
+                    color: color.withValues(alpha: 0.15),
+                  ),
+                ),
+              ],
+            ),
+          ),
+  );
+}
+
+/// Horizontal bars for a ranked list (label, n).
+Widget _rankBars(
+  List<(String, num)> items, {
+  Color color = GColors.maroon,
+  int take = 10,
+}) {
+  if (items.isEmpty) return _sub('अभी कोई डेटा नहीं');
+  final list = items.take(take).toList();
+  final maxN = list.fold<num>(0, (a, b) => b.$2 > a ? b.$2 : a);
+  return Column(
+    children: [
+      for (final it in list)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      it.$1.isEmpty ? '(खाली)' : it.$1,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GText.sans(size: 12.5),
+                    ),
+                  ),
+                  Text(
+                    '${_i(it.$2)}',
+                    style: GText.sans(size: 12.5, weight: FontWeight.w800),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: maxN <= 0 ? 0 : it.$2 / maxN,
+                  minHeight: 7,
+                  color: color,
+                  backgroundColor: GColors.meterTrack,
+                ),
+              ),
+            ],
+          ),
+        ),
+    ],
+  );
+}
+
+/// Donut with legend.
+Widget _donut(List<(String, num)> parts) {
+  final total = parts.fold<num>(0, (a, b) => a + b.$2);
+  if (total <= 0) return _sub('अभी कोई डेटा नहीं');
+  return Row(
+    children: [
+      SizedBox(
+        width: 120,
+        height: 120,
+        child: PieChart(
+          PieChartData(
+            centerSpaceRadius: 30,
+            sectionsSpace: 2,
+            sections: [
+              for (var i = 0; i < parts.length; i++)
+                if (parts[i].$2 > 0)
+                  PieChartSectionData(
+                    value: parts[i].$2.toDouble(),
+                    color: _kChartColors[i % _kChartColors.length],
+                    radius: 28,
+                    title: '${(parts[i].$2 * 100 / total).round()}%',
+                    titleStyle: GText.sans(
+                      size: 10,
+                      weight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+            ],
+          ),
+        ),
+      ),
+      const SizedBox(width: 14),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var i = 0; i < parts.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: _kChartColors[i % _kChartColors.length],
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(parts[i].$1, style: GText.sans(size: 12.5)),
+                    ),
+                    Text(
+                      '${_i(parts[i].$2)}',
+                      style: GText.sans(size: 12.5, weight: FontWeight.w800),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+/// A collapsible "folder" section.
+Widget _folder(
+  String key,
+  String icon,
+  String title,
+  List<Widget> children, {
+  bool open = false,
+  String? badge,
+}) => Padding(
+  padding: const EdgeInsets.only(bottom: 10),
+  child: GCard(
+    key: ValueKey('fold-$key'),
+    child: Theme(
+      data: ThemeData(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        initiallyExpanded: open,
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(bottom: 6),
+        leading: Text(icon, style: const TextStyle(fontSize: 22)),
+        title: Text(
+          title,
+          style: GText.sans(
+            size: 15.5,
+            weight: FontWeight.w800,
+            color: GColors.maroon,
+          ),
+        ),
+        trailing: badge == null
+            ? null
+            : Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: GColors.pillMaroon,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  badge,
+                  style: GText.sans(
+                    size: 12,
+                    weight: FontWeight.w800,
+                    color: GColors.maroon,
+                  ),
+                ),
+              ),
+        expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
+    ),
+  ),
+);
+
+Widget _chartTitle(String t) => Padding(
+  padding: const EdgeInsets.only(top: 12, bottom: 6),
+  child: Text(t, style: GText.sans(size: 13, weight: FontWeight.w800)),
+);
+
 class _EventsScreenState extends State<EventsScreen> {
   int _days = 30;
   String _kind = 'granths';
-
-  Widget _row(String a, Object? n) => Padding(
-    padding: const EdgeInsets.only(bottom: 4),
-    child: Row(
-      children: [
-        Expanded(child: _body(a)),
-        Text(
-          '${n is String ? n : _i(n)}',
-          style: GText.sans(size: 14, weight: FontWeight.w800),
-        ),
-      ],
-    ),
-  );
-
-  Widget _days7(String title, List<Map<String, dynamic>> byDay, String key) =>
-      _card(ValueKey('day-$key'), [
-        _title(title),
-        const SizedBox(height: 6),
-        if (byDay.isEmpty) _sub('अभी कोई डेटा नहीं'),
-        for (final r in byDay.reversed.take(14)) _row(_s(r['day']), r[key]),
-      ]);
-
-  Widget _list(
-    String title,
-    List<Map<String, dynamic>> rows,
-    String l,
-    String n,
-  ) => _card(ValueKey('list-$title'), [
-    _title(title),
-    const SizedBox(height: 6),
-    if (rows.isEmpty) _sub('अभी कोई डेटा नहीं'),
-    for (final r in rows.take(10)) _row(_s(r[l]), r[n]),
-  ]);
 
   @override
   Widget build(BuildContext context) => AdminSubPage(
@@ -963,6 +1299,154 @@ class _EventsScreenState extends State<EventsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // ---------------------------------------------------------------- live + today
+            _Load(
+              key: const ValueKey('ga-live'),
+              load: () => gaSafe(_api, '/ga/live'),
+              builder: (context, d, refresh) {
+                final rtm = _m(d['realtime']), td = _m(d['today']);
+                final mins = _l(rtm['by_minute']);
+                final aiQ = _i(td['ai_ask']) > 0
+                    ? _i(td['ai_ask'])
+                    : _i(td['ai_answer']) + _i(td['ai_fail']);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (d['_ga_error'] != null)
+                      _card(const ValueKey('ga-err'), [
+                        _sub(_s(d['_ga_error'])),
+                      ]),
+                    _folder(
+                      'live',
+                      '🟢',
+                      'लाइव यूज़र',
+                      [
+                        _tiles([
+                          (
+                            'अभी ऑनलाइन (30 मि.)',
+                            '${_i(d['live_users'])}',
+                            GColors.online,
+                          ),
+                          (
+                            'ऑफ़लाइन यूज़र',
+                            '${_i(d['offline_users'])}',
+                            GColors.muted,
+                          ),
+                          (
+                            'कुल यूज़र (अब तक)',
+                            '${_i(d['total_users'])}',
+                            GColors.maroon,
+                          ),
+                          (
+                            'कुल रनटाइम (अब तक)',
+                            _dur(d['total_engagement_s']),
+                            GColors.saffronDark,
+                          ),
+                        ]),
+                        _chartTitle('पिछले 30 मिनट — हर मिनट सक्रिय यूज़र'),
+                        _dayChart(
+                          [
+                            for (final m in mins)
+                              {
+                                'day': '-${_i(m['minutes_ago'])}m',
+                                'n': m['active_users'],
+                              },
+                          ],
+                          'n',
+                          color: GColors.online,
+                          bars: true,
+                        ),
+                        _chartTitle('पिछले 30 मिनट के इवेंट'),
+                        _rankBars(
+                          [
+                            for (final e in _l(rtm['events']))
+                              (_s(e['event']), _i(e['n'])),
+                          ],
+                          color: GColors.online,
+                          take: 12,
+                        ),
+                        const SizedBox(height: 4),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            onPressed: refresh,
+                            icon: const Icon(Icons.refresh, size: 18),
+                            label: const Text('रीफ़्रेश'),
+                          ),
+                        ),
+                      ],
+                      open: true,
+                      badge: '${_i(d['live_users'])} ऑनलाइन',
+                    ),
+                    _folder('today', '📅', 'आज', [
+                      _tiles([
+                        (
+                          'आज सक्रिय यूज़र',
+                          '${_i(td['active_users'])}',
+                          GColors.maroon,
+                        ),
+                        (
+                          'आज नए यूज़र',
+                          '${_i(td['new_users'])}',
+                          GColors.online,
+                        ),
+                        (
+                          'आज ऐप खुला',
+                          '${_i(td['app_opens'])}',
+                          GColors.saffron,
+                        ),
+                        (
+                          'आज के इंस्टॉल',
+                          '${_i(td['installs'])}',
+                          GColors.gold,
+                        ),
+                        (
+                          'आज PDF बने',
+                          '${_i(td['pdf_generate'])}',
+                          GColors.maroon,
+                        ),
+                        (
+                          'आज PDF डाउनलोड',
+                          '${_i(td['pdf_download'])}',
+                          GColors.saffronDark,
+                        ),
+                        ('आज AI प्रश्न', '$aiQ', GColors.brown),
+                        (
+                          'AI जवाब / फेल',
+                          '${_i(td['ai_answer'])} / ${_i(td['ai_fail'])}',
+                          GColors.maroonLight,
+                        ),
+                        (
+                          'Sync सफल / फेल',
+                          '${_i(td['sync_ok'])} / ${_i(td['sync_fail'])}',
+                          GColors.muted,
+                        ),
+                        (
+                          'आज स्क्रीन व्यू',
+                          '${_i(td['screen_views'])}',
+                          GColors.saffron,
+                        ),
+                        (
+                          'ग्रंथ / प्रमाण खुले',
+                          '${_i(td['granth_open'])} / ${_i(td['praman_open'])}',
+                          GColors.gold,
+                        ),
+                        (
+                          'आज रनटाइम',
+                          _dur(td['engagement_s']),
+                          GColors.saffronDark,
+                        ),
+                      ]),
+                      const SizedBox(height: 6),
+                      _sub(
+                        'आज के आँकड़े: GA रिपोर्ट या पिछले 30 मिनट का रियलटाइम, जो बड़ा हो।',
+                      ),
+                    ], open: true),
+                  ],
+                );
+              },
+            ),
+            // ---------------------------------------------------------------- period
             SortChips<int>(
               options: const [(7, '7 दिन'), (30, '30 दिन'), (90, '90 दिन')],
               value: _days,
@@ -982,65 +1466,210 @@ class _EventsScreenState extends State<EventsScreen> {
                 final t = _m(d['totals']), at = _m(d['all_time']);
                 final rt = _m(d['retention']), sup = _m(d['support']);
                 final byDay = _l(d['by_day']);
-                final rate =
-                    (t['ai_fail_rate'] is num ? t['ai_fail_rate'] as num : 0) *
-                    100;
+                final aiQ = _i(t['ai_ask']) > 0
+                    ? _i(t['ai_ask'])
+                    : _i(t['ai_answer']) + _i(t['ai_fail']);
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _card(const ValueKey('ga-totals'), [
-                      _title('कुल'),
-                      if (d['_ga_error'] != null) _sub(_s(d['_ga_error'])),
-                      _row('अभी सक्रिय (रियलटाइम)', d['realtime_active_users']),
-                      _row('इंस्टॉल अब तक (first_open)', at['installs']),
-                      _row('इंस्टॉल इस अवधि में', t['installs']),
-                      _row('सक्रिय यूज़र', t['active_users']),
-                      _row('नए यूज़र', t['new_users']),
-                      _row(
-                        'DAU / WAU / MAU',
-                        '${_i(rt['dau'])} / ${_i(rt['wau'])} / ${_i(rt['mau'])}',
+                    if (d['_ga_error'] != null)
+                      _card(const ValueKey('ga-err2'), [
+                        _sub(_s(d['_ga_error'])),
+                      ]),
+                    _folder('users', '👥', 'यूज़र ($_days दिन)', [
+                      _tiles([
+                        (
+                          'सक्रिय यूज़र',
+                          '${_i(t['active_users'])}',
+                          GColors.maroon,
+                        ),
+                        ('नए यूज़र', '${_i(t['new_users'])}', GColors.online),
+                        (
+                          'इंस्टॉल (अवधि)',
+                          '${_i(t['installs'])}',
+                          GColors.gold,
+                        ),
+                        (
+                          'इंस्टॉल अब तक',
+                          '${_i(at['installs'])}',
+                          GColors.saffronDark,
+                        ),
+                        (
+                          'DAU / WAU / MAU',
+                          '${_i(rt['dau'])}/${_i(rt['wau'])}/${_i(rt['mau'])}',
+                          GColors.brown,
+                        ),
+                        (
+                          'कुल रनटाइम',
+                          _dur(t['engagement_s']),
+                          GColors.saffron,
+                        ),
+                        (
+                          'औसत समय / यूज़र',
+                          _dur(t['avg_engagement_s_per_user']),
+                          GColors.muted,
+                        ),
+                        ('सेशन', '${_i(t['sessions'])}', GColors.maroonLight),
+                      ]),
+                      _chartTitle('रोज़ के सक्रिय यूज़र'),
+                      _dayChart(byDay, 'active_users', color: GColors.maroon),
+                      _chartTitle('रोज़ के इंस्टॉल'),
+                      _dayChart(
+                        byDay,
+                        'installs',
+                        color: GColors.gold,
+                        bars: true,
                       ),
-                      _row('ऐप खुला (सेशन)', t['app_opens']),
-                      _row('ऐप खुला अब तक', at['app_opens']),
-                      _row('स्क्रीन व्यू', t['screen_views']),
-                      _row(
-                        'फ़ोल्डर / ग्रंथ खुले',
-                        '${_i(t['folder_open'])} / ${_i(t['granth_open'])}',
+                      _chartTitle('रोज़ का रनटाइम (मिनट)'),
+                      _dayChart(
+                        byDay,
+                        'engagement_s',
+                        color: GColors.saffronDark,
+                        bars: true,
+                        map: (v) => v / 60,
                       ),
-                      _row(
-                        'PDF डाउनलोड (अब तक ${_i(at['pdf_download'])})',
-                        t['pdf_download'],
+                    ], open: true),
+                    _folder('opens', '📱', 'ऐप खुलना', [
+                      _tiles([
+                        (
+                          'ऐप खुला (सेशन)',
+                          '${_i(t['app_opens'])}',
+                          GColors.saffron,
+                        ),
+                        (
+                          'ऐप खुला अब तक',
+                          '${_i(at['app_opens'])}',
+                          GColors.maroon,
+                        ),
+                        (
+                          'स्क्रीन व्यू',
+                          '${_i(t['screen_views'])}',
+                          GColors.gold,
+                        ),
+                      ]),
+                      _chartTitle('रोज़ ऐप खुला'),
+                      _dayChart(byDay, 'app_opens', color: GColors.saffron),
+                      _chartTitle('सबसे ज़्यादा देखी स्क्रीन'),
+                      _rankBars([
+                        for (final s in _l(d['screens']))
+                          (_s(s['screen']), _i(s['views'])),
+                      ]),
+                    ]),
+                    _folder('pdf', '📄', 'PDF', [
+                      _tiles([
+                        ('PDF बने', '${_i(t['pdf_generate'])}', GColors.maroon),
+                        (
+                          'PDF बने अब तक',
+                          '${_i(at['pdf_generate'])}',
+                          GColors.brown,
+                        ),
+                        (
+                          'PDF डाउनलोड',
+                          '${_i(t['pdf_download'])}',
+                          GColors.saffron,
+                        ),
+                        (
+                          'डाउनलोड अब तक',
+                          '${_i(at['pdf_download'])}',
+                          GColors.saffronDark,
+                        ),
+                        (
+                          'PDF फेल',
+                          '${_i(t['pdf_fail'])}',
+                          GColors.maroonLight,
+                        ),
+                      ]),
+                      _chartTitle('रोज़ PDF बने'),
+                      _dayChart(
+                        byDay,
+                        'pdf_generate',
+                        color: GColors.maroon,
+                        bars: true,
                       ),
-                      _row(
-                        'PDF बने (अब तक ${_i(at['pdf_generate'])})',
-                        t['pdf_generate'],
-                      ),
-                      _row(
-                        'AI जवाब / फेल',
-                        '${_i(t['ai_answer'])} / ${_i(t['ai_fail'])} (${rate.toStringAsFixed(1)}%)',
-                      ),
-                      _row('Sync फेल', t['sync_fail']),
-                      _row(
-                        'सपोर्ट खुले / नए',
-                        '${_i(sup['open'])} / ${_i(sup['unread'])}',
+                      _chartTitle('रोज़ PDF डाउनलोड'),
+                      _dayChart(
+                        byDay,
+                        'pdf_download',
+                        color: GColors.saffron,
+                        bars: true,
                       ),
                     ]),
-                    _days7('रोज़ के इंस्टॉल', byDay, 'installs'),
-                    _days7('रोज़ ऐप खुला', byDay, 'app_opens'),
-                    _days7('रोज़ के सक्रिय यूज़र', byDay, 'active_users'),
-                    _days7('रोज़ के PDF डाउनलोड', byDay, 'pdf_download'),
-                    _list(
-                      'ऐप वर्ज़न',
-                      _l(d['versions']),
-                      'version',
-                      'active_users',
-                    ),
-                    _list('Android वर्ज़न', _l(d['os']), 'os', 'active_users'),
+                    _folder('ai', '✨', 'AI प्रश्न', [
+                      _tiles([
+                        ('AI प्रश्न', '$aiQ', GColors.brown),
+                        ('जवाब मिले', '${_i(t['ai_answer'])}', GColors.online),
+                        ('फेल', '${_i(t['ai_fail'])}', GColors.maroonLight),
+                        (
+                          'फेल दर',
+                          '${((t['ai_fail_rate'] is num ? t['ai_fail_rate'] as num : 0) * 100).toStringAsFixed(1)}%',
+                          GColors.muted,
+                        ),
+                      ]),
+                      _chartTitle('जवाब बनाम फेल'),
+                      _donut([
+                        ('जवाब मिले', _i(t['ai_answer'])),
+                        ('फेल', _i(t['ai_fail'])),
+                      ]),
+                      _chartTitle('रोज़ AI प्रश्न'),
+                      _dayChart(
+                        byDay,
+                        _i(t['ai_ask']) > 0 ? 'ai_ask' : 'ai_answer',
+                        color: GColors.brown,
+                      ),
+                    ]),
+                    _folder('content', '📚', 'ग्रंथ / प्रमाण / फ़ोल्डर', [
+                      _donut([
+                        ('फ़ोल्डर खुले', _i(t['folder_open'])),
+                        ('ग्रंथ खुले', _i(t['granth_open'])),
+                        ('प्रमाण खुले', _i(t['praman_open'])),
+                        ('विषय खुले', _i(t['topic_open'])),
+                        ('संदर्भ टैप', _i(t['cite_tap'])),
+                      ]),
+                      _chartTitle('रोज़ ग्रंथ खुले'),
+                      _dayChart(byDay, 'granth_open', color: GColors.gold),
+                    ]),
+                    _folder('sync', '🔄', 'Sync और सपोर्ट', [
+                      _tiles([
+                        ('Sync सफल', '${_i(t['sync_ok'])}', GColors.online),
+                        (
+                          'Sync फेल',
+                          '${_i(t['sync_fail'])}',
+                          GColors.maroonLight,
+                        ),
+                        ('सपोर्ट खुले', '${_i(sup['open'])}', GColors.saffron),
+                        ('सपोर्ट नए', '${_i(sup['unread'])}', GColors.maroon),
+                      ]),
+                      _chartTitle('रोज़ Sync फेल'),
+                      _dayChart(
+                        byDay,
+                        'sync_fail',
+                        color: GColors.maroonLight,
+                        bars: true,
+                      ),
+                    ]),
+                    _folder('devices', '🔧', 'वर्ज़न और डिवाइस', [
+                      _chartTitle('ऐप वर्ज़न (सक्रिय यूज़र)'),
+                      _rankBars([
+                        for (final v in _l(d['versions']))
+                          (_s(v['version']), _i(v['active_users'])),
+                      ], color: GColors.saffron),
+                      _chartTitle('Android वर्ज़न'),
+                      _rankBars([
+                        for (final v in _l(d['os']))
+                          (_s(v['os']), _i(v['active_users'])),
+                      ], color: GColors.gold),
+                      _chartTitle('डिवाइस'),
+                      _rankBars([
+                        for (final v in _l(d['devices']))
+                          (_s(v['model']), _i(v['active_users'])),
+                      ], color: GColors.brown),
+                    ]),
                   ],
                 );
               },
             ),
-            const SizedBox(height: 10),
+            // ---------------------------------------------------------------- top items
+            const SizedBox(height: 4),
             SortChips<String>(
               options: kGaKinds,
               value: _kind,
@@ -1054,24 +1683,35 @@ class _EventsScreenState extends State<EventsScreen> {
                 '/ga/top',
                 query: {'kind': _kind, 'days': '$_days'},
               ),
-              builder: (context, d, refresh) => Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _card(const ValueKey('ga-top'), [
-                    _title('कुल: ${_i(d['total'])}'),
-                    if (d['_ga_error'] != null) _sub(_s(d['_ga_error'])),
-                    if (d['dims_missing'] == true)
-                      _sub(
-                        'GA4 में कस्टम डाइमेंशन "${_s(d['param'])}" बनाना बाकी — तब तक सिर्फ़ कुल गिनती। $kGaDimsUrl',
-                      ),
-                    for (final r in _l(d['items']).take(25))
-                      _row(
+              builder: (context, d, refresh) => _folder(
+                'top',
+                '🏆',
+                'टॉप: ${kGaKinds.firstWhere((k) => k.$1 == _kind, orElse: () => (_kind, _kind)).$2}',
+                [
+                  _tiles([('कुल', '${_i(d['total'])}', GColors.maroon)]),
+                  if (d['_ga_error'] != null) _sub(_s(d['_ga_error'])),
+                  if (d['dims_missing'] == true)
+                    _sub(
+                      'GA4 में कस्टम डाइमेंशन "${_s(d['param'])}" बनाना बाकी — तब तक सिर्फ़ कुल गिनती। $kGaDimsUrl',
+                    ),
+                  _chartTitle('सबसे ज़्यादा'),
+                  _rankBars([
+                    for (final r in _l(d['items']))
+                      (
                         _s(r['label']).isEmpty ? _s(r['id']) : _s(r['label']),
-                        r['n'],
+                        _i(r['n']),
                       ),
-                  ]),
-                  _days7('रोज़ाना', _l(d['by_day']), 'n'),
+                  ], take: 25),
+                  _chartTitle('रोज़ाना'),
+                  _dayChart(
+                    _l(d['by_day']),
+                    'n',
+                    color: GColors.saffron,
+                    bars: true,
+                  ),
                 ],
+                open: true,
+                badge: '${_i(d['total'])}',
               ),
             ),
           ],
