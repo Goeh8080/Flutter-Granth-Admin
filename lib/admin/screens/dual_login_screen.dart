@@ -132,7 +132,7 @@ class _DualLoginScreenState extends State<DualLoginScreen>
         setState(
           () => _panelError = e is GoogleLoginUnavailable
               ? e.message
-              : 'Google लॉगिन नहीं हो सका / Google login failed',
+              : 'Google लॉगिन नहीं हो सका / Google login failed: $e',
         );
       }
     } finally {

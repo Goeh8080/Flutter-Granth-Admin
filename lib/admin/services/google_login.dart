@@ -15,15 +15,20 @@ class GoogleLoginUnavailable implements Exception {
 class GoogleLogin {
   static bool _ready = false;
 
+  /// OAuth web client (client_type 3) of Firebase project granth-management. Public id, not a
+  /// secret. google_sign_in 7 (Credential Manager) needs it as serverClientId to mint an idToken.
+  static const _webClientId =
+      '386256348529-55gsprsn906i00e6726tu1gdo253kipv.apps.googleusercontent.com';
+
   static Future<void> _init() async {
     if (_ready) return;
     try {
       if (Firebase.apps.isEmpty) await Firebase.initializeApp();
-      await GoogleSignIn.instance.initialize();
+      await GoogleSignIn.instance.initialize(serverClientId: _webClientId);
       _ready = true;
     } catch (e) {
-      throw const GoogleLoginUnavailable(
-        'इस बिल्ड में Google लॉगिन सेट नहीं है / Google login is not configured in this build',
+      throw GoogleLoginUnavailable(
+        'इस बिल्ड में Google लॉगिन सेट नहीं है / Google login is not configured in this build ($e)',
       );
     }
   }
@@ -36,7 +41,9 @@ class GoogleLogin {
       acc = await GoogleSignIn.instance.authenticate();
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) return null;
-      rethrow;
+      throw GoogleLoginUnavailable(
+        'Google लॉगिन नहीं हो सका / Google sign-in failed: ${e.code.name}${e.description == null ? '' : ' (${e.description})'}',
+      );
     }
     final gid = acc.authentication.idToken;
     if (gid == null) {
@@ -44,9 +51,14 @@ class GoogleLogin {
         'Google ने टोकन नहीं दिया / No Google token',
       );
     }
-    final cred = await FirebaseAuth.instance.signInWithCredential(
-      GoogleAuthProvider.credential(idToken: gid),
-    );
+    final UserCredential cred;
+    try {
+      cred = await FirebaseAuth.instance.signInWithCredential(
+        GoogleAuthProvider.credential(idToken: gid),
+      );
+    } on FirebaseAuthException catch (e) {
+      throw GoogleLoginUnavailable('Firebase: ${e.code}');
+    }
     return cred.user?.getIdToken(true);
   }
 
