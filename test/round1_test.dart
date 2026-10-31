@@ -256,7 +256,7 @@ void main() {
   testWidgets(
     'hub: analytics incl. ai counters, toggles, tiles, owner-only Admins',
     (t) async {
-      t.view.physicalSize = const Size(1080, 9000);
+      t.view.physicalSize = const Size(1080, 10000);
       t.view.devicePixelRatio = 3;
       addTearDown(t.view.reset);
       final rig = _Rig();

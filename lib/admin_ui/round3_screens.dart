@@ -39,7 +39,7 @@ class Round3Entries extends StatefulWidget {
 }
 
 class _Round3EntriesState extends State<Round3Entries> {
-  int _sup = 0, _flags = 0;
+  int _sup = 0, _flags = 0, _corr = 0;
 
   @override
   void initState() {
@@ -57,6 +57,14 @@ class _Round3EntriesState extends State<Round3Entries> {
           _flags = _i(f['new']);
         });
       }
+    } catch (_) {}
+    try {
+      final c = await _api.raw(
+        'GET',
+        '/ai/flags',
+        query: {'kind': 'correction', 'status': 'new', 'limit': '1'},
+      );
+      if (mounted) setState(() => _corr = _i(c['total']));
     } catch (_) {}
   }
 
@@ -86,6 +94,15 @@ class _Round3EntriesState extends State<Round3Entries> {
         badge: _flags,
         tone: Tone.saffron,
         onTap: () => _go(const AiFlagsScreen()),
+      ),
+      AdminTile(
+        key: const ValueKey('r3-corrections'),
+        icon: 'check',
+        title: 'AI सुधार',
+        sub: 'पाठकों के सुधार — स्वीकारें तो AI नोट (सुधार) बनता है',
+        badge: _corr,
+        tone: Tone.saffron,
+        onTap: () => _go(const AiCorrectionsScreen()),
       ),
       AdminTile(
         key: const ValueKey('r3-highlights'),
@@ -552,6 +569,185 @@ class _AiFlagsScreenState extends State<AiFlagsScreen> {
       ),
     ],
   );
+}
+
+// ---------------------------------------------------------------------------- AI corrections (Round 7)
+
+/// Server limits for an approved correction (= `/ai/knowledge` answer limits).
+const kCorrectionMin = 50, kCorrectionMax = 2000;
+
+/// Pending user corrections (`GET /ai/flags?kind=correction`). Approve → visible knowledge item tagged सुधार
+/// (`POST /ai/flags/{id}/approve {answer}`); Reject → `POST /ai/flags/{id}/reject`.
+class AiCorrectionsScreen extends StatefulWidget {
+  const AiCorrectionsScreen({super.key});
+  @override
+  State<AiCorrectionsScreen> createState() => _AiCorrectionsScreenState();
+}
+
+class _AiCorrectionsScreenState extends State<AiCorrectionsScreen> {
+  String _st = 'new';
+
+  Future<String?> _editAnswer(String initial) => showDialog<String>(
+    context: context,
+    builder: (c) => CorrectionApproveDialog(initial: initial),
+  );
+
+  @override
+  Widget build(BuildContext context) => AdminSubPage(
+    title: 'AI सुधार',
+    slivers: [
+      SliverToBoxAdapter(
+        child: _Load(
+          key: ValueKey('corr$_st'),
+          load: () => _api.raw(
+            'GET',
+            '/ai/flags',
+            query: {'kind': 'correction', 'status': _st, 'limit': '100'},
+          ),
+          builder: (context, d, refresh) {
+            final items = _l(d['items']);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _sub(
+                  'स्वीकारने पर सुधार "AI Key Notes" में (टैग: सुधार) जाता है और AI उसे इस्तेमाल करता है।',
+                ),
+                const SizedBox(height: 8),
+                SortChips<String>(
+                  options: const [
+                    ('new', 'लंबित'),
+                    ('reviewed', 'निपटाए'),
+                    ('all', 'सब'),
+                  ],
+                  value: _st,
+                  onChanged: (v) => setState(() => _st = v),
+                ),
+                const SizedBox(height: 10),
+                if (items.isEmpty) const EmptyState(title: 'कोई सुधार नहीं'),
+                for (final f in items)
+                  _card(ValueKey('corr-${f['id']}'), [
+                    _sub('प्रश्न'),
+                    _title(_s(f['question'])),
+                    const SizedBox(height: 6),
+                    _sub('पुराना AI जवाब'),
+                    _body(_s(f['answer'])),
+                    const SizedBox(height: 6),
+                    _sub('सुधार'),
+                    _body(_s(f['correction'])),
+                    const SizedBox(height: 4),
+                    _sub(
+                      [
+                        shortTs(_s(f['created_at'])),
+                        _s(f['lang']),
+                        if (_s(f['app_version']).isNotEmpty)
+                          'ऐप ${f['app_version']}',
+                        if (f['resolution'] == 'approved')
+                          'स्वीकृत · नोट #${_i(f['knowledge_id'])}',
+                        if (f['resolution'] == 'rejected') 'अस्वीकृत',
+                        if (_s(f['reviewed_by']).isNotEmpty)
+                          _s(f['reviewed_by']),
+                      ].where((x) => x.isNotEmpty).join(' · '),
+                    ),
+                    if (f['resolution'] == null) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          Pill(
+                            key: ValueKey('corr-approve-${f['id']}'),
+                            label: 'स्वीकारें',
+                            tone: PillTone.maroon,
+                            onTap: () async {
+                              final a = await _editAnswer(_s(f['correction']));
+                              if (a == null) return;
+                              if (await runWrite(
+                                () => _api.raw(
+                                  'POST',
+                                  '/ai/flags/${f['id']}/approve',
+                                  body: {'answer': a},
+                                ),
+                                success: 'स्वीकारा — AI नोट बना',
+                              )) {
+                                refresh();
+                              }
+                            },
+                          ),
+                          Pill(
+                            key: ValueKey('corr-reject-${f['id']}'),
+                            label: 'अस्वीकारें',
+                            onTap: () async {
+                              if (!await _confirm(context, 'सुधार अस्वीकारें?'))
+                                return;
+                              if (await runWrite(
+                                () => _api.raw(
+                                  'POST',
+                                  '/ai/flags/${f['id']}/reject',
+                                ),
+                                success: 'अस्वीकारा',
+                              )) {
+                                refresh();
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ]),
+              ],
+            );
+          },
+        ),
+      ),
+    ],
+  );
+}
+
+class CorrectionApproveDialog extends StatefulWidget {
+  const CorrectionApproveDialog({super.key, required this.initial});
+  final String initial;
+  @override
+  State<CorrectionApproveDialog> createState() =>
+      CorrectionApproveDialogState();
+}
+
+class CorrectionApproveDialogState extends State<CorrectionApproveDialog> {
+  late final _c = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final n = _c.text.trim().runes.length;
+    final ok = n >= kCorrectionMin && n <= kCorrectionMax;
+    return AlertDialog(
+      title: const Text('सुधार स्वीकारें'),
+      content: TextField(
+        key: const ValueKey('corr-answer'),
+        controller: _c,
+        maxLines: 6,
+        onChanged: (_) => setState(() {}),
+        decoration: InputDecoration(
+          helperText:
+              'AI नोट का जवाब ($kCorrectionMin–$kCorrectionMax अक्षर) · अभी $n',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('रद्द करें'),
+        ),
+        TextButton(
+          key: const ValueKey('corr-approve-ok'),
+          onPressed: ok ? () => Navigator.pop(context, _c.text.trim()) : null,
+          child: const Text('स्वीकारें'),
+        ),
+      ],
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------- trending + praman

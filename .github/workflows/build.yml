@@ -1,6 +1,6 @@
 name: Build APK
 
-run-name: Round 6
+run-name: Round 7
 
 on:
   push:
@@ -89,17 +89,17 @@ jobs:
           name: Round-5-arm64
           path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
 
-      - name: Publish "Round 6" prerelease
+      - name: Publish "Round 7" prerelease
         if: github.event_name == 'push'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "round-6-run${{ github.run_number }}" \
+          gh release create "round-7-run${{ github.run_number }}" \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
             --prerelease \
-            --title "Round 6" \
-            --notes "Round 6 build of ${{ github.sha }} (run ${{ github.run_id }})." \
+            --title "Round 7" \
+            --notes "Round 7 build of ${{ github.sha }} (run ${{ github.run_id }})." \
             build/app/outputs/flutter-apk/app-release.apk \
             build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
