@@ -3,9 +3,7 @@ import 'package:unorm_dart/unorm_dart.dart' as unorm;
 /// Offline Hindi/Latin fuzzy search — a line-by-line port of the web app's
 /// `En/Dn/On/kn/jn/Mn/Nn/Pn/Fn/In/Ln/Rn` functions (see ARCHITECTURE.md "Offline search").
 
-final RegExp _matra = RegExp(
-  '[\u093e\u093f\u0940\u0941\u0942\u0943\u0944\u0947\u0948\u094b\u094c\u0902\u0901\u094d\u093c\u200c\u200d]',
-);
+final RegExp _matra = RegExp('[\u093e\u093f\u0940\u0941\u0942\u0943\u0944\u0947\u0948\u094b\u094c\u0902\u0901\u094d\u093c\u200c\u200d]');
 final RegExp _punct = RegExp(r'[^\p{L}\p{M}\p{N}\s]', unicode: true);
 final RegExp _ws = RegExp(r'\s+');
 final RegExp _alnum = RegExp(r'[a-z0-9]');
@@ -18,30 +16,9 @@ const List<List<String>> synonymClusters = [
   ['कृष्ण', 'krishna', 'krishan', 'kishan', 'krishn'],
   ['कबीर', 'kabir', 'kabeer', 'kavir'],
   ['गीता', 'gita', 'geeta', 'geetaa', 'githa'],
-  [
-    'भगवद्गीता',
-    'भगवदगीता',
-    'भगवद्',
-    'भगवद',
-    'bhagavad',
-    'bhagvad',
-    'bhagwat',
-    'bhagwad',
-    'bhagvat',
-  ],
+  ['भगवद्गीता', 'भगवदगीता', 'भगवद्', 'भगवद', 'bhagavad', 'bhagvad', 'bhagwat', 'bhagwad', 'bhagvat'],
   ['भगवान', 'bhagwan', 'bhagavan', 'bhagwaan'],
-  [
-    'गुरु',
-    'गुरू',
-    'सद्गुरु',
-    'सतगुरु',
-    'गुरुदेव',
-    'guru',
-    'guruji',
-    'gurudev',
-    'sadguru',
-    'satguru',
-  ],
+  ['गुरु', 'गुरू', 'सद्गुरु', 'सतगुरु', 'गुरुदेव', 'guru', 'guruji', 'gurudev', 'sadguru', 'satguru'],
   ['मोक्ष', 'मुक्ति', 'moksh', 'moksha', 'mukti'],
   ['तीर्थ', 'teerth', 'tirth', 'tirtha'],
   ['राम', 'raam', 'ram', 'rama'],
@@ -106,65 +83,18 @@ const Map<String, String> _cons = {
   'त्र': 'tr',
   'ज्ञ': 'gy',
 };
-const Map<String, String> _vowelSigns = {
-  'ा': 'a',
-  'ि': 'i',
-  'ी': 'i',
-  'ु': 'u',
-  'ू': 'u',
-  'ृ': 'ri',
-  'े': 'e',
-  'ै': 'ai',
-  'ो': 'o',
-  'ौ': 'au',
-};
-const Set<String> stopWords = {
-  'की',
-  'के',
-  'का',
-  'कि',
-  'में',
-  'से',
-  'को',
-  'और',
-  'या',
-  'है',
-  'पर',
-  'यह',
-  'वह',
-  'एक',
-  'भी',
-  'हो',
-  'ने',
-  'the',
-  'of',
-  'and',
-  'in',
-  'to',
-  'a',
-};
+const Map<String, String> _vowelSigns = {'ा': 'a', 'ि': 'i', 'ी': 'i', 'ु': 'u', 'ू': 'u', 'ृ': 'ri', 'े': 'e', 'ै': 'ai', 'ो': 'o', 'ौ': 'au'};
+const Set<String> stopWords = {'की', 'के', 'का', 'कि', 'में', 'से', 'को', 'और', 'या', 'है', 'पर', 'यह', 'वह', 'एक', 'भी', 'हो', 'ने', 'the', 'of', 'and', 'in', 'to', 'a'};
 
 /// `En`
-String normalizeText(String e) => unorm
-    .nfc(e)
-    .toLowerCase()
-    .replaceAll(_punct, ' ')
-    .replaceAll(_ws, ' ')
-    .trim();
+String normalizeText(String e) => unorm.nfc(e).toLowerCase().replaceAll(_punct, ' ').replaceAll(_ws, ' ').trim();
 
 /// `Dn`
 String stripMatras(String e) => normalizeText(e).replaceAll(_matra, '');
 
 /// `On`
-String foldLatin(String e) => e
-    .replaceAll('aa', 'a')
-    .replaceAll('ee', 'i')
-    .replaceAll('oo', 'u')
-    .replaceAll('ai', 'e')
-    .replaceAll('au', 'o')
-    .replaceAll('w', 'v')
-    .replaceAll('ph', 'f')
-    .replaceAll('q', 'k');
+String foldLatin(String e) =>
+    e.replaceAll('aa', 'a').replaceAll('ee', 'i').replaceAll('oo', 'u').replaceAll('ai', 'e').replaceAll('au', 'o').replaceAll('w', 'v').replaceAll('ph', 'f').replaceAll('q', 'k');
 
 /// `kn` — Devanagari → Latin.
 String transliterate(String input) {
@@ -252,11 +182,7 @@ String skeleton(String e) => e.replaceAll(_skel, '');
 
 /// Synonym clusters normalized once (was redone for every row and keystroke).
 final List<({List<String> norm, List<String> roman})> _clusters = [
-  for (final c in synonymClusters)
-    (
-      norm: c.map(normalizeText).toList(),
-      roman: c.map((m) => foldLatin(transliterate(m))).toList(),
-    ),
+  for (final c in synonymClusters) (norm: c.map(normalizeText).toList(), roman: c.map((m) => foldLatin(transliterate(m))).toList()),
 ];
 
 /// `jn` — expand a query token with synonyms.
@@ -305,29 +231,20 @@ class SearchDoc {
 SearchDoc makeDoc(String e) {
   final t = normalizeText(e);
   final n = transliterate(t);
-  return SearchDoc(
-    t,
-    stripMatras(t),
-    n,
-    skeleton(n),
-    n.split(' ').where((x) => x.length > 1).toList(),
-  );
+  return SearchDoc(t, stripMatras(t), n, skeleton(n), n.split(' ').where((x) => x.length > 1).toList());
 }
 
 /// Builds docs for many texts at once (runs in a background isolate).
-List<SearchDoc> makeDocs(List<String> texts) => [
-  for (final t in texts) makeDoc(t),
-];
+List<SearchDoc> makeDocs(List<String> texts) => [for (final t in texts) makeDoc(t)];
 
 /// `Fn`
-SearchDoc docOf(List<String?> fields) =>
-    makeDoc(fields.whereType<String>().where((f) => f.isNotEmpty).join('\n'));
+SearchDoc docOf(List<String?> fields) => makeDoc(fields.whereType<String>().where((f) => f.isNotEmpty).join('\n'));
 
 /// One expanded form of a query token, with every derived string computed once.
 class SearchVariant {
   SearchVariant(String r)
-    : e = normalizeText(r),
-      i = foldLatin(transliterate(r)) {
+      : e = normalizeText(r),
+        i = foldLatin(transliterate(r)) {
     a = skeleton(i);
     o = stripMatras(e);
   }
@@ -343,16 +260,9 @@ class QueryPlan {
     final n = query.trim();
     empty = n.isEmpty;
     if (empty) return;
-    final r = normalizeText(n)
-        .split(' ')
-        .where((e) => e.length > 1 && !stopWords.contains(e))
-        .toList();
-    final i = r.isNotEmpty
-        ? r
-        : [normalizeText(n)].where((e) => e.isNotEmpty).toList();
-    tokens = [
-      for (final t in i) expandToken(t).map(SearchVariant.new).toList(),
-    ];
+    final r = normalizeText(n).split(' ').where((e) => e.length > 1 && !stopWords.contains(e)).toList();
+    final i = r.isNotEmpty ? r : [normalizeText(n)].where((e) => e.isNotEmpty).toList();
+    tokens = [for (final t in i) expandToken(t).map(SearchVariant.new).toList()];
   }
   late final bool empty;
   List<List<SearchVariant>> tokens = const [];
@@ -365,18 +275,11 @@ int _scoreVariants(List<SearchVariant> vs, SearchDoc t) {
     if (n < 100 && e.length >= 2 && t.norm.contains(e)) n = 100;
     if (n < 90 && o.length >= 4 && t.bare.contains(o)) n = 90;
     if (n < 92 && i.length >= 4 && t.roman.contains(i)) n = 92;
-    if (n < 88 &&
-        i.length >= 2 &&
-        i.length <= 3 &&
-        t.tokens.any((x) => x == i || x.startsWith(i)))
-      n = 88;
+    if (n < 88 && i.length >= 2 && i.length <= 3 && t.tokens.any((x) => x == i || x.startsWith(i))) n = 88;
     if (n < 80 && a.length >= 4 && t.skel.contains(a)) n = 80;
     if (n < 66 && i.length >= 4) {
       for (final tok in t.tokens) {
-        if (tok.isNotEmpty &&
-            tok.codeUnitAt(0) == i.codeUnitAt(0) &&
-            (tok.length - i.length).abs() <= 2 &&
-            levenshtein(i, tok) <= 1) {
+        if (tok.isNotEmpty && tok.codeUnitAt(0) == i.codeUnitAt(0) && (tok.length - i.length).abs() <= 2 && levenshtein(i, tok) <= 1) {
           n = 66;
           break;
         }
@@ -428,20 +331,13 @@ List<T> searchRows<T>(List<T> rows, String query, SearchDoc Function(T) doc) {
     return sorted.map((e) => e.key).toList();
   }
   final plan = QueryPlan(r);
-  final scored = rows
-      .map((e) => MapEntry(e, scorePlan(plan, doc(e))))
-      .where((e) => e.value > 0)
-      .toList();
+  final scored = rows.map((e) => MapEntry(e, scorePlan(plan, doc(e)))).where((e) => e.value > 0).toList();
   _stableSort(scored, (x, y) => y.value.compareTo(x.value));
   return scored.map((e) => e.key).toList();
 }
 
 /// `Rn`
-List<T> searchFields<T>(
-  List<T> rows,
-  String query,
-  List<String?> Function(T) fields,
-) {
+List<T> searchFields<T>(List<T> rows, String query, List<String?> Function(T) fields) {
   final r = query.trim();
   return r.isEmpty ? rows : searchRows(rows, r, (e) => docOf(fields(e)));
 }
@@ -458,18 +354,14 @@ void _stableSort<T>(List<T> list, int Function(T, T) cmp) {
   }
 }
 
-void stableSort<T>(List<T> list, int Function(T, T) cmp) =>
-    _stableSort(list, cmp);
+void stableSort<T>(List<T> list, int Function(T, T) cmp) => _stableSort(list, cmp);
 
 /// Pre-built search docs for one list (built once per catalog, not per keystroke).
 class SearchIndex<T> {
-  SearchIndex(this.rows, List<String?> Function(T) fields)
-    : docs = [for (final r in rows) docOf(fields(r))];
+  SearchIndex(this.rows, List<String?> Function(T) fields) : docs = [for (final r in rows) docOf(fields(r))];
   final List<T> rows;
   final List<SearchDoc> docs;
-  late final Map<T, SearchDoc> _byRow = {
-    for (var i = 0; i < rows.length; i++) rows[i]: docs[i],
-  };
+  late final Map<T, SearchDoc> _byRow = {for (var i = 0; i < rows.length; i++) rows[i]: docs[i]};
 
   List<T> search(String query) => searchRows(rows, query, (r) => _byRow[r]!);
 }

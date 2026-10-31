@@ -12,8 +12,7 @@ class Topic {
   String get id => _s(raw['id']);
   String get title => _s(raw['title']);
   String get description => _s(raw['description']);
-  String get position =>
-      _s(raw['position']).isEmpty ? '0' : _s(raw['position']);
+  String get position => _s(raw['position']).isEmpty ? '0' : _s(raw['position']);
   int get pramanCount => int.tryParse(_s(raw['praman_count'])) ?? 0;
   int get granthCount => int.tryParse(_s(raw['granth_count'])) ?? 0;
   Map<String, dynamic> toJson() => raw;
@@ -29,8 +28,7 @@ class Granth {
   String get imagePath => _s(raw['imagePath']);
   String get editorImagePath => _s(raw['editorImagePath']);
   String get granthUrl => _s(raw['granthURL']).trim();
-  String get position =>
-      _s(raw['position']).isEmpty ? '0' : _s(raw['position']);
+  String get position => _s(raw['position']).isEmpty ? '0' : _s(raw['position']);
   int get pramanCount => int.tryParse(_s(raw['pramanCount'])) ?? 0;
   Map<String, dynamic> toJson() => raw;
 }
@@ -57,14 +55,7 @@ class Praman {
 }
 
 class Catalog {
-  Catalog({
-    required this.topics,
-    required this.granths,
-    required this.pramans,
-    this.syncedAt,
-    this.contentKey,
-    this.fileText,
-  });
+  Catalog({required this.topics, required this.granths, required this.pramans, this.syncedAt, this.contentKey, this.fileText});
   final List<Topic> topics;
   final List<Granth> granths;
   final List<Praman> pramans;
@@ -76,36 +67,26 @@ class Catalog {
   /// `catalog.json` text when it was already encoded off the UI thread (else null).
   final String? fileText;
 
-  Catalog withSyncedAt(int? t) => Catalog(
-    topics: topics,
-    granths: granths,
-    pramans: pramans,
-    syncedAt: t ?? syncedAt,
-    contentKey: contentKey,
-  );
+  Catalog withSyncedAt(int? t) => Catalog(topics: topics, granths: granths, pramans: pramans, syncedAt: t ?? syncedAt, contentKey: contentKey);
 
-  static Catalog empty() =>
-      Catalog(topics: const [], granths: const [], pramans: const []);
+  static Catalog empty() => Catalog(topics: const [], granths: const [], pramans: const []);
 
   Map<String, dynamic> toJson() => {
-    'topics': topics.map((e) => e.raw).toList(),
-    'granths': granths.map((e) => e.raw).toList(),
-    'pramans': pramans.map((e) => e.raw).toList(),
-    'syncedAt': syncedAt,
-  };
+        'topics': topics.map((e) => e.raw).toList(),
+        'granths': granths.map((e) => e.raw).toList(),
+        'pramans': pramans.map((e) => e.raw).toList(),
+        'syncedAt': syncedAt,
+      };
 
   static Catalog? fromJson(Object? j) {
     if (j is! Map || j['topics'] is! List) return null;
-    List<Map<String, dynamic>> list(Object? v) => v is List
-        ? v.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
-        : <Map<String, dynamic>>[];
+    List<Map<String, dynamic>> list(Object? v) =>
+        v is List ? v.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList() : <Map<String, dynamic>>[];
     return Catalog(
       topics: list(j['topics']).map(Topic.new).toList(),
       granths: list(j['granths']).map(Granth.new).toList(),
       pramans: list(j['pramans']).map(Praman.new).toList(),
-      syncedAt: j['syncedAt'] is num
-          ? (j['syncedAt'] as num).toInt()
-          : int.tryParse('${j['syncedAt']}'),
+      syncedAt: j['syncedAt'] is num ? (j['syncedAt'] as num).toInt() : int.tryParse('${j['syncedAt']}'),
     );
   }
 }
@@ -142,64 +123,64 @@ class GalleryItem {
   final String? previewPath;
 
   GalleryItem withFile(String path) => GalleryItem(
-    id: id,
-    kind: kind,
-    title: title,
-    text: text,
-    topic: topic,
-    granth: granth,
-    folderId: folderId,
-    createdAt: createdAt,
-    size: size,
-    fileName: fileName,
-    filePath: path,
-    previewPath: previewPath,
-  );
+        id: id,
+        kind: kind,
+        title: title,
+        text: text,
+        topic: topic,
+        granth: granth,
+        folderId: folderId,
+        createdAt: createdAt,
+        size: size,
+        fileName: fileName,
+        filePath: path,
+        previewPath: previewPath,
+      );
 
   GalleryItem copyWith({String? folderId}) => GalleryItem(
-    id: id,
-    kind: kind,
-    title: title,
-    text: text,
-    topic: topic,
-    granth: granth,
-    folderId: folderId ?? this.folderId,
-    createdAt: createdAt,
-    size: size,
-    fileName: fileName,
-    filePath: filePath,
-    previewPath: previewPath,
-  );
+        id: id,
+        kind: kind,
+        title: title,
+        text: text,
+        topic: topic,
+        granth: granth,
+        folderId: folderId ?? this.folderId,
+        createdAt: createdAt,
+        size: size,
+        fileName: fileName,
+        filePath: filePath,
+        previewPath: previewPath,
+      );
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'kind': kind.name,
-    'title': title,
-    'text': text,
-    'topic': topic,
-    'granth': granth,
-    'folderId': folderId,
-    'createdAt': createdAt,
-    'size': size,
-    'fileName': fileName,
-    'filePath': filePath,
-    'preview': previewPath,
-  };
+        'id': id,
+        'kind': kind.name,
+        'title': title,
+        'text': text,
+        'topic': topic,
+        'granth': granth,
+        'folderId': folderId,
+        'createdAt': createdAt,
+        'size': size,
+        'fileName': fileName,
+        'filePath': filePath,
+        'preview': previewPath,
+      };
 
   static GalleryItem fromJson(Map<String, dynamic> j) => GalleryItem(
-    id: _s(j['id']),
-    kind: j['kind'] == 'pdf' ? GalleryKind.pdf : GalleryKind.image,
-    title: _s(j['title']),
-    text: _s(j['text']),
-    topic: _s(j['topic']),
-    granth: _s(j['granth']),
-    folderId: _s(j['folderId']),
-    createdAt: (j['createdAt'] as num?)?.toInt() ?? 0,
-    size: (j['size'] as num?)?.toInt() ?? 0,
-    fileName: _s(j['fileName']),
-    filePath: _s(j['filePath']),
-    previewPath: j['preview'] is String ? j['preview'] as String : null,
-  );
+        id: _s(j['id']),
+        kind: j['kind'] == 'pdf' ? GalleryKind.pdf : GalleryKind.image,
+        title: _s(j['title']),
+        text: _s(j['text']),
+        topic: _s(j['topic']),
+        granth: _s(j['granth']),
+        folderId: _s(j['folderId']),
+        createdAt: (j['createdAt'] as num?)?.toInt() ?? 0,
+        size: (j['size'] as num?)?.toInt() ?? 0,
+        fileName: _s(j['fileName']),
+        filePath: _s(j['filePath']),
+        previewPath: j['preview'] is String ? j['preview'] as String : null,
+      );
 }
 
 class GalleryFolder {
@@ -207,10 +188,8 @@ class GalleryFolder {
   final String id;
   final String name;
   Map<String, dynamic> toJson() => {'id': id, 'name': name};
-  static GalleryFolder fromJson(Map<String, dynamic> j) =>
-      GalleryFolder(id: _s(j['id']), name: _s(j['name']));
+  static GalleryFolder fromJson(Map<String, dynamic> j) => GalleryFolder(id: _s(j['id']), name: _s(j['name']));
 }
 
 /// The lists without the sync time: two downloads with the same key carry the same data.
-String catalogContentKey(Catalog c) =>
-    jsonEncode(c.toJson()..remove('syncedAt'));
+String catalogContentKey(Catalog c) => jsonEncode(c.toJson()..remove('syncedAt'));

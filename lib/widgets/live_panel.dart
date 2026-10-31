@@ -40,8 +40,7 @@ mixin LivePanel<T extends StatefulWidget> on State<T> {
 
   void _refresh() {
     if (!mounted) return;
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
+    if (SchedulerBinding.instance.schedulerPhase == SchedulerPhase.persistentCallbacks) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() {});
       });

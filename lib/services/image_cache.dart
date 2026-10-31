@@ -27,15 +27,12 @@ class ImageStore {
   // own connections, so they never queue behind the background download of the library.
   final Dio _fast = _client();
 
-  static Dio _client() =>
-      Dio(
-          BaseOptions(
-            connectTimeout: const Duration(seconds: 20),
-            // Time without any data arriving (not the whole download): a slow but moving
-            // download of a big page is never cut off; a dead connection fails in 30 s.
-            receiveTimeout: const Duration(seconds: 30),
-          ),
-        )
+  static Dio _client() => Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 20),
+        // Time without any data arriving (not the whole download): a slow but moving
+        // download of a big page is never cut off; a dead connection fails in 30 s.
+        receiveTimeout: const Duration(seconds: 30),
+      ))
         ..httpClientAdapter = IOHttpClientAdapter(
           createHttpClient: () => HttpClient()
             ..maxConnectionsPerHost = 8
@@ -64,7 +61,6 @@ class ImageStore {
       _leavePriority();
     };
   }
-
   void _leavePriority() {
     _priority--;
     if (_priority <= 0) {
@@ -76,9 +72,7 @@ class ImageStore {
 
   /// The background download calls this before each picture: it waits while a PDF or the
   /// screen needs pictures (at most [max], so a stuck foreground job never stops it).
-  Future<void> backgroundTurn({
-    Duration max = const Duration(seconds: 20),
-  }) async {
+  Future<void> backgroundTurn({Duration max = const Duration(seconds: 20)}) async {
     if (_priority == 0) return;
     _idle ??= Completer<void>();
     await _idle!.future.timeout(max, onTimeout: () {});
@@ -89,8 +83,7 @@ class ImageStore {
   /// File name of a picture inside the images folder.
   static String keyFor(String path) => path.replaceAll('/', '__');
 
-  final StreamController<(String, bool)> _changes =
-      StreamController.broadcast();
+  final StreamController<(String, bool)> _changes = StreamController.broadcast();
 
   /// Every picture saved (true) or removed as damaged (false), from any part of the app:
   /// the background download, a page opened on screen, the repair check.
@@ -101,9 +94,7 @@ class ImageStore {
   Set<String> savedNamesSync() {
     try {
       final out = <String>{};
-      for (final e in Directory(
-        Store.I.imagesDir,
-      ).listSync(followLinks: false)) {
+      for (final e in Directory(Store.I.imagesDir).listSync(followLinks: false)) {
         final n = e.path.substring(e.path.lastIndexOf('/') + 1);
         if (!n.endsWith('.part')) out.add(n);
       }
@@ -117,9 +108,7 @@ class ImageStore {
   Future<Set<String>> savedNames() async {
     final out = <String>{};
     try {
-      await for (final e in Directory(
-        Store.I.imagesDir,
-      ).list(followLinks: false)) {
+      await for (final e in Directory(Store.I.imagesDir).list(followLinks: false)) {
         final n = e.path.substring(e.path.lastIndexOf('/') + 1);
         if (n.endsWith('.part') || e is! File) continue;
         try {
@@ -149,20 +138,14 @@ class ImageStore {
   /// Which of [paths] are saved (one folder listing, not one disk check per picture).
   Future<Set<String>> which(Iterable<String> paths) async {
     final names = await savedNames();
-    return {
-      for (final p in paths)
-        if (names.contains(keyFor(p))) p,
-    };
+    return {for (final p in paths) if (names.contains(keyFor(p))) p};
   }
 
   /// Repair check: a saved picture is good when it exists, is not tiny and starts with a
   /// JPEG / PNG / GIF / WEBP header (a JPEG must also end with its end marker, which a cut-off
   /// download does not). Bad files are deleted so the download fetches them again.
   /// [onProgress] gets how many pictures were checked so far.
-  Future<Set<String>> verify(
-    List<String> paths, {
-    void Function(int checked)? onProgress,
-  }) async {
+  Future<Set<String>> verify(List<String> paths, {void Function(int checked)? onProgress}) async {
     final good = <String>{};
     var n = 0;
     for (final p in paths) {
@@ -178,8 +161,7 @@ class ImageStore {
         } catch (_) {}
       }
       n++;
-      if (onProgress != null && (n % 25 == 0 || n == paths.length))
-        onProgress(n);
+      if (onProgress != null && (n % 25 == 0 || n == paths.length)) onProgress(n);
     }
     return good;
   }
@@ -212,11 +194,7 @@ class ImageStore {
 
   int countSync() {
     try {
-      return Directory(Store.I.imagesDir)
-          .listSync()
-          .whereType<File>()
-          .where((f) => !f.path.endsWith('.part'))
-          .length;
+      return Directory(Store.I.imagesDir).listSync().whereType<File>().where((f) => !f.path.endsWith('.part')).length;
     } catch (_) {
       return 0;
     }
@@ -240,26 +218,17 @@ class ImageStore {
 
   // The cleanup must not hand back the removed entry: whenComplete waits for a
   // returned Future, and that entry is this very future, so get() would never finish.
-  Future<File?> _start(String path, Dio via) => _inflight.putIfAbsent(
-    path,
-    () => _download(path, via).whenComplete(() {
-      _inflight.remove(path);
-    }),
-  );
+  Future<File?> _start(String path, Dio via) => _inflight.putIfAbsent(path, () => _download(path, via).whenComplete(() {
+        _inflight.remove(path);
+      }));
 
   Future<File?> _download(String path, Dio via) async {
     try {
-      final r = await via.get<List<int>>(
-        urlFor(path),
-        options: Options(responseType: ResponseType.bytes),
-      );
+      final r = await via.get<List<int>>(urlFor(path), options: Options(responseType: ResponseType.bytes));
       final type = r.headers.value('content-type') ?? '';
       final raw = r.data;
       if (raw == null || raw.length < 32) return null;
-      if (type.isNotEmpty &&
-          !type.startsWith('image/') &&
-          !_looksLikeImage(raw))
-        return null;
+      if (type.isNotEmpty && !type.startsWith('image/') && !_looksLikeImage(raw)) return null;
       final bytes = raw is Uint8List ? raw : Uint8List.fromList(raw);
       // Round 7: a cut-off or damaged download is never saved (it would become a broken page).
       if (!bytesLookComplete(bytes)) return null;
@@ -294,8 +263,7 @@ class ImageStore {
       final lm = r.headers.value('last-modified');
       if (lm == null) return false;
       final server = HttpDate.parse(lm);
-      return server.difference(f.lastModifiedSync()) >
-          const Duration(seconds: 2);
+      return server.difference(f.lastModifiedSync()) > const Duration(seconds: 2);
     } catch (_) {
       return false;
     }
@@ -320,8 +288,7 @@ class ImageStore {
   static bool bytesLookComplete(Uint8List b) {
     if (b.length < 32) return false;
     if (b[0] == 0xFF && b[1] == 0xD8) return jpegComplete(b);
-    if (b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4E && b[3] == 0x47)
-      return _pngComplete(b);
+    if (b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4E && b[3] == 0x47) return _pngComplete(b);
     if (b[0] == 0x52 && b[1] == 0x49 && b[2] == 0x46 && b[3] == 0x46) {
       final size = b[4] | (b[5] << 8) | (b[6] << 16) | (b[7] << 24);
       return b.length >= size + 8;
@@ -346,9 +313,5 @@ class ImageStore {
   }
 
   static bool _looksLikeImage(List<int> b) =>
-      b.length > 4 &&
-      ((b[0] == 0xFF && b[1] == 0xD8) ||
-          (b[0] == 0x89 && b[1] == 0x50) ||
-          (b[0] == 0x52 && b[1] == 0x49) ||
-          (b[0] == 0x47 && b[1] == 0x49));
+      b.length > 4 && ((b[0] == 0xFF && b[1] == 0xD8) || (b[0] == 0x89 && b[1] == 0x50) || (b[0] == 0x52 && b[1] == 0x49) || (b[0] == 0x47 && b[1] == 0x49));
 }

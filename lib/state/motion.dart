@@ -8,6 +8,5 @@ import 'ui_prefs.dart';
 /// menu, tilt, splash) don't ask: they are unchanged.
 class Motion {
   Motion._();
-  static bool on(BuildContext context) =>
-      UiPrefs.I.animations && !MediaQuery.disableAnimationsOf(context);
+  static bool on(BuildContext context) => UiPrefs.I.animations && !MediaQuery.disableAnimationsOf(context);
 }

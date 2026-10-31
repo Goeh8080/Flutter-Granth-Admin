@@ -11,24 +11,8 @@ import 'package:flutter/material.dart';
 /// `quran`, `hadees`, `granth-sahib`, `dasam`, `bible`, `tripitak`, `dhammapad`,
 /// `kabir-sagar`, `bijak`, `shabdavali`, `misc` (अन्य).
 const List<String> groupIconNames = [
-  'scroll',
-  'book-red',
-  'book-green',
-  'book-blue',
-  'book-orange',
-  'swords',
-  'books',
-  'quran',
-  'hadees',
-  'granth-sahib',
-  'dasam',
-  'bible',
-  'tripitak',
-  'dhammapad',
-  'kabir-sagar',
-  'bijak',
-  'shabdavali',
-  'misc',
+  'scroll', 'book-red', 'book-green', 'book-blue', 'book-orange', 'swords', 'books', 'quran', 'hadees',
+  'granth-sahib', 'dasam', 'bible', 'tripitak', 'dhammapad', 'kabir-sagar', 'bijak', 'shabdavali', 'misc',
 ];
 
 class GroupIcon extends StatelessWidget {
@@ -38,10 +22,10 @@ class GroupIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    width: size,
-    height: size,
-    child: CustomPaint(painter: GroupIconPainter(name)),
-  );
+        width: size,
+        height: size,
+        child: CustomPaint(painter: GroupIconPainter(name)),
+      );
 }
 
 const _ink = Color(0xFF5A3A1A);
@@ -105,37 +89,17 @@ class GroupIconPainter extends CustomPainter {
 
   // ---- the tile ----------------------------------------------------------------------
   void _tile(Canvas c) {
-    final r = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(0.02, 0.02, 0.96, 0.96),
-      const Radius.circular(0.27),
-    );
-    c.drawRRect(
-      r.shift(const Offset(0, 0.025)),
-      Paint()
-        ..color = const Color(0x1F8A5A1E)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.03),
-    );
+    final r = RRect.fromRectAndRadius(const Rect.fromLTWH(0.02, 0.02, 0.96, 0.96), const Radius.circular(0.27));
+    c.drawRRect(r.shift(const Offset(0, 0.025)), Paint()..color = const Color(0x1F8A5A1E)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.03));
     c.drawRRect(
       r,
       Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFFFF8EC), Color(0xFFFAE6CB)],
-        ).createShader(const Rect.fromLTWH(0, 0, 1, 1)),
+        ..shader = const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFFFFF8EC), Color(0xFFFAE6CB)]).createShader(const Rect.fromLTWH(0, 0, 1, 1)),
     );
-    c.drawRRect(
-      r,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.012
-        ..color = const Color(0xFFEBD2AE),
-    );
+    c.drawRRect(r, Paint()..style = PaintingStyle.stroke..strokeWidth = 0.012..color = const Color(0xFFEBD2AE));
   }
 
-  Paint _fill(Color col) => Paint()
-    ..color = col
-    ..isAntiAlias = true;
+  Paint _fill(Color col) => Paint()..color = col..isAntiAlias = true;
   Paint _line(Color col, double w) => Paint()
     ..color = col
     ..style = PaintingStyle.stroke
@@ -152,99 +116,42 @@ class GroupIconPainter extends CustomPainter {
   // ---- shapes ------------------------------------------------------------------------
   void _scroll(Canvas c) {
     // paper
-    final paper = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(0.29, 0.2, 0.42, 0.6),
-      const Radius.circular(0.02),
-    );
+    final paper = RRect.fromRectAndRadius(const Rect.fromLTWH(0.29, 0.2, 0.42, 0.6), const Radius.circular(0.02));
     c.drawRRect(paper, _fill(const Color(0xFFF7E3B4)));
     c.drawRRect(paper, _line(const Color(0xFFD9B46A), 0.012));
     for (var i = 0; i < 4; i++) {
       final y = 0.34 + i * 0.1;
-      c.drawLine(
-        Offset(0.36, y),
-        Offset(i.isOdd ? 0.58 : 0.64, y),
-        _line(const Color(0xFFB07A2A), 0.022),
-      );
+      c.drawLine(Offset(0.36, y), Offset(i.isOdd ? 0.58 : 0.64, y), _line(const Color(0xFFB07A2A), 0.022));
     }
     // two rolls
     for (final y in [0.13, 0.73]) {
-      final roll = RRect.fromRectAndRadius(
-        Rect.fromLTWH(0.22, y, 0.56, 0.12),
-        const Radius.circular(0.06),
-      );
+      final roll = RRect.fromRectAndRadius(Rect.fromLTWH(0.22, y, 0.56, 0.12), const Radius.circular(0.06));
       c.drawRRect(
         roll,
-        Paint()
-          ..shader = const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFEBB94A), Color(0xFFC98A1C)],
-          ).createShader(roll.outerRect),
+        Paint()..shader = const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFFEBB94A), Color(0xFFC98A1C)]).createShader(roll.outerRect),
       );
-      c.drawOval(
-        Rect.fromLTWH(0.2, y + 0.01, 0.07, 0.10),
-        _fill(const Color(0xFFA86F12)),
-      );
-      c.drawOval(
-        Rect.fromLTWH(0.73, y + 0.01, 0.07, 0.10),
-        _fill(const Color(0xFFA86F12)),
-      );
-      c.drawCircle(
-        Offset(0.235, y + 0.06),
-        0.014,
-        _fill(const Color(0xFFF3D88F)),
-      );
-      c.drawCircle(
-        Offset(0.765, y + 0.06),
-        0.014,
-        _fill(const Color(0xFFF3D88F)),
-      );
+      c.drawOval(Rect.fromLTWH(0.2, y + 0.01, 0.07, 0.10), _fill(const Color(0xFFA86F12)));
+      c.drawOval(Rect.fromLTWH(0.73, y + 0.01, 0.07, 0.10), _fill(const Color(0xFFA86F12)));
+      c.drawCircle(Offset(0.235, y + 0.06), 0.014, _fill(const Color(0xFFF3D88F)));
+      c.drawCircle(Offset(0.765, y + 0.06), 0.014, _fill(const Color(0xFFF3D88F)));
     }
   }
 
-  void _book(
-    Canvas c,
-    Color color, {
-    void Function(Canvas, Color)? emblem,
-    bool trim = false,
-  }) {
+  void _book(Canvas c, Color color, {void Function(Canvas, Color)? emblem, bool trim = false}) {
     // pages (peek out right and bottom)
-    final pages = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(0.27, 0.17, 0.57, 0.72),
-      const Radius.circular(0.04),
-    );
+    final pages = RRect.fromRectAndRadius(const Rect.fromLTWH(0.27, 0.17, 0.57, 0.72), const Radius.circular(0.04));
     c.drawRRect(pages, _fill(_page));
     c.drawRRect(pages, _line(const Color(0xFFE2CFA6), 0.01));
-    c.drawLine(
-      const Offset(0.82, 0.24),
-      const Offset(0.82, 0.82),
-      _line(const Color(0xFFE2CFA6), 0.01),
-    );
-    final cover = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(0.19, 0.11, 0.58, 0.72),
-      const Radius.circular(0.05),
-    );
+    c.drawLine(const Offset(0.82, 0.24), const Offset(0.82, 0.82), _line(const Color(0xFFE2CFA6), 0.01));
+    final cover = RRect.fromRectAndRadius(const Rect.fromLTWH(0.19, 0.11, 0.58, 0.72), const Radius.circular(0.05));
     c.drawRRect(
       cover,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [_shade(color, 0.07), _shade(color, -0.05)],
-        ).createShader(cover.outerRect),
+      Paint()..shader = LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [_shade(color, 0.07), _shade(color, -0.05)]).createShader(cover.outerRect),
     );
     // spine
-    final spine = RRect.fromRectAndCorners(
-      const Rect.fromLTWH(0.19, 0.11, 0.1, 0.72),
-      topLeft: const Radius.circular(0.05),
-      bottomLeft: const Radius.circular(0.05),
-    );
+    final spine = RRect.fromRectAndCorners(const Rect.fromLTWH(0.19, 0.11, 0.1, 0.72), topLeft: const Radius.circular(0.05), bottomLeft: const Radius.circular(0.05));
     c.drawRRect(spine, _fill(_shade(color, -0.14)));
-    c.drawLine(
-      const Offset(0.31, 0.15),
-      const Offset(0.31, 0.79),
-      _line(_shade(color, 0.16).withValues(alpha: 0.55), 0.01),
-    );
+    c.drawLine(const Offset(0.31, 0.15), const Offset(0.31, 0.79), _line(_shade(color, 0.16).withValues(alpha: 0.55), 0.01));
     // bookmark ribbon
     final ribbon = Path()
       ..moveTo(0.62, 0.11)
@@ -255,12 +162,7 @@ class GroupIconPainter extends CustomPainter {
       ..close();
     c.drawPath(ribbon, _fill(_gold));
     if (trim) {
-      for (final (x, y, dx, dy) in [
-        (0.34, 0.17, 1.0, 1.0),
-        (0.72, 0.17, -1.0, 1.0),
-        (0.34, 0.77, 1.0, -1.0),
-        (0.72, 0.77, -1.0, -1.0),
-      ]) {
+      for (final (x, y, dx, dy) in [(0.34, 0.17, 1.0, 1.0), (0.72, 0.17, -1.0, 1.0), (0.34, 0.77, 1.0, -1.0), (0.72, 0.77, -1.0, -1.0)]) {
         c.drawPath(
           Path()
             ..moveTo(x, y + dy * 0.06)
@@ -295,12 +197,8 @@ class GroupIconPainter extends CustomPainter {
   void _crescent(Canvas c, Color color) {
     final moon = Path.combine(
       PathOperation.difference,
-      Path()..addOval(
-        Rect.fromCircle(center: const Offset(0.5, 0.47), radius: 0.15),
-      ),
-      Path()..addOval(
-        Rect.fromCircle(center: const Offset(0.555, 0.43), radius: 0.125),
-      ),
+      Path()..addOval(Rect.fromCircle(center: const Offset(0.5, 0.47), radius: 0.15)),
+      Path()..addOval(Rect.fromCircle(center: const Offset(0.555, 0.43), radius: 0.125)),
     );
     c.drawPath(moon, _fill(_gold));
     _star(c, const Offset(0.6, 0.46), 0.045, _gold);
@@ -320,11 +218,7 @@ class GroupIconPainter extends CustomPainter {
   void _ring(Canvas c, Color color) {
     c.drawCircle(const Offset(0.48, 0.47), 0.14, _line(_gold, 0.026));
     c.drawCircle(const Offset(0.48, 0.47), 0.05, _fill(_gold));
-    c.drawLine(
-      const Offset(0.37, 0.7),
-      const Offset(0.59, 0.7),
-      _line(_gold, 0.018),
-    );
+    c.drawLine(const Offset(0.37, 0.7), const Offset(0.59, 0.7), _line(_gold, 0.018));
   }
 
   void _sword(Canvas c, Color color) {
@@ -339,48 +233,16 @@ class GroupIconPainter extends CustomPainter {
       ..lineTo(-0.032, -0.16)
       ..close();
     c.drawPath(blade, _fill(const Color(0xFFE6EAF0)));
-    c.drawLine(
-      const Offset(0, -0.16),
-      const Offset(0, 0.07),
-      _line(const Color(0xFFAAB3C0), 0.01),
-    );
-    c.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(-0.08, 0.08, 0.16, 0.026),
-        const Radius.circular(0.012),
-      ),
-      _fill(_gold),
-    );
-    c.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(-0.014, 0.106, 0.028, 0.075),
-        const Radius.circular(0.01),
-      ),
-      _fill(_gold),
-    );
+    c.drawLine(const Offset(0, -0.16), const Offset(0, 0.07), _line(const Color(0xFFAAB3C0), 0.01));
+    c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(-0.08, 0.08, 0.16, 0.026), const Radius.circular(0.012)), _fill(_gold));
+    c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(-0.014, 0.106, 0.028, 0.075), const Radius.circular(0.01)), _fill(_gold));
     c.restore();
   }
 
   void _cross(Canvas c, Color color) {
-    c.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(0.455, 0.27, 0.07, 0.34),
-        const Radius.circular(0.012),
-      ),
-      _fill(_gold),
-    );
-    c.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(0.38, 0.35, 0.22, 0.07),
-        const Radius.circular(0.012),
-      ),
-      _fill(_gold),
-    );
-    c.drawLine(
-      const Offset(0.38, 0.71),
-      const Offset(0.6, 0.71),
-      _line(_gold, 0.016),
-    );
+    c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(0.455, 0.27, 0.07, 0.34), const Radius.circular(0.012)), _fill(_gold));
+    c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(0.38, 0.35, 0.22, 0.07), const Radius.circular(0.012)), _fill(_gold));
+    c.drawLine(const Offset(0.38, 0.71), const Offset(0.6, 0.71), _line(_gold, 0.016));
   }
 
   void _wheel(Canvas c, Color color) {
@@ -389,11 +251,7 @@ class GroupIconPainter extends CustomPainter {
     c.drawCircle(o, 0.03, _fill(const Color(0xFFFFE08A)));
     for (var i = 0; i < 8; i++) {
       final a = i * math.pi / 4;
-      c.drawLine(
-        Offset(o.dx + 0.035 * math.cos(a), o.dy + 0.035 * math.sin(a)),
-        Offset(o.dx + 0.14 * math.cos(a), o.dy + 0.14 * math.sin(a)),
-        _line(const Color(0xFFFFE08A), 0.016),
-      );
+      c.drawLine(Offset(o.dx + 0.035 * math.cos(a), o.dy + 0.035 * math.sin(a)), Offset(o.dx + 0.14 * math.cos(a), o.dy + 0.14 * math.sin(a)), _line(const Color(0xFFFFE08A), 0.016));
     }
   }
 
@@ -409,11 +267,7 @@ class GroupIconPainter extends CustomPainter {
   }
 
   void _sprout(Canvas c, Color color) {
-    c.drawLine(
-      const Offset(0.5, 0.68),
-      const Offset(0.5, 0.45),
-      _line(const Color(0xFF9BE08A), 0.026),
-    );
+    c.drawLine(const Offset(0.5, 0.68), const Offset(0.5, 0.45), _line(const Color(0xFF9BE08A), 0.026));
     final left = Path()
       ..moveTo(0.5, 0.52)
       ..quadraticBezierTo(0.36, 0.5, 0.36, 0.36)
@@ -449,20 +303,8 @@ class GroupIconPainter extends CustomPainter {
           ..close(),
         _fill(const Color(0xFFB1B9C6)),
       );
-      c.drawRRect(
-        RRect.fromRectAndRadius(
-          const Rect.fromLTWH(-0.12, 0.1, 0.24, 0.04),
-          const Radius.circular(0.02),
-        ),
-        _fill(_gold),
-      );
-      c.drawRRect(
-        RRect.fromRectAndRadius(
-          const Rect.fromLTWH(-0.02, 0.14, 0.04, 0.12),
-          const Radius.circular(0.015),
-        ),
-        _fill(const Color(0xFF7A4A22)),
-      );
+      c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(-0.12, 0.1, 0.24, 0.04), const Radius.circular(0.02)), _fill(_gold));
+      c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(-0.02, 0.14, 0.04, 0.12), const Radius.circular(0.015)), _fill(const Color(0xFF7A4A22)));
       c.drawCircle(const Offset(0, 0.285), 0.033, _fill(_goldDark));
       c.restore();
     }
@@ -473,45 +315,18 @@ class GroupIconPainter extends CustomPainter {
     const ys = [0.2, 0.41, 0.62];
     const xs = [0.2, 0.27, 0.18];
     for (var i = 0; i < 3; i++) {
-      final r = RRect.fromRectAndRadius(
-        Rect.fromLTWH(xs[i], ys[i], 0.58, 0.19),
-        const Radius.circular(0.035),
-      );
+      final r = RRect.fromRectAndRadius(Rect.fromLTWH(xs[i], ys[i], 0.58, 0.19), const Radius.circular(0.035));
       c.drawRRect(r, _fill(_page));
-      final cover = RRect.fromRectAndCorners(
-        Rect.fromLTWH(xs[i], ys[i], 0.5, 0.19),
-        topLeft: const Radius.circular(0.035),
-        bottomLeft: const Radius.circular(0.035),
-        topRight: const Radius.circular(0.01),
-        bottomRight: const Radius.circular(0.01),
-      );
+      final cover = RRect.fromRectAndCorners(Rect.fromLTWH(xs[i], ys[i], 0.5, 0.19), topLeft: const Radius.circular(0.035), bottomLeft: const Radius.circular(0.035), topRight: const Radius.circular(0.01), bottomRight: const Radius.circular(0.01));
       c.drawRRect(cover, _fill(cols[i]));
-      c.drawLine(
-        Offset(xs[i] + 0.06, ys[i] + 0.04),
-        Offset(xs[i] + 0.06, ys[i] + 0.15),
-        _line(_gold, 0.016),
-      );
-      c.drawLine(
-        Offset(xs[i] + 0.12, ys[i] + 0.095),
-        Offset(xs[i] + 0.4, ys[i] + 0.095),
-        _line(Colors.white.withValues(alpha: 0.7), 0.016),
-      );
-      c.drawLine(
-        Offset(xs[i] + 0.52, ys[i] + 0.04),
-        Offset(xs[i] + 0.52, ys[i] + 0.15),
-        _line(const Color(0xFFE2CFA6), 0.008),
-      );
+      c.drawLine(Offset(xs[i] + 0.06, ys[i] + 0.04), Offset(xs[i] + 0.06, ys[i] + 0.15), _line(_gold, 0.016));
+      c.drawLine(Offset(xs[i] + 0.12, ys[i] + 0.095), Offset(xs[i] + 0.4, ys[i] + 0.095), _line(Colors.white.withValues(alpha: 0.7), 0.016));
+      c.drawLine(Offset(xs[i] + 0.52, ys[i] + 0.04), Offset(xs[i] + 0.52, ys[i] + 0.15), _line(const Color(0xFFE2CFA6), 0.008));
     }
   }
 
   void _openBook(Canvas c) {
-    c.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(0.12, 0.3, 0.76, 0.5),
-        const Radius.circular(0.05),
-      ),
-      _fill(const Color(0xFF1C8C86)),
-    );
+    c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(0.12, 0.3, 0.76, 0.5), const Radius.circular(0.05)), _fill(const Color(0xFF1C8C86)));
     final left = Path()
       ..moveTo(0.5, 0.3)
       ..quadraticBezierTo(0.33, 0.2, 0.16, 0.26)
@@ -526,11 +341,7 @@ class GroupIconPainter extends CustomPainter {
       ..close();
     c.drawPath(left, _fill(_page));
     c.drawPath(right, _fill(const Color(0xFFF6EBD2)));
-    c.drawLine(
-      const Offset(0.5, 0.3),
-      const Offset(0.5, 0.76),
-      _line(const Color(0xFFD7C292), 0.012),
-    );
+    c.drawLine(const Offset(0.5, 0.3), const Offset(0.5, 0.76), _line(const Color(0xFFD7C292), 0.012));
     final p = _line(const Color(0xFF1C8C86).withValues(alpha: 0.75), 0.018);
     for (final y in [0.37, 0.46, 0.55]) {
       c.drawLine(Offset(0.23, y), Offset(0.43, y + 0.015), p);
@@ -539,31 +350,15 @@ class GroupIconPainter extends CustomPainter {
   }
 
   void _pothi(Canvas c) {
-    const cols = [
-      Color(0xFFE9C474),
-      Color(0xFFDDB05A),
-      Color(0xFFE9C474),
-      Color(0xFFDDB05A),
-    ];
+    const cols = [Color(0xFFE9C474), Color(0xFFDDB05A), Color(0xFFE9C474), Color(0xFFDDB05A)];
     for (var i = 0; i < 4; i++) {
-      final r = RRect.fromRectAndRadius(
-        Rect.fromLTWH(0.12, 0.2 + i * 0.15, 0.76, 0.12),
-        const Radius.circular(0.03),
-      );
+      final r = RRect.fromRectAndRadius(Rect.fromLTWH(0.12, 0.2 + i * 0.15, 0.76, 0.12), const Radius.circular(0.03));
       c.drawRRect(r, _fill(cols[i]));
       c.drawRRect(r, _line(const Color(0xFFB98A2E), 0.008));
-      c.drawLine(
-        Offset(0.2, 0.26 + i * 0.15),
-        Offset(0.78, 0.26 + i * 0.15),
-        _line(const Color(0xFFB98A2E).withValues(alpha: 0.55), 0.01),
-      );
+      c.drawLine(Offset(0.2, 0.26 + i * 0.15), Offset(0.78, 0.26 + i * 0.15), _line(const Color(0xFFB98A2E).withValues(alpha: 0.55), 0.01));
     }
     for (final x in [0.3, 0.7]) {
-      c.drawLine(
-        Offset(x, 0.16),
-        Offset(x, 0.84),
-        _line(const Color(0xFFC0392B), 0.016),
-      );
+      c.drawLine(Offset(x, 0.16), Offset(x, 0.84), _line(const Color(0xFFC0392B), 0.016));
       c.drawCircle(Offset(x, 0.16), 0.022, _fill(const Color(0xFFC0392B)));
     }
   }
@@ -582,18 +377,10 @@ class GroupIconPainter extends CustomPainter {
       ..quadraticBezierTo(0.14, 0.76, 0.14, 0.7)
       ..close();
     c.drawPath(back, _fill(const Color(0xFFD2A262)));
-    final front = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(0.12, 0.4, 0.76, 0.38),
-      const Radius.circular(0.05),
-    );
+    final front = RRect.fromRectAndRadius(const Rect.fromLTWH(0.12, 0.4, 0.76, 0.38), const Radius.circular(0.05));
     c.drawRRect(
       front,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFF0CD92), Color(0xFFE2B26C)],
-        ).createShader(front.outerRect),
+      Paint()..shader = const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFFF0CD92), Color(0xFFE2B26C)]).createShader(front.outerRect),
     );
     for (final x in [0.4, 0.5, 0.6]) {
       c.drawCircle(Offset(x, 0.6), 0.02, _fill(_ink.withValues(alpha: 0.65)));

@@ -42,78 +42,51 @@ class GFonts {
 
 class GText {
   GText._();
-  static TextStyle sans({
-    double size = 16,
-    FontWeight weight = FontWeight.w400,
-    Color color = GColors.text,
-    double? height,
-    double? letterSpacing,
-  }) => TextStyle(
-    fontFamily: GFonts.sans,
-    fontFamilyFallback: GFonts.sansFallback,
-    fontSize: size,
-    fontWeight: weight,
-    color: color,
-    height: height,
-    letterSpacing: letterSpacing,
-  );
+  static TextStyle sans({double size = 16, FontWeight weight = FontWeight.w400, Color color = GColors.text, double? height, double? letterSpacing}) => TextStyle(
+        fontFamily: GFonts.sans,
+        fontFamilyFallback: GFonts.sansFallback,
+        fontSize: size,
+        fontWeight: weight,
+        color: color,
+        height: height,
+        letterSpacing: letterSpacing,
+      );
 
-  static TextStyle display({
-    double size = 22,
-    Color color = GColors.maroon,
-    double? height,
-    double? letterSpacing,
-    List<Shadow>? shadows,
-  }) => TextStyle(
-    fontFamily: GFonts.display,
-    fontFamilyFallback: GFonts.displayFallback,
-    fontSize: size,
-    fontWeight: FontWeight.w400,
-    color: color,
-    height: height,
-    letterSpacing: letterSpacing,
-    shadows: shadows,
-  );
+  static TextStyle display({double size = 22, Color color = GColors.maroon, double? height, double? letterSpacing, List<Shadow>? shadows}) => TextStyle(
+        fontFamily: GFonts.display,
+        fontFamilyFallback: GFonts.displayFallback,
+        fontSize: size,
+        fontWeight: FontWeight.w400,
+        color: color,
+        height: height,
+        letterSpacing: letterSpacing,
+        shadows: shadows,
+      );
 
-  static TextStyle script({
-    double size = 18,
-    Color color = GColors.maroon,
-    double height = 1.45,
-  }) => TextStyle(
-    fontFamily: GFonts.script,
-    fontFamilyFallback: GFonts.scriptFallback,
-    fontSize: size,
-    fontWeight: FontWeight.w400,
-    color: color,
-    height: height,
-  );
+  static TextStyle script({double size = 18, Color color = GColors.maroon, double height = 1.45}) => TextStyle(
+        fontFamily: GFonts.script,
+        fontFamilyFallback: GFonts.scriptFallback,
+        fontSize: size,
+        fontWeight: FontWeight.w400,
+        color: color,
+        height: height,
+      );
 }
 
 ThemeData buildTheme() {
   final base = ThemeData(
     useMaterial3: true,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: GColors.maroon,
-      primary: GColors.maroon,
-      surface: GColors.cream,
-    ),
+    colorScheme: ColorScheme.fromSeed(seedColor: GColors.maroon, primary: GColors.maroon, surface: GColors.cream),
     scaffoldBackgroundColor: GColors.cream,
     fontFamily: GFonts.sans,
     fontFamilyFallback: GFonts.sansFallback,
     splashFactory: InkSparkle.splashFactory,
   );
   return base.copyWith(
-    textTheme: base.textTheme.apply(
-      bodyColor: GColors.text,
-      displayColor: GColors.text,
-      fontFamily: GFonts.sans,
-    ),
-    textSelectionTheme: const TextSelectionThemeData(
-      cursorColor: GColors.saffron,
-      selectionHandleColor: GColors.saffron,
-    ),
-    pageTransitionsTheme: const PageTransitionsTheme(
-      builders: {TargetPlatform.android: FadeForwardsPageTransitionsBuilder()},
-    ),
+    textTheme: base.textTheme.apply(bodyColor: GColors.text, displayColor: GColors.text, fontFamily: GFonts.sans),
+    textSelectionTheme: const TextSelectionThemeData(cursorColor: GColors.saffron, selectionHandleColor: GColors.saffron),
+    pageTransitionsTheme: const PageTransitionsTheme(builders: {
+      TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+    }),
   );
 }

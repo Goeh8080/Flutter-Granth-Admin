@@ -21,13 +21,9 @@ final List<RegExp> _fields = [
 const _pageIdx = 8;
 
 final RegExp _devRe = RegExp('[०-९]');
-String latinDigits(String e) =>
-    e.replaceAllMapped(_devRe, (m) => '${_devDigits.indexOf(m[0]!)}');
+String latinDigits(String e) => e.replaceAllMapped(_devRe, (m) => '${_devDigits.indexOf(m[0]!)}');
 
-final RegExp _kabirSagar = RegExp(
-  r'कबीर\s*सागर|kabir\s*sagar',
-  caseSensitive: false,
-);
+final RegExp _kabirSagar = RegExp(r'कबीर\s*सागर|kabir\s*sagar', caseSensitive: false);
 bool isKabirSagar(String e) => _kabirSagar.hasMatch(e);
 
 List<int> orderKey(String title) {
@@ -44,47 +40,11 @@ List<int> orderKey(String title) {
 }
 
 const List<String> kabirBooks = [
-  'ज्ञानसागर',
-  'अनुरागसागर',
-  'अम्बुसागर',
-  'विवेकसागर',
-  'सर्वज्ञसागर',
-  'ज्ञानप्रकाश',
-  'अमरसिंह बोध',
-  'बीरसिंह बोध',
-  'भोपाल बोध',
-  'जगजीवन बोध',
-  'गरुड़ बोध',
-  'हनुमान बोध',
-  'लक्ष्मण बोध',
-  'मोहम्मद बोध',
-  'काफिर बोध',
-  'सुल्तान बोध',
-  'निरंजन बोध',
-  'ज्ञानबोध',
-  'भवतारण बोध',
-  'मुक्तिबोध',
-  'चौकास्वरोदय',
-  'अलिफनामा',
-  'कबीरबानी',
-  'कर्मबोध',
-  'अमरमूल',
-  'उग्रगीता',
-  'ज्ञानस्थिति बोध',
-  'संतोष बोध',
-  'कायापांजी',
-  'पंचमुद्रा',
-  'आत्मबोध',
-  'जैनधर्म बोध',
-  'स्वसमवेद बोध',
-  'धर्मबोध',
-  'कमाल बोध',
-  'स्वाश गुंजार',
-  'अगमनिगम बोध',
-  'सुमिरन बोध',
-  'कबीरचरित्र बोध',
-  'गुरु महात्म्य',
-  'जीवधर्म बोध',
+  'ज्ञानसागर', 'अनुरागसागर', 'अम्बुसागर', 'विवेकसागर', 'सर्वज्ञसागर', 'ज्ञानप्रकाश', 'अमरसिंह बोध', 'बीरसिंह बोध',
+  'भोपाल बोध', 'जगजीवन बोध', 'गरुड़ बोध', 'हनुमान बोध', 'लक्ष्मण बोध', 'मोहम्मद बोध', 'काफिर बोध', 'सुल्तान बोध',
+  'निरंजन बोध', 'ज्ञानबोध', 'भवतारण बोध', 'मुक्तिबोध', 'चौकास्वरोदय', 'अलिफनामा', 'कबीरबानी', 'कर्मबोध', 'अमरमूल',
+  'उग्रगीता', 'ज्ञानस्थिति बोध', 'संतोष बोध', 'कायापांजी', 'पंचमुद्रा', 'आत्मबोध', 'जैनधर्म बोध', 'स्वसमवेद बोध',
+  'धर्मबोध', 'कमाल बोध', 'स्वाश गुंजार', 'अगमनिगम बोध', 'सुमिरन बोध', 'कबीरचरित्र बोध', 'गुरु महात्म्य', 'जीवधर्म बोध',
 ];
 
 // Built once (round 7): the book list sorted longest first, its names without spaces, and the
@@ -92,15 +52,9 @@ const List<String> kabirBooks = [
 final RegExp _spaces = RegExp(r'\s+');
 final List<(String, String, int)> _booksLongFirst = (() {
   final sorted = [...kabirBooks]..sort((a, b) => b.length.compareTo(a.length));
-  return [
-    for (final e in sorted)
-      (e, e.replaceAll(_spaces, ''), kabirBooks.indexOf(e)),
-  ];
+  return [for (final e in sorted) (e, e.replaceAll(_spaces, ''), kabirBooks.indexOf(e))];
 })();
-final RegExp _kabirPage = RegExp(
-  r'(?:पेज|पृष्ठ|page)\s*(?:नं\.?|नंबर|संख्या|number)?\s*[:\-–]?\s*(\d+)',
-  caseSensitive: false,
-);
+final RegExp _kabirPage = RegExp(r'(?:पेज|पृष्ठ|page)\s*(?:नं\.?|नंबर|संख्या|number)?\s*[:\-–]?\s*(\d+)', caseSensitive: false);
 final RegExp _anyDigits = RegExp(r'(\d+)');
 
 ({int order, int page}) kabirKey(String title) {
@@ -139,8 +93,7 @@ int numericCompare(String a, String b) {
 List<Praman> orderPramans(List<Praman> rows, [String granthTitle = '']) {
   final groups = <String, List<Praman>>{};
   for (final r in rows) {
-    final key =
-        '${r.granthId}|${granthTitle.isNotEmpty ? granthTitle : r.granthTitle}';
+    final key = '${r.granthId}|${granthTitle.isNotEmpty ? granthTitle : r.granthTitle}';
     (groups[key] ??= []).add(r);
   }
   List<Praman> sortGroup(List<Praman> list, String title) {
@@ -166,16 +119,8 @@ List<Praman> orderPramans(List<Praman> rows, [String granthTitle = '']) {
   }
 
   if (groups.length <= 1) {
-    return sortGroup(
-      rows,
-      granthTitle.isNotEmpty
-          ? granthTitle
-          : (rows.isNotEmpty ? rows.first.granthTitle : ''),
-    );
+    return sortGroup(rows, granthTitle.isNotEmpty ? granthTitle : (rows.isNotEmpty ? rows.first.granthTitle : ''));
   }
-  final entries = groups.entries.toList()
-    ..sort((a, b) => a.key.compareTo(b.key));
-  return entries
-      .expand((e) => sortGroup(e.value, e.key.split('|').skip(1).join('|')))
-      .toList();
+  final entries = groups.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+  return entries.expand((e) => sortGroup(e.value, e.key.split('|').skip(1).join('|'))).toList();
 }

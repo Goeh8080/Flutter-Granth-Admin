@@ -11,23 +11,18 @@ import '../theme/colors.dart';
 
 /// Lucide icons extracted from the original bundle (stroke icons, coloured at runtime).
 class GIcon extends StatelessWidget {
-  const GIcon(
-    this.name, {
-    super.key,
-    this.size = 16,
-    this.color = GColors.brown,
-  });
+  const GIcon(this.name, {super.key, this.size = 16, this.color = GColors.brown});
   final String name;
   final double size;
   final Color color;
 
   @override
   Widget build(BuildContext context) => SvgPicture.asset(
-    'assets/icons/$name.svg',
-    width: size,
-    height: size,
-    colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
-  );
+        'assets/icons/$name.svg',
+        width: size,
+        height: size,
+        colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+      );
 }
 
 /// Tap decided by the finger alone, like the original's buttons in the WebView (`onClick`,
@@ -37,13 +32,7 @@ class GIcon extends StatelessWidget {
 /// finger that moves a little (Android's own tap limit is 8 dp) still counts. A real scroll or
 /// a second finger (pinch) cancels it.
 class TapTarget extends StatefulWidget {
-  const TapTarget({
-    super.key,
-    required this.child,
-    this.onTap,
-    this.onHighlight,
-    this.behavior = HitTestBehavior.opaque,
-  });
+  const TapTarget({super.key, required this.child, this.onTap, this.onHighlight, this.behavior = HitTestBehavior.opaque});
   final Widget child;
   final VoidCallback? onTap;
 
@@ -71,8 +60,7 @@ class _TapTargetState extends State<TapTarget> {
       _cancel(); // second finger: a pinch, not a tap
       return;
     }
-    if (e.kind == PointerDeviceKind.mouse && e.buttons != kPrimaryButton)
-      return;
+    if (e.kind == PointerDeviceKind.mouse && e.buttons != kPrimaryButton) return;
     _pointer = e.pointer;
     _start = e.position;
     widget.onHighlight?.call(true);
@@ -80,14 +68,12 @@ class _TapTargetState extends State<TapTarget> {
 
   void _move(PointerMoveEvent e) {
     if (e.pointer != _pointer) return;
-    if ((e.position - _start).distance > kTouchSlop || TouchCount.multi)
-      _cancel();
+    if ((e.position - _start).distance > kTouchSlop || TouchCount.multi) _cancel();
   }
 
   void _up(PointerUpEvent e) {
     if (e.pointer != _pointer) return;
-    final ok =
-        !TouchCount.multi && (e.position - _start).distance <= kTouchSlop;
+    final ok = !TouchCount.multi && (e.position - _start).distance <= kTouchSlop;
     _cancel();
     if (ok && mounted) widget.onTap?.call();
   }
@@ -100,15 +86,15 @@ class _TapTargetState extends State<TapTarget> {
 
   @override
   Widget build(BuildContext context) => Listener(
-    behavior: widget.behavior,
-    onPointerDown: _down,
-    onPointerMove: _move,
-    onPointerUp: _up,
-    onPointerCancel: (e) {
-      if (e.pointer == _pointer) _cancel();
-    },
-    child: widget.child,
-  );
+        behavior: widget.behavior,
+        onPointerDown: _down,
+        onPointerMove: _move,
+        onPointerUp: _up,
+        onPointerCancel: (e) {
+          if (e.pointer == _pointer) _cancel();
+        },
+        child: widget.child,
+      );
 }
 
 /// How many fingers are on the screen (fed by [AppZoom] at the root): lets a [TapTarget]
@@ -142,15 +128,7 @@ class TouchCount {
 /// [direct]: the tap is a [TapTarget] (decided by the finger, can't be swallowed by a
 /// scroll / sheet / pinch layer around it) — used for the small setting and grid buttons.
 class Pressable extends StatefulWidget {
-  const Pressable({
-    super.key,
-    required this.child,
-    this.onTap,
-    this.scale = 0.96,
-    this.enabled = true,
-    this.behavior = HitTestBehavior.opaque,
-    this.direct = false,
-  });
+  const Pressable({super.key, required this.child, this.onTap, this.scale = 0.96, this.enabled = true, this.behavior = HitTestBehavior.opaque, this.direct = false});
   final Widget child;
   final VoidCallback? onTap;
   final double scale;
@@ -183,12 +161,7 @@ class _PressableState extends State<Pressable> {
       ),
     );
     if (widget.direct) {
-      return TapTarget(
-        behavior: widget.behavior,
-        onTap: on ? widget.onTap : null,
-        onHighlight: on ? _set : null,
-        child: body,
-      );
+      return TapTarget(behavior: widget.behavior, onTap: on ? widget.onTap : null, onHighlight: on ? _set : null, child: body);
     }
     return GestureDetector(
       behavior: widget.behavior,
@@ -247,45 +220,23 @@ class Pill extends StatelessWidget {
     final body = Container(
       constraints: BoxConstraints(minHeight: minHeight),
       padding: padding,
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-      ),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[
-            GIcon(icon!, size: iconSize, color: fg),
-            SizedBox(width: 4 + fontSize * 0.25),
-          ],
+          if (icon != null) ...[GIcon(icon!, size: iconSize, color: fg), SizedBox(width: 4 + fontSize * 0.25)],
           Flexible(
-            child: Text(
-              label,
-              maxLines: maxLines,
-              overflow: maxLines == null ? null : TextOverflow.ellipsis,
-              style: GText.sans(
-                size: fontSize,
-                weight: weight,
-                color: fg,
-                height: 1.3,
-              ),
-            ),
+            child: Text(label,
+                maxLines: maxLines,
+                overflow: maxLines == null ? null : TextOverflow.ellipsis,
+                style: GText.sans(size: fontSize, weight: weight, color: fg, height: 1.3)),
           ),
-          if (trailingIcon != null) ...[
-            SizedBox(width: 4 + fontSize * 0.25),
-            GIcon(trailingIcon!, size: iconSize, color: fg),
-          ],
+          if (trailingIcon != null) ...[SizedBox(width: 4 + fontSize * 0.25), GIcon(trailingIcon!, size: iconSize, color: fg)],
         ],
       ),
     );
     if (onTap == null) return body;
-    return Pressable(
-      onTap: enabled ? onTap : null,
-      enabled: enabled,
-      scale: 0.93,
-      direct: direct,
-      child: body,
-    );
+    return Pressable(onTap: enabled ? onTap : null, enabled: enabled, scale: 0.93, direct: direct, child: body);
   }
 }
 
@@ -293,21 +244,14 @@ enum Tone { saffron, maroon, gold }
 
 /// The gradient and the ink of a [Tone] (shared by [IconBox] and the religion symbols).
 (List<Color>, Color) toneColors(Tone tone) => switch (tone) {
-  Tone.saffron => ([GColors.saffron, GColors.saffronDark], GColors.paper),
-  Tone.maroon => ([GColors.maroonLight, GColors.maroon], GColors.paper),
-  Tone.gold => ([GColors.goldLight, GColors.gold], GColors.brown),
-};
+      Tone.saffron => ([GColors.saffron, GColors.saffronDark], GColors.paper),
+      Tone.maroon => ([GColors.maroonLight, GColors.maroon], GColors.paper),
+      Tone.gold => ([GColors.goldLight, GColors.gold], GColors.brown),
+    };
 
 /// `.icon-box.tone-*`
 class IconBox extends StatelessWidget {
-  const IconBox({
-    super.key,
-    required this.tone,
-    required this.icon,
-    this.size = 44,
-    this.radius = 10,
-    this.iconSize = 22,
-  });
+  const IconBox({super.key, required this.tone, required this.icon, this.size = 44, this.radius = 10, this.iconSize = 22});
   final Tone tone;
   final String icon;
   final double size;
@@ -323,11 +267,7 @@ class IconBox extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: colors,
-        ),
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: colors),
       ),
       child: GIcon(icon, size: iconSize, color: fg),
     );
@@ -335,40 +275,23 @@ class IconBox extends StatelessWidget {
 }
 
 /// Decoration for `.card` honouring the hidden `granth-look` styles.
-BoxDecoration cardDecoration(
-  String look, {
-  double radius = 12,
-  bool dash = false,
-}) {
+BoxDecoration cardDecoration(String look, {double radius = 12, bool dash = false}) {
   final base = dash
       ? BoxDecoration(
           color: GColors.paper,
           border: Border.all(color: GColors.creamDark),
           borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: GColors.shadow(0.08),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          boxShadow: [BoxShadow(color: GColors.shadow(0.08), blurRadius: 10, offset: const Offset(0, 2))],
         )
       : BoxDecoration(
           color: GColors.paper,
           border: Border.all(color: GColors.creamDark),
           borderRadius: BorderRadius.circular(radius),
-          boxShadow: [
-            BoxShadow(
-              color: GColors.shadow(0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          boxShadow: [BoxShadow(color: GColors.shadow(0.08), blurRadius: 8, offset: const Offset(0, 2))],
         );
   // Ashok restyles `.dash-card` only for combo; here every style reaches the dashboard
   // too (the whole app follows the chosen style), keeping the dashboard's own corners.
-  if (dash && look != 'combo' && look != 'classic')
-    return themedSurface(base, look: look);
+  if (dash && look != 'combo' && look != 'classic') return themedSurface(base, look: look);
   if (dash && look != 'combo') return base;
   switch (look) {
     case 'glass':
@@ -376,84 +299,41 @@ BoxDecoration cardDecoration(
         color: Colors.white.withValues(alpha: 0.42),
         border: Border.all(color: Colors.white.withValues(alpha: 0.55)),
         borderRadius: BorderRadius.circular(radius),
-        boxShadow: [
-          BoxShadow(
-            color: GColors.shadow(0.14),
-            blurRadius: 28,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: GColors.shadow(0.14), blurRadius: 28, offset: const Offset(0, 10))],
       );
     case 'neu':
       return BoxDecoration(
         color: GColors.cream,
         borderRadius: BorderRadius.circular(18),
         boxShadow: const [
-          BoxShadow(
-            color: Color(0xFFE6D3B4),
-            blurRadius: 16,
-            offset: Offset(8, 8),
-          ),
-          BoxShadow(
-            color: Color(0xFFFFFDF8),
-            blurRadius: 14,
-            offset: Offset(-6, -6),
-          ),
+          BoxShadow(color: Color(0xFFE6D3B4), blurRadius: 16, offset: Offset(8, 8)),
+          BoxShadow(color: Color(0xFFFFFDF8), blurRadius: 14, offset: Offset(-6, -6)),
         ],
       );
     case 'clay':
       return BoxDecoration(
         color: GColors.paper,
         borderRadius: BorderRadius.circular(28),
-        border: const Border(
-          bottom: BorderSide(color: Color(0xFFD6B69B), width: 8),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: GColors.shadow(0.14),
-            blurRadius: 24,
-            offset: const Offset(0, 14),
-          ),
-        ],
+        border: const Border(bottom: BorderSide(color: Color(0xFFD6B69B), width: 8)),
+        boxShadow: [BoxShadow(color: GColors.shadow(0.14), blurRadius: 24, offset: const Offset(0, 14))],
       );
     case 'material':
       return BoxDecoration(
         color: GColors.paper,
         borderRadius: BorderRadius.circular(4),
         boxShadow: const [
-          BoxShadow(
-            color: Color(0x2E000000),
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
-          BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 16,
-            offset: Offset(0, 8),
-          ),
+          BoxShadow(color: Color(0x2E000000), blurRadius: 4, offset: Offset(0, 2)),
+          BoxShadow(color: Color(0x14000000), blurRadius: 16, offset: Offset(0, 8)),
         ],
       );
     case 'flat':
-      return BoxDecoration(
-        color: GColors.cream,
-        border: Border.all(color: GColors.maroon, width: 2),
-      );
+      return BoxDecoration(color: GColors.cream, border: Border.all(color: GColors.maroon, width: 2));
     case 'bento':
       return BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [GColors.paper, GColors.creamDark],
-        ),
+        gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [GColors.paper, GColors.creamDark]),
         border: Border.all(color: GColors.gold.withValues(alpha: 0.55)),
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: GColors.shadow(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: GColors.shadow(0.08), blurRadius: 8, offset: const Offset(0, 2))],
       );
     case 'combo':
       return BoxDecoration(
@@ -466,21 +346,8 @@ BoxDecoration cardDecoration(
         // Two border colours on a rounded box cannot be painted (debug: red error; release:
         // square corners). The 1 px white top line (nearly invisible on this near-white top)
         // keeps its space but is not drawn, so the rounded 8 px base paints correctly.
-        border: const Border(
-          top: BorderSide(
-            color: Color(0xE6FFFFFF),
-            width: 1,
-            style: BorderStyle.none,
-          ),
-          bottom: BorderSide(color: Color(0xFFD3AA89), width: 8),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: GColors.shadow(0.12),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        border: const Border(top: BorderSide(color: Color(0xE6FFFFFF), width: 1, style: BorderStyle.none), bottom: BorderSide(color: Color(0xFFD3AA89), width: 8)),
+        boxShadow: [BoxShadow(color: GColors.shadow(0.12), blurRadius: 18, offset: const Offset(0, 10))],
       );
     default:
       return base;
@@ -493,37 +360,23 @@ BoxDecoration cardDecoration(
 /// combo); the user asked for the whole app to follow the style, so these surfaces take
 /// the same colours, corners and shadows. Border *widths* never change (no layout shift):
 /// thick edges (clay / combo base, flat frame) are drawn as shadows outside the box.
-BoxDecoration themedSurface(
-  BoxDecoration base, {
-  String? look,
-  double maxRadius = 28,
-  bool keepColor = false,
-}) {
+BoxDecoration themedSurface(BoxDecoration base, {String? look, double maxRadius = 28, bool keepColor = false}) {
   final l = look ?? UiPrefs.I.look;
   if (l == 'classic') return base;
   final b = base.border;
   final w = b is Border && b.isUniform ? b.top.width : 0.0;
   final r0 = base.borderRadius?.resolve(TextDirection.ltr).topLeft.x ?? 0;
-  BorderRadius radius(double r) =>
-      BorderRadius.circular(math.min(r0 >= 999 ? 999 : r, maxRadius));
+  BorderRadius radius(double r) => BorderRadius.circular(math.min(r0 >= 999 ? 999 : r, maxRadius));
   Border? edge(Color c) => w > 0 ? Border.all(color: c, width: w) : null;
   final keep = keepColor && b is Border ? b.top.color : null;
   final color = base.color;
   switch (l) {
     case 'glass':
       return BoxDecoration(
-        color: Colors.white.withValues(
-          alpha: math.max(0.42, (color?.a ?? 1) * 0.72),
-        ),
+        color: Colors.white.withValues(alpha: math.max(0.42, (color?.a ?? 1) * 0.72)),
         border: edge(keep ?? Colors.white.withValues(alpha: 0.55)),
         borderRadius: base.borderRadius,
-        boxShadow: [
-          BoxShadow(
-            color: GColors.shadow(0.14),
-            blurRadius: 28,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: GColors.shadow(0.14), blurRadius: 28, offset: const Offset(0, 10))],
       );
     case 'neu':
       return BoxDecoration(
@@ -531,16 +384,8 @@ BoxDecoration themedSurface(
         border: edge(keep ?? Colors.transparent),
         borderRadius: radius(18),
         boxShadow: const [
-          BoxShadow(
-            color: Color(0xFFE6D3B4),
-            blurRadius: 16,
-            offset: Offset(8, 8),
-          ),
-          BoxShadow(
-            color: Color(0xFFFFFDF8),
-            blurRadius: 14,
-            offset: Offset(-6, -6),
-          ),
+          BoxShadow(color: Color(0xFFE6D3B4), blurRadius: 16, offset: Offset(8, 8)),
+          BoxShadow(color: Color(0xFFFFFDF8), blurRadius: 14, offset: Offset(-6, -6)),
         ],
       );
     case 'clay':
@@ -548,14 +393,7 @@ BoxDecoration themedSurface(
         color: GColors.paper,
         border: edge(keep ?? Colors.transparent),
         borderRadius: radius(28),
-        boxShadow: [
-          const BoxShadow(color: Color(0xFFD6B69B), offset: Offset(0, 6)),
-          BoxShadow(
-            color: GColors.shadow(0.14),
-            blurRadius: 24,
-            offset: const Offset(0, 14),
-          ),
-        ],
+        boxShadow: [const BoxShadow(color: Color(0xFFD6B69B), offset: Offset(0, 6)), BoxShadow(color: GColors.shadow(0.14), blurRadius: 24, offset: const Offset(0, 14))],
       );
     case 'material':
       return BoxDecoration(
@@ -563,16 +401,8 @@ BoxDecoration themedSurface(
         border: edge(keep ?? Colors.transparent),
         borderRadius: radius(4),
         boxShadow: const [
-          BoxShadow(
-            color: Color(0x2E000000),
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
-          BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 16,
-            offset: Offset(0, 8),
-          ),
+          BoxShadow(color: Color(0x2E000000), blurRadius: 4, offset: Offset(0, 2)),
+          BoxShadow(color: Color(0x14000000), blurRadius: 16, offset: Offset(0, 8)),
         ],
       );
     case 'flat':
@@ -581,44 +411,21 @@ BoxDecoration themedSurface(
         border: edge(GColors.maroon),
         borderRadius: r0 >= 999 ? base.borderRadius : BorderRadius.zero,
         // Frame drawn outside so a 1 px / no-border box keeps its size.
-        boxShadow: w >= 2
-            ? const []
-            : [BoxShadow(color: GColors.maroon, spreadRadius: 2 - w)],
+        boxShadow: w >= 2 ? const [] : [BoxShadow(color: GColors.maroon, spreadRadius: 2 - w)],
       );
     case 'bento':
       return BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [GColors.paper, GColors.creamDark],
-        ),
+        gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [GColors.paper, GColors.creamDark]),
         border: edge(keep ?? GColors.gold.withValues(alpha: 0.55)),
         borderRadius: radius(24),
-        boxShadow: [
-          BoxShadow(
-            color: GColors.shadow(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: GColors.shadow(0.08), blurRadius: 8, offset: const Offset(0, 2))],
       );
     case 'combo':
       return BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment(-0.42, -1),
-          end: Alignment(0.42, 1),
-          colors: [Color(0xFFFFFDF8), Color(0xFFF8E7CF)],
-        ),
+        gradient: const LinearGradient(begin: Alignment(-0.42, -1), end: Alignment(0.42, 1), colors: [Color(0xFFFFFDF8), Color(0xFFF8E7CF)]),
         border: edge(keep ?? Colors.transparent),
         borderRadius: radius(26),
-        boxShadow: [
-          const BoxShadow(color: Color(0xFFD3AA89), offset: Offset(0, 6)),
-          BoxShadow(
-            color: GColors.shadow(0.12),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        boxShadow: [const BoxShadow(color: Color(0xFFD3AA89), offset: Offset(0, 6)), BoxShadow(color: GColors.shadow(0.12), blurRadius: 18, offset: const Offset(0, 10))],
       );
     default:
       return base;
@@ -630,21 +437,12 @@ class LookBuilder extends StatelessWidget {
   const LookBuilder({super.key, required this.builder});
   final Widget Function(BuildContext context, String look) builder;
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: UiPrefs.I,
-    builder: (context, _) => builder(context, UiPrefs.I.look),
-  );
+  Widget build(BuildContext context) => ListenableBuilder(listenable: UiPrefs.I, builder: (context, _) => builder(context, UiPrefs.I.look));
 }
 
 /// `.card` container.
 class GCard extends StatelessWidget {
-  const GCard({
-    super.key,
-    required this.child,
-    this.padding = const EdgeInsets.all(16),
-    this.onTap,
-    this.clip = false,
-  });
+  const GCard({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.onTap, this.clip = false});
   final Widget child;
   final EdgeInsets padding;
   final VoidCallback? onTap;
@@ -656,16 +454,10 @@ class GCard extends StatelessWidget {
       listenable: UiPrefs.I,
       builder: (context, _) {
         final deco = cardDecoration(UiPrefs.I.look);
-        final radius =
-            deco.borderRadius?.resolve(TextDirection.ltr) ?? BorderRadius.zero;
+        final radius = deco.borderRadius?.resolve(TextDirection.ltr) ?? BorderRadius.zero;
         Widget c = DecoratedBox(
           decoration: deco,
-          child: clip
-              ? ClipRRect(
-                  borderRadius: radius,
-                  child: Padding(padding: padding, child: child),
-                )
-              : Padding(padding: padding, child: child),
+          child: clip ? ClipRRect(borderRadius: radius, child: Padding(padding: padding, child: child)) : Padding(padding: padding, child: child),
         );
         if (onTap != null) c = Pressable(onTap: onTap, scale: 0.985, child: c);
         return c;
@@ -684,12 +476,8 @@ class Skeleton extends StatefulWidget {
   State<Skeleton> createState() => _SkeletonState();
 }
 
-class _SkeletonState extends State<Skeleton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1200),
-  )..repeat();
+class _SkeletonState extends State<Skeleton> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
 
   @override
   void dispose() {
@@ -699,28 +487,27 @@ class _SkeletonState extends State<Skeleton>
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _c,
-    builder: (context, _) => Container(
-      height: widget.height,
-      width: widget.width ?? double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(widget.radius),
-        gradient: LinearGradient(
-          colors: const [GColors.creamDark, GColors.cream, GColors.creamDark],
-          tileMode: TileMode.repeated,
-          transform: _Shift(_c.value),
+        animation: _c,
+        builder: (context, _) => Container(
+          height: widget.height,
+          width: widget.width ?? double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(widget.radius),
+            gradient: LinearGradient(
+              colors: const [GColors.creamDark, GColors.cream, GColors.creamDark],
+              tileMode: TileMode.repeated,
+              transform: _Shift(_c.value),
+            ),
+          ),
         ),
-      ),
-    ),
-  );
+      );
 }
 
 class _Shift extends GradientTransform {
   const _Shift(this.t);
   final double t;
   @override
-  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) =>
-      Matrix4.translationValues(-bounds.width * 2 * t, 0, 0);
+  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) => Matrix4.translationValues(-bounds.width * 2 * t, 0, 0);
 }
 
 /// `.spinner`
@@ -731,12 +518,8 @@ class GSpinner extends StatefulWidget {
   State<GSpinner> createState() => _GSpinnerState();
 }
 
-class _GSpinnerState extends State<GSpinner>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 800),
-  )..repeat();
+class _GSpinnerState extends State<GSpinner> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))..repeat();
   @override
   void dispose() {
     _c.dispose();
@@ -745,9 +528,9 @@ class _GSpinnerState extends State<GSpinner>
 
   @override
   Widget build(BuildContext context) => RotationTransition(
-    turns: _c,
-    child: CustomPaint(size: Size.square(widget.size), painter: _SpinPainter()),
-  );
+        turns: _c,
+        child: CustomPaint(size: Size.square(widget.size), painter: _SpinPainter()),
+      );
 }
 
 class _SpinPainter extends CustomPainter {
@@ -759,13 +542,7 @@ class _SpinPainter extends CustomPainter {
       ..strokeWidth = 3
       ..color = GColors.creamDark;
     canvas.drawOval(r, p);
-    canvas.drawArc(
-      r,
-      -math.pi * 3 / 4,
-      math.pi / 2,
-      false,
-      p..color = GColors.saffron,
-    );
+    canvas.drawArc(r, -math.pi * 3 / 4, math.pi / 2, false, p..color = GColors.saffron);
   }
 
   @override
@@ -774,14 +551,7 @@ class _SpinPainter extends CustomPainter {
 
 /// `.empty` / `.loading`
 class EmptyState extends StatelessWidget {
-  const EmptyState({
-    super.key,
-    required this.title,
-    this.body,
-    this.spinner = false,
-    this.actionLabel,
-    this.onAction,
-  });
+  const EmptyState({super.key, required this.title, this.body, this.spinner = false, this.actionLabel, this.onAction});
   final String title;
   final String? body;
   final bool spinner;
@@ -789,46 +559,27 @@ class EmptyState extends StatelessWidget {
   final VoidCallback? onAction;
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 12),
-    child: Column(
-      children: [
-        if (spinner) ...[const GSpinner(), const SizedBox(height: 12)],
-        Text(
-          title,
-          textAlign: TextAlign.center,
-          style: GText.display(size: 20, color: GColors.brown),
-        ),
-        const SizedBox(height: 6),
-        if (body != null)
-          Text(
-            body!,
-            textAlign: TextAlign.center,
-            style: GText.sans(size: 16, color: GColors.muted, height: 1.5),
-          ),
-        if (actionLabel != null && onAction != null) ...[
-          const SizedBox(height: 16),
-          Pressable(
-            onTap: onAction,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              decoration: BoxDecoration(
-                color: GColors.maroon,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                actionLabel!,
-                style: GText.sans(
-                  size: 16,
-                  weight: FontWeight.w700,
-                  color: GColors.paper,
+        padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 12),
+        child: Column(
+          children: [
+            if (spinner) ...[const GSpinner(), const SizedBox(height: 12)],
+            Text(title, textAlign: TextAlign.center, style: GText.display(size: 20, color: GColors.brown)),
+            const SizedBox(height: 6),
+            if (body != null) Text(body!, textAlign: TextAlign.center, style: GText.sans(size: 16, color: GColors.muted, height: 1.5)),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 16),
+              Pressable(
+                onTap: onAction,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  decoration: BoxDecoration(color: GColors.maroon, borderRadius: BorderRadius.circular(8)),
+                  child: Text(actionLabel!, style: GText.sans(size: 16, weight: FontWeight.w700, color: GColors.paper)),
                 ),
               ),
-            ),
-          ),
-        ],
-      ],
-    ),
-  );
+            ],
+          ],
+        ),
+      );
 }
 
 /// The mala logo (`Kn`): ring, 14 beads and the guru bead.
@@ -839,8 +590,7 @@ class MalaLogo extends StatelessWidget {
   /// 0..1 — how many beads are drawn (used by the opening animation).
   final double progress;
   @override
-  Widget build(BuildContext context) =>
-      CustomPaint(size: Size.square(size), painter: _MalaPainter(progress));
+  Widget build(BuildContext context) => CustomPaint(size: Size.square(size), painter: _MalaPainter(progress));
 }
 
 class _MalaPainter extends CustomPainter {
@@ -854,38 +604,23 @@ class _MalaPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.6
       ..color = GColors.maroon;
-    canvas.drawArc(
-      Rect.fromCircle(center: const Offset(24, 24), radius: 15),
-      -math.pi / 2,
-      math.pi * 2 * progress.clamp(0, 1),
-      false,
-      ring,
-    );
+    canvas.drawArc(Rect.fromCircle(center: const Offset(24, 24), radius: 15), -math.pi / 2, math.pi * 2 * progress.clamp(0, 1), false, ring);
     final bead = Paint()..color = GColors.maroon;
     final shown = (14 * progress).ceil().clamp(0, 14);
     for (var t = 0; t < shown; t++) {
       final n = (t / 14) * math.pi * 2 - math.pi / 2;
       final local = ((14 * progress) - t).clamp(0.0, 1.0);
-      canvas.drawCircle(
-        Offset(24 + math.cos(n) * 15, 24 + math.sin(n) * 15),
-        2.15 * Curves.easeOutBack.transform(local),
-        bead,
-      );
+      canvas.drawCircle(Offset(24 + math.cos(n) * 15, 24 + math.sin(n) * 15), 2.15 * Curves.easeOutBack.transform(local), bead);
     }
     if (progress >= 0.98) {
+      canvas.drawCircle(const Offset(24, 7.2), 3.3, Paint()..color = GColors.goldLight);
       canvas.drawCircle(
-        const Offset(24, 7.2),
-        3.3,
-        Paint()..color = GColors.goldLight,
-      );
-      canvas.drawCircle(
-        const Offset(24, 7.2),
-        3.3,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1
-          ..color = GColors.maroon,
-      );
+          const Offset(24, 7.2),
+          3.3,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1
+            ..color = GColors.maroon);
     }
   }
 
@@ -900,29 +635,20 @@ class LogoIcon extends StatelessWidget {
   final double progress;
   @override
   Widget build(BuildContext context) => Container(
-    width: size,
-    height: size,
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(size / 4),
-      gradient: const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [GColors.saffron, GColors.gold],
-      ),
-    ),
-    child: MalaLogo(size: size * 2 / 3, progress: progress),
-  );
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(size / 4),
+          gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [GColors.saffron, GColors.gold]),
+        ),
+        child: MalaLogo(size: size * 2 / 3, progress: progress),
+      );
 }
 
 /// Animated `.grid-switch` — the maroon pill slides between "1×1 / 2×2 / 3×3".
 class GridSwitch extends StatelessWidget {
-  const GridSwitch({
-    super.key,
-    required this.options,
-    required this.value,
-    required this.onChanged,
-  });
+  const GridSwitch({super.key, required this.options, required this.value, required this.onChanged});
   final List<int> options;
   final int value;
   final ValueChanged<int> onChanged;
@@ -934,11 +660,7 @@ class GridSwitch extends StatelessWidget {
     final idx = math.max(0, options.indexOf(value));
     return Container(
       padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: GColors.paper,
-        border: Border.all(color: GColors.creamDark),
-        borderRadius: BorderRadius.circular(10),
-      ),
+      decoration: BoxDecoration(color: GColors.paper, border: Border.all(color: GColors.creamDark), borderRadius: BorderRadius.circular(10)),
       child: SizedBox(
         width: options.length * w + (options.length - 1) * 2,
         height: h,
@@ -951,12 +673,7 @@ class GridSwitch extends StatelessWidget {
               top: 0,
               width: w,
               height: h,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: GColors.maroon,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
+              child: DecoratedBox(decoration: BoxDecoration(color: GColors.maroon, borderRadius: BorderRadius.circular(8))),
             ),
             Row(
               children: [
@@ -974,13 +691,7 @@ class GridSwitch extends StatelessWidget {
                         child: Center(
                           child: AnimatedDefaultTextStyle(
                             duration: const Duration(milliseconds: 200),
-                            style: GText.sans(
-                              size: 13,
-                              weight: FontWeight.w700,
-                              color: options[i] == value
-                                  ? GColors.paper
-                                  : GColors.maroon,
-                            ),
+                            style: GText.sans(size: 13, weight: FontWeight.w700, color: options[i] == value ? GColors.paper : GColors.maroon),
                             child: Text('${options[i]}×${options[i]}'),
                           ),
                         ),
@@ -999,13 +710,7 @@ class GridSwitch extends StatelessWidget {
 
 /// `.form-control` search input with the saffron focus ring.
 class SearchField extends StatefulWidget {
-  const SearchField({
-    super.key,
-    required this.placeholder,
-    required this.onChanged,
-    this.initial = '',
-    this.debounce = const Duration(milliseconds: 200),
-  });
+  const SearchField({super.key, required this.placeholder, required this.onChanged, this.initial = '', this.debounce = const Duration(milliseconds: 200)});
   final String placeholder;
 
   /// Called [debounce] after the last keystroke (immediately when cleared or on "search"),
@@ -1018,9 +723,7 @@ class SearchField extends StatefulWidget {
 }
 
 class _SearchFieldState extends State<SearchField> {
-  late final TextEditingController _c = TextEditingController(
-    text: widget.initial,
-  );
+  late final TextEditingController _c = TextEditingController(text: widget.initial);
   final FocusNode _f = FocusNode();
   Timer? _t;
   late String _sent = widget.initial;
@@ -1061,62 +764,37 @@ class _SearchFieldState extends State<SearchField> {
     final base = BoxDecoration(
       color: GColors.paper,
       borderRadius: BorderRadius.circular(10),
-      border: Border.all(
-        color: focus ? GColors.saffron : GColors.creamDark,
-        width: 1.5,
-      ),
-      boxShadow: focus
-          ? [
-              BoxShadow(
-                color: GColors.saffron.withValues(alpha: 0.18),
-                spreadRadius: 3,
-              ),
-            ]
-          : const [],
+      border: Border.all(color: focus ? GColors.saffron : GColors.creamDark, width: 1.5),
+      boxShadow: focus ? [BoxShadow(color: GColors.saffron.withValues(alpha: 0.18), spreadRadius: 3)] : const [],
     );
     // Card style reaches the search box too; the saffron focus ring always wins.
-    return LookBuilder(
-      builder: (context, _) => AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        decoration: focus ? base : themedSurface(base, maxRadius: 14),
-        child: TextField(
-          controller: _c,
-          focusNode: _f,
-          onChanged: _changed,
-          onSubmitted: _emit,
-          onTapOutside: (_) => _f.unfocus(),
-          style: GText.sans(size: 16, color: GColors.text),
-          cursorColor: GColors.saffron,
-          textInputAction: TextInputAction.search,
-          decoration: InputDecoration(
-            isDense: true,
-            border: InputBorder.none,
-            hintText: widget.placeholder,
-            hintStyle: GText.sans(
-              size: 16,
-              color: GColors.muted.withValues(alpha: 0.8),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 11,
-            ),
-          ),
+    return LookBuilder(builder: (context, _) => AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      decoration: focus ? base : themedSurface(base, maxRadius: 14),
+      child: TextField(
+        controller: _c,
+        focusNode: _f,
+        onChanged: _changed,
+        onSubmitted: _emit,
+        onTapOutside: (_) => _f.unfocus(),
+        style: GText.sans(size: 16, color: GColors.text),
+        cursorColor: GColors.saffron,
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          isDense: true,
+          border: InputBorder.none,
+          hintText: widget.placeholder,
+          hintStyle: GText.sans(size: 16, color: GColors.muted.withValues(alpha: 0.8)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         ),
       ),
-    );
+    ));
   }
 }
 
 /// `.pdf-ok` / `.pdf-back`
 class SheetButton extends StatelessWidget {
-  const SheetButton({
-    super.key,
-    required this.label,
-    this.primary = false,
-    this.onTap,
-    this.icon,
-    this.enabled = true,
-  });
+  const SheetButton({super.key, required this.label, this.primary = false, this.onTap, this.icon, this.enabled = true});
   final String label;
   final bool primary;
   final VoidCallback? onTap;
@@ -1140,17 +818,8 @@ class SheetButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (icon != null) ...[
-              GIcon(icon!, size: 18, color: fg),
-              const SizedBox(width: 8),
-            ],
-            Flexible(
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                style: GText.sans(size: 17, weight: FontWeight.w700, color: fg),
-              ),
-            ),
+            if (icon != null) ...[GIcon(icon!, size: 18, color: fg), const SizedBox(width: 8)],
+            Flexible(child: Text(label, textAlign: TextAlign.center, style: GText.sans(size: 17, weight: FontWeight.w700, color: fg))),
           ],
         ),
       ),
@@ -1160,14 +829,7 @@ class SheetButton extends StatelessWidget {
 
 /// Staggered entry: fades and slides each list item in, offset by its index.
 class Entry extends StatefulWidget {
-  const Entry({
-    super.key,
-    required this.index,
-    required this.child,
-    this.dx = 0,
-    this.ledger,
-    this.id,
-  });
+  const Entry({super.key, required this.index, required this.child, this.dx = 0, this.ledger, this.id});
   final int index;
 
   /// With a [PopLedger] + [id] the entrance plays once per screen visit (round 8): a card
@@ -1188,17 +850,9 @@ class _EntryState extends State<Entry> with SingleTickerProviderStateMixin {
   void initState() {
     super.initState();
     final i = widget.index.clamp(0, 12);
-    _c = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: 380 + i * 45),
-    );
-    _a = CurvedAnimation(
-      parent: _c,
-      curve: Interval(i * 45 / (380 + i * 45), 1, curve: Curves.easeOutCubic),
-    );
-    final key = widget.ledger != null && widget.id != null
-        ? 'e:${widget.id}'
-        : null;
+    _c = AnimationController(vsync: this, duration: Duration(milliseconds: 380 + i * 45));
+    _a = CurvedAnimation(parent: _c, curve: Interval(i * 45 / (380 + i * 45), 1, curve: Curves.easeOutCubic));
+    final key = widget.ledger != null && widget.id != null ? 'e:${widget.id}' : null;
     final seen = key != null && widget.ledger!.played(key);
     if (key != null) widget.ledger!.mark(key);
     if (widget.index > 12 || seen) {
@@ -1216,20 +870,17 @@ class _EntryState extends State<Entry> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _a,
-    child: widget.child,
-    builder: (context, child) {
-      final t = _a.value;
-      if (t >= 1) return child!;
-      return Opacity(
-        opacity: t,
-        child: Transform.translate(
-          offset: Offset(widget.dx * (1 - t), 18 * (1 - t)),
-          child: child,
-        ),
+        animation: _a,
+        child: widget.child,
+        builder: (context, child) {
+          final t = _a.value;
+          if (t >= 1) return child!;
+          return Opacity(
+            opacity: t,
+            child: Transform.translate(offset: Offset(widget.dx * (1 - t), 18 * (1 - t)), child: child),
+          );
+        },
       );
-    },
-  );
 }
 
 /// Count-up number (`.stat-num` / dashboard counts).
@@ -1240,13 +891,7 @@ class _EntryState extends State<Entry> with SingleTickerProviderStateMixin {
 /// rebuild or a re-created widget continues where it was; [CountUp.replay] clears it for a
 /// fresh dashboard open.
 class CountUp extends StatefulWidget {
-  const CountUp({
-    super.key,
-    required this.value,
-    required this.memo,
-    required this.style,
-    this.duration = const Duration(milliseconds: 900),
-  });
+  const CountUp({super.key, required this.value, required this.memo, required this.style, this.duration = const Duration(milliseconds: 900)});
   final int value;
   final String memo;
   final TextStyle style;
@@ -1255,8 +900,7 @@ class CountUp extends StatefulWidget {
   static final Map<String, double> _shown = {};
 
   /// Next build of counters whose memo starts with [prefix] counts from 0 again.
-  static void replay(String prefix) =>
-      _shown.removeWhere((k, _) => k.startsWith(prefix));
+  static void replay(String prefix) => _shown.removeWhere((k, _) => k.startsWith(prefix));
 
   @visibleForTesting
   static void debugClear() => _shown.clear();
@@ -1266,15 +910,11 @@ class CountUp extends StatefulWidget {
 }
 
 class _CountUpState extends State<CountUp> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: widget.duration,
-  );
+  late final AnimationController _c = AnimationController(vsync: this, duration: widget.duration);
   double _from = 0;
   double _to = 0;
 
-  double get _now =>
-      _from + (_to - _from) * Curves.easeOutCubic.transform(_c.value);
+  double get _now => _from + (_to - _from) * Curves.easeOutCubic.transform(_c.value);
 
   @override
   void initState() {
@@ -1312,10 +952,7 @@ class _CountUpState extends State<CountUp> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _c,
-    builder: (context, _) => Text(
-      widget.value <= 0 && _to <= 0 ? '—' : '${_now.round()}',
-      style: widget.style,
-    ),
-  );
+        animation: _c,
+        builder: (context, _) => Text(widget.value <= 0 && _to <= 0 ? '—' : '${_now.round()}', style: widget.style),
+      );
 }

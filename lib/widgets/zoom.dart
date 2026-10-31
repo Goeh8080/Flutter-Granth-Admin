@@ -23,10 +23,7 @@ class ZoomView {
     final s = scale < 1 ? 1.0 : scale;
     final minX = box.width - box.width * s;
     final minY = box.height - box.height * s;
-    return ZoomView(
-      s,
-      Offset(offset.dx.clamp(minX, 0.0), offset.dy.clamp(minY, 0.0)),
-    );
+    return ZoomView(s, Offset(offset.dx.clamp(minX, 0.0), offset.dy.clamp(minY, 0.0)));
   }
 
   /// Zoom to [s] keeping [focal] (a point in the box) still.
@@ -35,10 +32,7 @@ class ZoomView {
     return ZoomView(s, focal - q * s);
   }
 
-  static ZoomView lerp(ZoomView a, ZoomView b, double t) => ZoomView(
-    a.scale + (b.scale - a.scale) * t,
-    Offset.lerp(a.offset, b.offset, t)!,
-  );
+  static ZoomView lerp(ZoomView a, ZoomView b, double t) => ZoomView(a.scale + (b.scale - a.scale) * t, Offset.lerp(a.offset, b.offset, t)!);
 }
 
 /// Picture viewer stage (`PinchView` / `.zoom-stage` in the original): pinch 1–4×, pan when
@@ -49,12 +43,7 @@ class ZoomView {
 /// `touch-action: none`), so the list around it or the app-wide zoom can't steal the pinch.
 /// At 1× one finger still scrolls the page; once zoomed, one finger pans the picture.
 class ZoomStage extends StatefulWidget {
-  const ZoomStage({
-    super.key,
-    required this.child,
-    this.maxScale = 4,
-    this.doubleTapScale = 2.5,
-  });
+  const ZoomStage({super.key, required this.child, this.maxScale = 4, this.doubleTapScale = 2.5});
   final Widget child;
   final double maxScale;
   final double doubleTapScale;
@@ -63,16 +52,12 @@ class ZoomStage extends StatefulWidget {
   State<ZoomStage> createState() => ZoomStageState();
 }
 
-class ZoomStageState extends State<ZoomStage>
-    with SingleTickerProviderStateMixin {
+class ZoomStageState extends State<ZoomStage> with SingleTickerProviderStateMixin {
   ZoomView _v = ZoomView.identity;
   ZoomView _start = ZoomView.identity;
   Offset _focal0 = Offset.zero;
   Size _box = Size.zero;
-  late final AnimationController _anim = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 280),
-  );
+  late final AnimationController _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 280));
   ZoomView _animFrom = ZoomView.identity;
   ZoomView _animTo = ZoomView.identity;
   Curve _curve = Curves.easeOutCubic;
@@ -91,15 +76,7 @@ class ZoomStageState extends State<ZoomStage>
   @override
   void initState() {
     super.initState();
-    _anim.addListener(
-      () => setState(
-        () => _v = ZoomView.lerp(
-          _animFrom,
-          _animTo,
-          _curve.transform(_anim.value),
-        ),
-      ),
-    );
+    _anim.addListener(() => setState(() => _v = ZoomView.lerp(_animFrom, _animTo, _curve.transform(_anim.value))));
   }
 
   @override
@@ -108,11 +85,7 @@ class ZoomStageState extends State<ZoomStage>
     super.dispose();
   }
 
-  void _animateTo(
-    ZoomView to, {
-    Duration ms = const Duration(milliseconds: 280),
-    Curve curve = Curves.easeOutCubic,
-  }) {
+  void _animateTo(ZoomView to, {Duration ms = const Duration(milliseconds: 280), Curve curve = Curves.easeOutCubic}) {
     _animFrom = _v;
     _animTo = to.clamp(_box);
     _curve = curve;
@@ -139,8 +112,7 @@ class ZoomStageState extends State<ZoomStage>
     final s = (_start.scale * d.scale).clamp(1.0, widget.maxScale);
     final q = (_focal0 - _start.offset) / _start.scale;
     final next = ZoomView(s, d.localFocalPoint - q * s).clamp(_box);
-    if (next.scale != _v.scale || next.offset != _v.offset)
-      setState(() => _v = next);
+    if (next.scale != _v.scale || next.offset != _v.offset) setState(() => _v = next);
   }
 
   void _onEnd(ScaleEndDetails d) {
@@ -153,11 +125,7 @@ class ZoomStageState extends State<ZoomStage>
     final vel = d.velocity.pixelsPerSecond;
     if (vel.distance > 200 && d.pointerCount == 0) {
       // Short glide after a flick, then stops at the edge.
-      _animateTo(
-        ZoomView(_v.scale, _v.offset + vel * 0.18),
-        ms: const Duration(milliseconds: 420),
-        curve: Curves.decelerate,
-      );
+      _animateTo(ZoomView(_v.scale, _v.offset + vel * 0.18), ms: const Duration(milliseconds: 420), curve: Curves.decelerate);
     }
   }
 
@@ -182,9 +150,7 @@ class ZoomStageState extends State<ZoomStage>
     if (_pointers == 0) _multi = false;
     if (e is! PointerUpEvent || wasMulti) return;
     final t = e.timeStamp.inMilliseconds;
-    if (t - _tapDownAt > 260 ||
-        (e.localPosition - _tapDownPos).distance > kTouchSlop)
-      return;
+    if (t - _tapDownAt > 260 || (e.localPosition - _tapDownPos).distance > kTouchSlop) return;
     if (t - _lastTapAt < 320 && (e.localPosition - _lastTapPos).distance < 48) {
       _lastTapAt = 0;
       _doubleTap(e.localPosition);
@@ -195,38 +161,30 @@ class ZoomStageState extends State<ZoomStage>
   }
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, c) {
-      _box = c.biggest;
-      return Listener(
-        onPointerDown: _down,
-        onPointerUp: _up,
-        onPointerCancel: _up,
-        child: RawGestureDetector(
-          behavior: HitTestBehavior.opaque,
-          gestures: {
-            StageScaleRecognizer:
-                GestureRecognizerFactoryWithHandlers<StageScaleRecognizer>(
-                  () => StageScaleRecognizer(zoomed: () => _v.scale > 1.01),
-                  (r) => r
-                    ..onStart = _onStart
-                    ..onUpdate = _onUpdate
-                    ..onEnd = _onEnd,
-                ),
-          },
-          child: ClipRect(
-            clipBehavior: AppZoom.suspended.value > 0
-                ? Clip.none
-                : Clip.hardEdge,
-            child: Transform(
-              transform: _v.matrix,
-              child: RepaintBoundary(child: widget.child),
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
+        _box = c.biggest;
+        return Listener(
+          onPointerDown: _down,
+          onPointerUp: _up,
+          onPointerCancel: _up,
+          child: RawGestureDetector(
+            behavior: HitTestBehavior.opaque,
+            gestures: {
+              StageScaleRecognizer: GestureRecognizerFactoryWithHandlers<StageScaleRecognizer>(
+                () => StageScaleRecognizer(zoomed: () => _v.scale > 1.01),
+                (r) => r
+                  ..onStart = _onStart
+                  ..onUpdate = _onUpdate
+                  ..onEnd = _onEnd,
+              ),
+            },
+            child: ClipRect(
+              clipBehavior: AppZoom.suspended.value > 0 ? Clip.none : Clip.hardEdge,
+              child: Transform(transform: _v.matrix, child: RepaintBoundary(child: widget.child)),
             ),
           ),
-        ),
-      );
-    },
-  );
+        );
+      });
 }
 
 /// Scale recognizer that claims the gesture as soon as a second finger is down (or at once
@@ -246,8 +204,7 @@ class StageScaleRecognizer extends ScaleGestureRecognizer {
   @override
   void handleEvent(PointerEvent event) {
     super.handleEvent(event);
-    if (event is PointerUpEvent || event is PointerCancelEvent)
-      _down.remove(event.pointer);
+    if (event is PointerUpEvent || event is PointerCancelEvent) _down.remove(event.pointer);
   }
 
   @override
@@ -272,9 +229,7 @@ class AppZoom extends StatefulWidget {
   final double maxScale;
 
   /// Current app zoom (for tests / debugging).
-  static final ValueNotifier<ZoomView> current = ValueNotifier(
-    ZoomView.identity,
-  );
+  static final ValueNotifier<ZoomView> current = ValueNotifier(ZoomView.identity);
 
   /// Screens that bring their own zoom and a native view (the Photo Highlighter WebView) turn
   /// the app zoom off while they are open: no pinch recogniser in the way and no clip layer
@@ -288,10 +243,7 @@ class AppZoom extends StatefulWidget {
 class _AppZoomState extends State<AppZoom> with SingleTickerProviderStateMixin {
   ZoomView _v = ZoomView.identity;
   Size _box = Size.zero;
-  late final AnimationController _anim = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 240),
-  );
+  late final AnimationController _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 240));
   ZoomView _from = ZoomView.identity;
   ZoomView _to = ZoomView.identity;
 
@@ -307,11 +259,7 @@ class _AppZoomState extends State<AppZoom> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _anim.addListener(
-      () => _set(
-        ZoomView.lerp(_from, _to, Curves.easeOutCubic.transform(_anim.value)),
-      ),
-    );
+    _anim.addListener(() => _set(ZoomView.lerp(_from, _to, Curves.easeOutCubic.transform(_anim.value))));
     AppZoom.suspended.addListener(_onSuspend);
   }
 
@@ -329,69 +277,53 @@ class _AppZoomState extends State<AppZoom> with SingleTickerProviderStateMixin {
   }
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, c) {
-      _box = c.biggest;
-      if (_v.scale > 1) {
-        final k = _v.clamp(_box);
-        if (k.offset != _v.offset) _v = k;
-      }
-      // Counts fingers for the whole app, so a tap button can tell a pinch from a tap.
-      return Listener(
-        behavior: HitTestBehavior.translucent,
-        onPointerDown: (_) => TouchCount.down(),
-        onPointerUp: (_) => TouchCount.up(),
-        onPointerCancel: (_) => TouchCount.up(),
-        child: RawGestureDetector(
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
+        _box = c.biggest;
+        if (_v.scale > 1) {
+          final k = _v.clamp(_box);
+          if (k.offset != _v.offset) _v = k;
+        }
+        // Counts fingers for the whole app, so a tap button can tell a pinch from a tap.
+        return Listener(
           behavior: HitTestBehavior.translucent,
-          gestures: {
-            AppPinchRecognizer:
-                GestureRecognizerFactoryWithHandlers<AppPinchRecognizer>(
-                  () => AppPinchRecognizer(),
-                  (r) => r
-                    ..zoomed = (() => _v.scale > 1.01)
-                    ..onBegin = () {
-                      _anim.stop();
-                      return _v;
+          onPointerDown: (_) => TouchCount.down(),
+          onPointerUp: (_) => TouchCount.up(),
+          onPointerCancel: (_) => TouchCount.up(),
+          child: RawGestureDetector(
+            behavior: HitTestBehavior.translucent,
+            gestures: {
+              AppPinchRecognizer: GestureRecognizerFactoryWithHandlers<AppPinchRecognizer>(
+                () => AppPinchRecognizer(),
+                (r) => r
+                  ..zoomed = (() => _v.scale > 1.01)
+                  ..onBegin = () {
+                    _anim.stop();
+                    return _v;
+                  }
+                  ..onChange = (start, scale, focal0, focal) {
+                    final s = (start.scale * scale).clamp(1.0, widget.maxScale);
+                    final q = (focal0 - start.offset) / start.scale;
+                    _set(ZoomView(s, focal - q * s).clamp(_box));
+                  }
+                  ..onFinish = () {
+                    if (_v.scale <= 1.05 && _v.scale != 1) {
+                      _from = _v;
+                      _to = ZoomView.identity;
+                      _anim.forward(from: 0);
                     }
-                    ..onChange = (start, scale, focal0, focal) {
-                      final s = (start.scale * scale).clamp(
-                        1.0,
-                        widget.maxScale,
-                      );
-                      final q = (focal0 - start.offset) / start.scale;
-                      _set(ZoomView(s, focal - q * s).clamp(_box));
-                    }
-                    ..onFinish = () {
-                      if (_v.scale <= 1.05 && _v.scale != 1) {
-                        _from = _v;
-                        _to = ZoomView.identity;
-                        _anim.forward(from: 0);
-                      }
-                    },
-                ),
-          },
-          child: ClipRect(
-            clipBehavior: AppZoom.suspended.value > 0
-                ? Clip.none
-                : Clip.hardEdge,
-            child: Transform(
-              transform: _v.matrix,
-              child: RepaintBoundary(child: widget.child),
+                  },
+              ),
+            },
+            child: ClipRect(
+              clipBehavior: AppZoom.suspended.value > 0 ? Clip.none : Clip.hardEdge,
+              child: Transform(transform: _v.matrix, child: RepaintBoundary(child: widget.child)),
             ),
           ),
-        ),
-      );
-    },
-  );
+        );
+      });
 }
 
-typedef ZoomChange = void Function(
-  ZoomView start,
-  double scale,
-  Offset focal0,
-  Offset focal,
-);
+typedef ZoomChange = void Function(ZoomView start, double scale, Offset focal0, Offset focal);
 
 /// Accepts two-finger gestures (pinch + pan) at once; one finger only when zoomed and the
 /// drag is mostly sideways. Never takes a single tap or a vertical scroll.

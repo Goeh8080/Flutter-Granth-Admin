@@ -17,13 +17,7 @@ import 'highlighter_server.dart';
 
 /// Hindi status line above the page (the page itself is not changed). The Activity shows it
 /// as a banner, reading it from the server's /__status.
-String? highlighterNotice({
-  required bool allCached,
-  required bool online,
-  required bool wifiOnlyWaiting,
-  required ({int done, int total, bool running}) prefetch,
-  required bool missed,
-}) {
+String? highlighterNotice({required bool allCached, required bool online, required bool wifiOnlyWaiting, required ({int done, int total, bool running}) prefetch, required bool missed}) {
   if (allCached) return null;
   if (prefetch.running && prefetch.total > 0) {
     final pct = (prefetch.done * 100 / prefetch.total).clamp(0, 100).round();
@@ -32,8 +26,7 @@ String? highlighterNotice({
   if (!online || missed) {
     return 'इंटरनेट नहीं है — OCR (टेक्स्ट पहचान) और ऑटो-स्कैन पहली बार इंटरनेट से एक बार डाउनलोड होंगे। फ़ोटो जोड़ना, हाइलाइट और PDF बिना इंटरनेट चलते हैं।';
   }
-  if (wifiOnlyWaiting)
-    return 'OCR और स्कैन की फ़ाइलें WiFi मिलने पर सेव होंगी (सेटिंग: सिर्फ़ WiFi पर डाउनलोड)।';
+  if (wifiOnlyWaiting) return 'OCR और स्कैन की फ़ाइलें WiFi मिलने पर सेव होंगी (सेटिंग: सिर्फ़ WiFi पर डाउनलोड)।';
   return null;
 }
 
@@ -42,16 +35,9 @@ typedef HlNet = ({bool online, bool wifiOnlyWaiting});
 
 Future<HlNet> _checkNet() async {
   try {
-    final net = await Connectivity().checkConnectivity().timeout(
-      const Duration(seconds: 3),
-    );
-    final wifi =
-        net.contains(ConnectivityResult.wifi) ||
-        net.contains(ConnectivityResult.ethernet);
-    return (
-      online: !net.contains(ConnectivityResult.none),
-      wifiOnlyWaiting: Store.I.getString(Store.kWifiOnly) == '1' && !wifi,
-    );
+    final net = await Connectivity().checkConnectivity().timeout(const Duration(seconds: 3));
+    final wifi = net.contains(ConnectivityResult.wifi) || net.contains(ConnectivityResult.ethernet);
+    return (online: !net.contains(ConnectivityResult.none), wifiOnlyWaiting: Store.I.getString(Store.kWifiOnly) == '1' && !wifi);
   } catch (_) {
     return (online: true, wifiOnlyWaiting: false);
   }
@@ -88,22 +74,10 @@ class HighlighterLauncher {
       srv.cacheDir ??= Directory('${Store.I.root.path}/highlighter');
       final origin = await srv.start();
       final n = await (net ?? _checkNet)();
-      srv.notice = () => highlighterNotice(
-        allCached: srv.allCached,
-        online: n.online,
-        wifiOnlyWaiting: n.wifiOnlyWaiting,
-        prefetch: srv.prefetch.value,
-        missed: srv.missedOffline.value,
-      );
+      srv.notice = () => highlighterNotice(allCached: srv.allCached, online: n.online, wifiOnlyWaiting: n.wifiOnlyWaiting, prefetch: srv.prefetch.value, missed: srv.missedOffline.value);
       // First open: save OCR / scan libraries for offline use (the page also fetches on demand).
-      if (n.online && !n.wifiOnlyWaiting && !srv.allCached)
-        unawaited(srv.prefetchAll());
-      final ok =
-          await (launch ??
-              ((u, k) => NativeBridge.openHighlighter(u, keepAwake: k)))(
-            origin.toString(),
-            keepAwake ?? UiPrefs.I.keepAwake,
-          );
+      if (n.online && !n.wifiOnlyWaiting && !srv.allCached) unawaited(srv.prefetchAll());
+      final ok = await (launch ?? ((u, k) => NativeBridge.openHighlighter(u, keepAwake: k)))(origin.toString(), keepAwake ?? UiPrefs.I.keepAwake);
       if (!ok) Toast.show('Photo Highlighter नहीं खुल सका');
     } catch (_) {
       Toast.show('Photo Highlighter नहीं खुल सका');

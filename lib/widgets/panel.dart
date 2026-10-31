@@ -12,17 +12,7 @@ double panelDx() => 28.0 * AppNav.I.direction;
 
 /// `.page-header` (+ `.sticky-bar` when [sticky]).
 class PageHeader extends StatelessWidget {
-  const PageHeader({
-    super.key,
-    required this.tone,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.trailing,
-    this.tools,
-    this.trailingLow = false,
-    this.leading,
-  });
+  const PageHeader({super.key, required this.tone, required this.icon, required this.title, required this.subtitle, this.trailing, this.tools, this.trailingLow = false, this.leading});
   final Tone tone;
   final String icon;
   final String title;
@@ -40,110 +30,51 @@ class PageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (trailing != null && trailingLow) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              leading ?? IconBox(tone: tone, icon: icon),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        title,
-                        maxLines: 1,
-                        softWrap: false,
-                        style: GText.display(
-                          size: 28,
-                          color: GColors.maroon,
-                          height: 1.1,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    LayoutBuilder(
-                      builder: (context, c) => Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              subtitle,
-                              style: GText.sans(
-                                size: 13,
-                                color: GColors.muted,
-                                height: 1.5,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          // Large font sizes: the button shrinks a little instead of overflowing.
-                          ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth: c.maxWidth * 0.62,
-                            ),
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: KeyedSubtree(
-                                key: const ValueKey('header-trailing'),
-                                child: trailing!,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          if (tools != null) ...[const SizedBox(height: 16), tools!],
-        ],
-      );
-    }
-    final titleRow = Row(
-      children: [
-        leading ?? IconBox(tone: tone, icon: icon),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                title,
-                style: GText.display(
-                  size: 28,
-                  color: GColors.maroon,
-                  height: 1.1,
-                ),
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+        Row(children: [
+          leading ?? IconBox(tone: tone, icon: icon),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(title, maxLines: 1, softWrap: false, style: GText.display(size: 28, color: GColors.maroon, height: 1.1)),
               ),
               const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: GText.sans(size: 13, color: GColors.muted, height: 1.5),
+              LayoutBuilder(
+                builder: (context, c) => Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Expanded(child: Text(subtitle, style: GText.sans(size: 13, color: GColors.muted, height: 1.5))),
+                  const SizedBox(width: 10),
+                  // Large font sizes: the button shrinks a little instead of overflowing.
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: c.maxWidth * 0.62),
+                    child: FittedBox(fit: BoxFit.scaleDown, child: KeyedSubtree(key: const ValueKey('header-trailing'), child: trailing!)),
+                  ),
+                ]),
               ),
-            ],
+            ]),
           ),
-        ),
-        if (trailing != null) ...[const SizedBox(width: 10), trailing!],
-      ],
-    );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        titleRow,
+        ]),
         if (tools != null) ...[const SizedBox(height: 16), tools!],
-      ],
-    );
+      ]);
+    }
+    final titleRow = Row(children: [
+      leading ?? IconBox(tone: tone, icon: icon),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          Text(title, style: GText.display(size: 28, color: GColors.maroon, height: 1.1)),
+          const SizedBox(height: 2),
+          Text(subtitle, style: GText.sans(size: 13, color: GColors.muted, height: 1.5)),
+        ]),
+      ),
+      if (trailing != null) ...[const SizedBox(width: 10), trailing!],
+    ]);
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+      titleRow,
+      if (tools != null) ...[const SizedBox(height: 16), tools!],
+    ]);
   }
 }
 
@@ -153,16 +84,16 @@ class StickyHeader extends StatelessWidget {
   final Widget child;
   @override
   Widget build(BuildContext context) => PinnedHeaderSliver(
-    // The bar is 96 % opaque, so the old backdrop blur behind it was invisible but was
-    // re-rendered on every scroll frame (a full-width blur pass): dropped for smoothness.
-    child: RepaintBoundary(
-      child: Container(
-        color: GColors.stickyBar.withValues(alpha: 0.96),
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: child,
-      ),
-    ),
-  );
+        // The bar is 96 % opaque, so the old backdrop blur behind it was invisible but was
+        // re-rendered on every scroll frame (a full-width blur pass): dropped for smoothness.
+        child: RepaintBoundary(
+          child: Container(
+            color: GColors.stickyBar.withValues(alpha: 0.96),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: child,
+          ),
+        ),
+      );
 }
 
 /// `.granth-tools` — grid switch + search, space-between.
@@ -171,53 +102,26 @@ class Tools extends StatelessWidget {
   final Widget grid;
   final Widget search;
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      grid,
-      const SizedBox(width: 10),
-      Expanded(child: search),
-    ],
-  );
+  Widget build(BuildContext context) => Row(children: [grid, const SizedBox(width: 10), Expanded(child: search)]);
 }
 
 /// CSS-grid emulation: rows of equal-height cells.
-Widget gridSliver({
-  required int count,
-  required int cols,
-  required double gap,
-  required Widget Function(BuildContext, int) item,
-}) {
+Widget gridSliver({required int count, required int cols, required double gap, required Widget Function(BuildContext, int) item}) {
   final rows = (count / cols).ceil();
   return SliverList.builder(
     itemCount: rows,
     itemBuilder: (context, r) {
       // 1×1: the card itself. (Wrapping it in `Expanded` outside a Row threw a layout error,
       // which a release build shows as an empty screen — the "1×1 does nothing" bug.)
-      if (cols == 1)
-        return Padding(
-          padding: EdgeInsets.only(top: r == 0 ? 0 : gap),
-          child: item(context, r),
-        );
+      if (cols == 1) return Padding(padding: EdgeInsets.only(top: r == 0 ? 0 : gap), child: item(context, r));
       final cells = <Widget>[];
       for (var c = 0; c < cols; c++) {
         final i = r * cols + c;
         if (c > 0) cells.add(SizedBox(width: gap));
-        cells.add(
-          Expanded(
-            child: i < count ? item(context, i) : const SizedBox.shrink(),
-          ),
-        );
+        cells.add(Expanded(child: i < count ? item(context, i) : const SizedBox.shrink()));
       }
-      final row = IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: cells,
-        ),
-      );
-      return Padding(
-        padding: EdgeInsets.only(top: r == 0 ? 0 : gap),
-        child: row,
-      );
+      final row = IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: cells));
+      return Padding(padding: EdgeInsets.only(top: r == 0 ? 0 : gap), child: row);
     },
   );
 }
@@ -248,10 +152,5 @@ class MultiLine extends StatelessWidget {
   final TextStyle style;
   final int? maxLines;
   @override
-  Widget build(BuildContext context) => Text(
-    text,
-    style: style,
-    maxLines: maxLines,
-    overflow: maxLines == null ? null : TextOverflow.ellipsis,
-  );
+  Widget build(BuildContext context) => Text(text, style: style, maxLines: maxLines, overflow: maxLines == null ? null : TextOverflow.ellipsis);
 }

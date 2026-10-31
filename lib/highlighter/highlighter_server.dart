@@ -29,42 +29,17 @@ const kHlTesseractVersion = '5.1.1';
 
 /// Everything OCR and auto-scan need offline (≈19 MB). Prefetched on the first open.
 const kHlRemotes = [
-  HlRemote(
-    '/cdn/docs.opencv.org/4.x/opencv.js',
-    'https://docs.opencv.org/4.x/opencv.js',
-    10964323,
-    'OpenCV',
-  ),
-  HlRemote(
-    '/cdn/cdn.jsdelivr.net/npm/tesseract.js@$kHlTesseractVersion/dist/tesseract.min.js',
-    'https://cdn.jsdelivr.net/npm/tesseract.js@$kHlTesseractVersion/dist/tesseract.min.js',
-    66695,
-    'OCR',
-  ),
-  HlRemote(
-    '/cdn/cdn.jsdelivr.net/npm/tesseract.js@v$kHlTesseractVersion/dist/worker.min.js',
-    'https://cdn.jsdelivr.net/npm/tesseract.js@v$kHlTesseractVersion/dist/worker.min.js',
-    123724,
-    'OCR',
-  ),
+  HlRemote('/cdn/docs.opencv.org/4.x/opencv.js', 'https://docs.opencv.org/4.x/opencv.js', 10964323, 'OpenCV'),
+  HlRemote('/cdn/cdn.jsdelivr.net/npm/tesseract.js@$kHlTesseractVersion/dist/tesseract.min.js', 'https://cdn.jsdelivr.net/npm/tesseract.js@$kHlTesseractVersion/dist/tesseract.min.js', 66695, 'OCR'),
+  HlRemote('/cdn/cdn.jsdelivr.net/npm/tesseract.js@v$kHlTesseractVersion/dist/worker.min.js', 'https://cdn.jsdelivr.net/npm/tesseract.js@v$kHlTesseractVersion/dist/worker.min.js', 123724, 'OCR'),
   HlRemote(
     '/cdn/cdn.jsdelivr.net/npm/tesseract.js-core@v$kHlTesseractVersion/tesseract-core-simd-lstm.wasm.js',
     'https://cdn.jsdelivr.net/npm/tesseract.js-core@v$kHlTesseractVersion/tesseract-core-simd-lstm.wasm.js',
     3938657,
     'OCR',
   ),
-  HlRemote(
-    '/tessdata/eng.traineddata.gz',
-    'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz',
-    2952873,
-    'English',
-  ),
-  HlRemote(
-    '/tessdata/hin.traineddata.gz',
-    'https://cdn.jsdelivr.net/npm/@tesseract.js-data/hin/4.0.0_best_int/hin.traineddata.gz',
-    1389692,
-    'हिन्दी',
-  ),
+  HlRemote('/tessdata/eng.traineddata.gz', 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz', 2952873, 'English'),
+  HlRemote('/tessdata/hin.traineddata.gz', 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/hin/4.0.0_best_int/hin.traineddata.gz', 1389692, 'हिन्दी'),
 ];
 
 /// Hosts the proxy may fetch from (nothing else is reachable through it).
@@ -76,25 +51,18 @@ const _hosts = {'docs.opencv.org', 'cdn.jsdelivr.net'};
 /// Tesseract. Nothing else in the file changes.
 String patchHighlighterHtml(String html) {
   const subs = {
-    'https://docs.opencv.org/4.x/opencv.js':
-        '/cdn/docs.opencv.org/4.x/opencv.js',
-    'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js':
-        '/cdn/cdn.jsdelivr.net/npm/tesseract.js@$kHlTesseractVersion/dist/tesseract.min.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js':
-        '/lib/pdf.min.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js':
-        '/lib/jspdf.umd.min.js',
+    'https://docs.opencv.org/4.x/opencv.js': '/cdn/docs.opencv.org/4.x/opencv.js',
+    'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js': '/cdn/cdn.jsdelivr.net/npm/tesseract.js@$kHlTesseractVersion/dist/tesseract.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js': '/lib/pdf.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js': '/lib/jspdf.umd.min.js',
   };
   var out = html;
-  subs.forEach(
-    (from, to) => out = out.replaceFirst('src="$from"', 'src="$to"'),
-  );
+  subs.forEach((from, to) => out = out.replaceFirst('src="$from"', 'src="$to"'));
   const tess = '/dist/tesseract.min.js"></script>';
   final i = out.indexOf(tess);
   if (i >= 0) {
     final at = i + tess.length;
-    out =
-        '${out.substring(0, at)}\n<script src="/hl-shim.js"></script>${out.substring(at)}';
+    out = '${out.substring(0, at)}\n<script src="/hl-shim.js"></script>${out.substring(at)}';
   }
   return _skipIdenticalOcrRebuild(out);
 }
@@ -107,13 +75,10 @@ String patchHighlighterHtml(String html) {
 /// canvas size, so when none of those changed the rebuild is skipped; the output is identical.
 const kHlOcrPatchMarker = '/*granth:ocr-overlay-memo*/';
 String _skipIdenticalOcrRebuild(String html) {
-  final re = RegExp(
-    r'function renderOCROverlay\(\) \{(\r?\n)(\s*)const overlay = document\.getElementById\("ocrOverlay"\);(\r?\n)(\s*)overlay\.innerHTML = "";',
-  );
+  final re = RegExp(r'function renderOCROverlay\(\) \{(\r?\n)(\s*)const overlay = document\.getElementById\("ocrOverlay"\);(\r?\n)(\s*)overlay\.innerHTML = "";');
   final m = re.firstMatch(html);
   if (m == null) return html;
-  const guard =
-      '''function renderOCROverlay() {
+  const guard = '''function renderOCROverlay() {
   const overlay = document.getElementById("ocrOverlay");
   $kHlOcrPatchMarker
   const __w = origImgObj ? origImgObj.ocrWords : null;
@@ -129,8 +94,7 @@ String _skipIdenticalOcrRebuild(String html) {
 /// Content type by file name.
 String hlContentType(String path) {
   final p = path.toLowerCase();
-  if (p.endsWith('.html') || p == '/' || p.isEmpty)
-    return 'text/html; charset=utf-8';
+  if (p.endsWith('.html') || p == '/' || p.isEmpty) return 'text/html; charset=utf-8';
   if (p.endsWith('.js')) return 'text/javascript; charset=utf-8';
   if (p.endsWith('.wasm')) return 'application/wasm';
   if (p.endsWith('.gz')) return 'application/gzip';
@@ -156,8 +120,7 @@ class HighlighterServer {
   final Map<String, Future<File?>> _inflight = {};
 
   /// Bytes of [kHlRemotes] on the phone / total, while the first-time download runs.
-  final ValueNotifier<({int done, int total, bool running})> prefetch =
-      ValueNotifier((done: 0, total: 0, running: false));
+  final ValueNotifier<({int done, int total, bool running})> prefetch = ValueNotifier((done: 0, total: 0, running: false));
 
   /// A library the page asked for could not be fetched (no internet, not saved yet).
   final ValueNotifier<bool> missedOffline = ValueNotifier(false);
@@ -172,8 +135,7 @@ class HighlighterServer {
   /// Bundled files, read from the APK once per run (rootBundle.load re-reads and re-inflates
   /// the file on every request; pdf.worker alone is 1 MB). The patched page is kept too.
   final Map<String, Future<Uint8List>> _mem = {};
-  Future<Uint8List> _bytes(String key, [Uint8List Function(Uint8List)? make]) =>
-      _mem.putIfAbsent(key, () async {
+  Future<Uint8List> _bytes(String key, [Uint8List Function(Uint8List)? make]) => _mem.putIfAbsent(key, () async {
         final b = await (loadAsset ?? rootBundle.load)(key);
         final raw = b.buffer.asUint8List(b.offsetInBytes, b.lengthInBytes);
         return make == null ? raw : make(raw);
@@ -194,8 +156,7 @@ class HighlighterServer {
   /// the next open and its compiled code stays cached); the page and the bridge may change with
   /// an app update, so they are revalidated (a tiny 304) every time.
   static String cacheControlFor(String path) {
-    if (path == '/' || path == '/index.html' || path == '/hl-shim.js')
-      return 'no-cache';
+    if (path == '/' || path == '/index.html' || path == '/hl-shim.js') return 'no-cache';
     if (path.startsWith('/lib/')) return 'public, max-age=86400';
     return 'public, max-age=31536000, immutable';
   }
@@ -227,20 +188,9 @@ class HighlighterServer {
   }
 
   /// True when every library is saved (OCR and scan work offline).
-  bool get allCached =>
-      cacheDir != null &&
-      kHlRemotes.every((r) => _cacheFile(r.key).existsSync());
+  bool get allCached => cacheDir != null && kHlRemotes.every((r) => _cacheFile(r.key).existsSync());
 
-  int get cachedBytes => cacheDir == null
-      ? 0
-      : kHlRemotes.fold(
-          0,
-          (n, r) =>
-              n +
-              (_cacheFile(r.key).existsSync()
-                  ? _cacheFile(r.key).lengthSync()
-                  : 0),
-        );
+  int get cachedBytes => cacheDir == null ? 0 : kHlRemotes.fold(0, (n, r) => n + (_cacheFile(r.key).existsSync() ? _cacheFile(r.key).lengthSync() : 0));
 
   /// Downloads whatever is not saved yet, one after another. Returns true when all are saved.
   Future<bool> prefetchAll() async {
@@ -277,8 +227,7 @@ class HighlighterServer {
       if (!_hosts.contains(host) || p.contains('..')) return null;
       return 'https://$host$p';
     }
-    final m = RegExp(r'^/tessdata/([a-z_]{3,10})\.traineddata\.gz$')
-        .firstMatch(path);
+    final m = RegExp(r'^/tessdata/([a-z_]{3,10})\.traineddata\.gz$').firstMatch(path);
     if (m != null) {
       final l = m.group(1)!;
       return 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/$l/4.0.0_best_int/$l.traineddata.gz';
@@ -336,12 +285,7 @@ class HighlighterServer {
   }
 
   /// Sends [body] with validators; answers 304 when the WebView already has this version.
-  Future<void> _send(
-    HttpRequest r,
-    String path,
-    Uint8List body,
-    String type,
-  ) async {
+  Future<void> _send(HttpRequest r, String path, Uint8List body, String type) async {
     final res = r.response;
     final tag = etagOf(body);
     res.headers
@@ -373,32 +317,17 @@ class HighlighterServer {
         return;
       }
       if (path == '/' || path == '/index.html') {
-        final page = await _bytes(
-          'assets/highlighter/index.html',
-          (raw) => Uint8List.fromList(
-            utf8.encode(
-              patchHighlighterHtml(utf8.decode(raw, allowMalformed: true)),
-            ),
-          ),
-        );
+        final page = await _bytes('assets/highlighter/index.html', (raw) => Uint8List.fromList(utf8.encode(patchHighlighterHtml(utf8.decode(raw, allowMalformed: true)))));
         await _send(r, '/', page, hlContentType('/'));
         return;
       }
       if (path == '/hl-shim.js' || path.startsWith('/lib/')) {
-        final name = path == '/hl-shim.js'
-            ? 'hl-shim.js'
-            : 'lib/${path.substring(5)}';
-        if (name.contains('..') ||
-            name.contains('/', name == 'hl-shim.js' ? 0 : 4)) {
+        final name = path == '/hl-shim.js' ? 'hl-shim.js' : 'lib/${path.substring(5)}';
+        if (name.contains('..') || name.contains('/', name == 'hl-shim.js' ? 0 : 4)) {
           res.statusCode = 404;
           return;
         }
-        await _send(
-          r,
-          path,
-          await _bytes('assets/highlighter/$name'),
-          hlContentType(name),
-        );
+        await _send(r, path, await _bytes('assets/highlighter/$name'), hlContentType(name));
         return;
       }
       final up = upstreamFor(path);
@@ -439,4 +368,5 @@ class HighlighterServer {
       } catch (_) {}
     }
   }
+
 }
