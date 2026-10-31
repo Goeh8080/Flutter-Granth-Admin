@@ -876,6 +876,7 @@ const kFeatureFlagLabels = <String, String>{
   'daily_enabled': 'आज का प्रमाण',
   'notifications_enabled': 'पुश सूचनाएँ',
   'ai_flags_enabled': 'AI जवाब पर 👎 फ़्लैग',
+  'bhakt_id_enabled': 'भक्त ID (डिफ़ॉल्ट बंद)',
 };
 
 /// All switchable flag keys: the two base flags plus the server's `feature_flags` list.

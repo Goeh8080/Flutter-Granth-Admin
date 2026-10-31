@@ -238,7 +238,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
         const SizedBox(height: 6),
         Center(
           child: Text(
-            'ग्रंथ एडमिन · Round 3 · संस्करण $_version${me == null ? '' : ' · लाइव कॉन्फ़िग v${me.version}'}',
+            'ग्रंथ एडमिन · Round 4 · संस्करण $_version${me == null ? '' : ' · लाइव कॉन्फ़िग v${me.version}'}',
             key: const ValueKey('version-line'),
             textAlign: TextAlign.center,
             style: GText.sans(size: 12.5, color: GColors.muted),
