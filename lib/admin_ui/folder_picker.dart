@@ -207,7 +207,11 @@ class _FolderPickerSheetState extends State<FolderPickerSheet> {
     final leaf = tree.isLeaf(path);
     final here = leaf && widget.current == tree.keyOf(path);
     final kids = tree.children(path);
+    // Round 14: the sheet itself must not scroll (`scroll: false`): its height is capped, so the
+    // Flexible list below gets a bounded height and scrolls on its own — with the outer scroll
+    // view the list had no bound, so a long folder list could not be scrolled to its end.
     return SheetCard(
+      scroll: false,
       children: [
         SheetHead(title: 'फ़ोल्डर चुनें', onBack: _back),
         Text(
@@ -242,7 +246,9 @@ class _FolderPickerSheetState extends State<FolderPickerSheet> {
                       ),
                     )
                   : ListView.builder(
+                      key: const ValueKey('fp-list'),
                       shrinkWrap: true,
+                      physics: const ClampingScrollPhysics(),
                       itemCount: kids.length,
                       itemBuilder: (context, i) {
                         final e = kids[i];
