@@ -66,7 +66,8 @@ class GalleryService extends ChangeNotifier {
       }
       _items = out;
     }
-    final out = [..._items!]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final out = [..._items!]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return out;
   }
 
@@ -105,7 +106,8 @@ class GalleryService extends ChangeNotifier {
     ]);
     final shownF = {for (final e in _folders ?? <GalleryFolder>[]) e.id};
     await Store.I.writeJson('folders.json', [
-      for (final e in _folders ?? <GalleryFolder>[]) {...?_rawFolders[e.id], ...e.toJson()},
+      for (final e in _folders ?? <GalleryFolder>[])
+        {...?_rawFolders[e.id], ...e.toJson()},
       ..._hiddenFolders.where((m) => !shownF.contains('${m['id']}')),
     ]);
     notifyListeners();
@@ -126,7 +128,9 @@ class GalleryService extends ChangeNotifier {
   }) async {
     await items();
     await folders();
-    final ext = kind == GalleryKind.pdf ? 'pdf' : (fileName.contains('.') ? fileName.split('.').last : 'jpg');
+    final ext = kind == GalleryKind.pdf
+        ? 'pdf'
+        : (fileName.contains('.') ? fileName.split('.').last : 'jpg');
     final file = File('${Store.I.galleryDir}/${_fileKey(id)}.$ext');
     final part = File('${file.path}.part');
     try {
@@ -138,7 +142,19 @@ class GalleryService extends ChangeNotifier {
       } catch (_) {}
       rethrow;
     }
-    return _record(id: id, kind: kind, title: title, text: text, topic: topic, granth: granth, folderId: folderId, fileName: fileName, file: file, size: await file.length(), preview: preview);
+    return _record(
+      id: id,
+      kind: kind,
+      title: title,
+      text: text,
+      topic: topic,
+      granth: granth,
+      folderId: folderId,
+      fileName: fileName,
+      file: file,
+      size: await file.length(),
+      preview: preview,
+    );
   }
 
   /// `Be()` — put (insert or replace) a gallery item, writing its bytes to disk.
@@ -156,10 +172,24 @@ class GalleryService extends ChangeNotifier {
   }) async {
     await items();
     await folders();
-    final ext = kind == GalleryKind.pdf ? 'pdf' : (fileName.contains('.') ? fileName.split('.').last : 'jpg');
+    final ext = kind == GalleryKind.pdf
+        ? 'pdf'
+        : (fileName.contains('.') ? fileName.split('.').last : 'jpg');
     final file = File('${Store.I.galleryDir}/${_fileKey(id)}.$ext');
     await FileActions.writeAtomic(file, bytes);
-    return _record(id: id, kind: kind, title: title, text: text, topic: topic, granth: granth, folderId: folderId, fileName: fileName, file: file, size: bytes.length, preview: preview);
+    return _record(
+      id: id,
+      kind: kind,
+      title: title,
+      text: text,
+      topic: topic,
+      granth: granth,
+      folderId: folderId,
+      fileName: fileName,
+      file: file,
+      size: bytes.length,
+      preview: preview,
+    );
   }
 
   Future<GalleryItem> _record({
@@ -242,7 +272,8 @@ class GalleryService extends ChangeNotifier {
     await items();
     _folders!.removeWhere((e) => e.id == id);
     for (var i = 0; i < _items!.length; i++) {
-      if (_items![i].folderId == id) _items![i] = _items![i].copyWith(folderId: '');
+      if (_items![i].folderId == id)
+        _items![i] = _items![i].copyWith(folderId: '');
     }
     await _persist();
   }

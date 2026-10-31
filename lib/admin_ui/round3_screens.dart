@@ -103,6 +103,22 @@ class _Round3EntriesState extends State<Round3Entries> {
         tone: Tone.saffron,
         onTap: () => _go(const EventsScreen()),
       ),
+      AdminTile(
+        key: const ValueKey('r3-features'),
+        icon: 'settings',
+        title: 'फ़ीचर स्विच',
+        sub: 'सपोर्ट, ट्रेंडिंग, आज का प्रमाण, सूचनाएँ, AI — चालू/बंद',
+        tone: Tone.saffron,
+        onTap: () => _go(const FeatureFlagsScreen()),
+      ),
+      AdminTile(
+        key: const ValueKey('r3-notify'),
+        icon: 'bell',
+        title: 'सूचना भेजें',
+        sub: 'टॉपिक पर पुश सूचना (FCM) + इतिहास',
+        tone: Tone.saffron,
+        onTap: () => _go(const NotifyScreen()),
+      ),
     ],
   );
 }
@@ -725,6 +741,7 @@ class _EventsScreenState extends State<EventsScreen> {
                 ),
                 const SizedBox(height: 10),
                 _card(const ValueKey('totals'), [
+                  _body('ऐप खुला (app_open): ${_i(t['app_open'])}'),
                   _body('फ़ोल्डर खुले: ${_i(t['folder_open'])}'),
                   _body('ग्रंथ खुले: ${_i(t['granth_open'])}'),
                   _body('PDF डाउनलोड: ${_i(t['pdf_download'])}'),
@@ -759,4 +776,235 @@ class _EventsScreenState extends State<EventsScreen> {
       ),
     ],
   );
+}
+
+// ---------------------------------------------------------------------------- feature switches
+
+/// Labels for the `flags.*` switches the server knows. Unknown server flags still show with their key.
+const kFeatureFlagLabels = <String, String>{
+  'ai_enabled': 'AI सहायक',
+  'analytics_enabled': 'एनालिटिक्स',
+  'support_enabled': 'सपोर्ट टिकट',
+  'trending_enabled': 'ट्रेंडिंग',
+  'daily_enabled': 'आज का प्रमाण',
+  'notifications_enabled': 'पुश सूचनाएँ',
+  'ai_flags_enabled': 'AI जवाब पर 👎 फ़्लैग',
+};
+
+/// All switchable flag keys: the two base flags plus the server's `feature_flags` list.
+List<String> featureFlagKeys(Map<String, dynamic> settings) {
+  final out = <String>['ai_enabled', 'analytics_enabled'];
+  final f = settings['feature_flags'];
+  if (f is List) {
+    for (final k in f) {
+      if (k is String && !out.contains(k)) out.add(k);
+    }
+  }
+  return out;
+}
+
+class FeatureFlagsScreen extends StatelessWidget {
+  const FeatureFlagsScreen({super.key});
+  @override
+  Widget build(BuildContext context) => AdminSubPage(
+    title: 'फ़ीचर स्विच',
+    slivers: [
+      SliverToBoxAdapter(
+        child: _Load(
+          load: () => _api.raw('GET', '/settings'),
+          builder: (context, s, refresh) => _FlagsForm(s: s, refresh: refresh),
+        ),
+      ),
+    ],
+  );
+}
+
+class _FlagsForm extends StatefulWidget {
+  const _FlagsForm({required this.s, required this.refresh});
+  final Map<String, dynamic> s;
+  final Future<void> Function() refresh;
+  @override
+  State<_FlagsForm> createState() => _FlagsFormState();
+}
+
+class _FlagsFormState extends State<_FlagsForm> {
+  late final Map<String, bool?> _v;
+
+  @override
+  void initState() {
+    super.initState();
+    final f = _m(widget.s['flags']);
+    _v = {
+      for (final k in featureFlagKeys(widget.s))
+        k: f[k] is bool ? f[k] as bool : null,
+    };
+  }
+
+  Future<void> _save() async {
+    // null = not set (removed from config; the user app uses its default)
+    await runWrite(
+      () => _api.raw('PUT', '/settings', body: {'flags': _v}),
+      success: 'ड्राफ्ट में सेव — "प्रकाशित करें" से ऐप में जाएगा',
+    );
+    await widget.refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pub = _m(widget.s['published_flags']);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _sub('बदलाव ड्राफ्ट में जाता है। "तय नहीं" = ऐप का डिफ़ॉल्ट।'),
+        const SizedBox(height: 10),
+        for (final k in _v.keys)
+          _card(ValueKey('flag-$k'), [
+            _title(kFeatureFlagLabels[k] ?? k),
+            _sub(
+              '$k · प्रकाशित: ${pub[k] is bool ? (pub[k] == true ? 'चालू' : 'बंद') : 'तय नहीं'}',
+            ),
+            const SizedBox(height: 6),
+            SortChips<int>(
+              options: [
+                (1, 'चालू'),
+                (0, 'बंद'),
+                if (k != 'ai_enabled' && k != 'analytics_enabled')
+                  (-1, 'तय नहीं'),
+              ],
+              value: _v[k] == null ? -1 : (_v[k]! ? 1 : 0),
+              onChanged: (x) => setState(() => _v[k] = x == -1 ? null : x == 1),
+            ),
+          ]),
+        const SizedBox(height: 12),
+        SheetButton(
+          label: 'ड्राफ्ट में सेव करें',
+          primary: true,
+          icon: 'check',
+          onTap: _save,
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------- notifications
+
+const kNotifyTopicLabels = <String, String>{
+  'new_praman': 'नया प्रमाण',
+  'new_topic': 'नया टॉपिक',
+  'trending': 'ट्रेंडिंग',
+  'daily': 'आज का प्रमाण',
+  'all': 'सभी यूज़र',
+};
+
+class NotifyScreen extends StatelessWidget {
+  const NotifyScreen({super.key});
+  @override
+  Widget build(BuildContext context) => AdminSubPage(
+    title: 'सूचना भेजें',
+    slivers: [
+      SliverToBoxAdapter(
+        child: _Load(
+          load: () => _api.raw('GET', '/notify', query: {'limit': '30'}),
+          builder: (context, d, refresh) => _NotifyForm(d: d, refresh: refresh),
+        ),
+      ),
+    ],
+  );
+}
+
+class _NotifyForm extends StatefulWidget {
+  const _NotifyForm({required this.d, required this.refresh});
+  final Map<String, dynamic> d;
+  final Future<void> Function() refresh;
+  @override
+  State<_NotifyForm> createState() => _NotifyFormState();
+}
+
+class _NotifyFormState extends State<_NotifyForm> {
+  final _tc = TextEditingController(), _bc = TextEditingController();
+  final _link = TextEditingController();
+  String _topic = 'all';
+
+  @override
+  void dispose() {
+    _tc.dispose();
+    _bc.dispose();
+    _link.dispose();
+    super.dispose();
+  }
+
+  Future<void> _send() async {
+    final t = _tc.text.trim(), b = _bc.text.trim();
+    if (t.isEmpty || t.length > 80 || b.isEmpty || b.length > 300) {
+      showToast('शीर्षक 1–80 और संदेश 1–300 अक्षर हों');
+      return;
+    }
+    if (!await _confirm(
+      context,
+      '"${kNotifyTopicLabels[_topic] ?? _topic}" पर सूचना भेजें?',
+    )) {
+      return;
+    }
+    final link = _link.text.trim();
+    await runWrite(
+      () => _api.raw(
+        'POST',
+        '/notify',
+        body: {
+          'topic': _topic,
+          'title': t,
+          'body': b,
+          if (link.isNotEmpty) 'data': {'link': link},
+        },
+      ),
+      success: 'सूचना भेज दी गई',
+    );
+    await widget.refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = widget.d;
+    final topics = (d['topics'] is List ? d['topics'] as List : const [])
+        .whereType<String>()
+        .toList();
+    if (topics.isNotEmpty && !topics.contains(_topic)) _topic = topics.last;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (d['configured'] == false)
+          _card(const ValueKey('notify-off'), [
+            _title('FCM अभी सेट नहीं'),
+            _sub('सर्वर पर FCM सर्विस-अकाउंट की चाहिए — तब तक भेजना 503 देगा।'),
+          ]),
+        SortChips<String>(
+          options: [for (final t in topics) (t, kNotifyTopicLabels[t] ?? t)],
+          value: _topic,
+          onChanged: (v) => setState(() => _topic = v),
+        ),
+        const SizedBox(height: 8),
+        AdminField(controller: _tc, label: 'शीर्षक (≤80)'),
+        AdminField(controller: _bc, label: 'संदेश (≤300)', maxLines: 3),
+        AdminField(controller: _link, label: 'लिंक/डेटा (वैकल्पिक)'),
+        const SizedBox(height: 8),
+        SheetButton(
+          label: 'सूचना भेजें',
+          primary: true,
+          icon: 'send',
+          onTap: _send,
+        ),
+        const AdminLabel('इतिहास'),
+        if (_l(d['items']).isEmpty) _sub('अभी कोई सूचना नहीं भेजी गई'),
+        for (final it in _l(d['items']))
+          _card(ValueKey('n-${it['id']}'), [
+            _title(_s(it['title'])),
+            _body(_s(it['body'])),
+            _sub(
+              '${kNotifyTopicLabels[_s(it['topic'])] ?? it['topic']} · ${_s(it['status'])} · ${_s(it['sent_by'])} · ${_s(it['created_at'])}${_s(it['error']).isEmpty ? '' : ' · ${it['error']}'}',
+            ),
+          ]),
+      ],
+    );
+  }
 }

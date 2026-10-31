@@ -14,7 +14,14 @@ import 'storage.dart';
 
 /// One person on the "विशेष जानकार" page.
 class Contact {
-  const Contact({required this.id, required this.name, this.role = '', this.phone = '', this.whatsapp = false, this.order = 0});
+  const Contact({
+    required this.id,
+    required this.name,
+    this.role = '',
+    this.phone = '',
+    this.whatsapp = false,
+    this.order = 0,
+  });
   final String id;
   final String name;
   final String role;
@@ -33,14 +40,20 @@ const List<Contact> kSeedContacts = [
 const String kContactsTitle = 'विशेष जानकार';
 
 class Announcement {
-  const Announcement({required this.id, required this.text, this.level = 'info', this.expiresAt});
+  const Announcement({
+    required this.id,
+    required this.text,
+    this.level = 'info',
+    this.expiresAt,
+  });
   final String id;
   final String text;
 
   /// `info` / `warn` / `critical`.
   final String level;
   final DateTime? expiresAt;
-  bool get expired => expiresAt != null && DateTime.now().toUtc().isAfter(expiresAt!);
+  bool get expired =>
+      expiresAt != null && DateTime.now().toUtc().isAfter(expiresAt!);
 }
 
 /// A config that passed every check, ready to apply.
@@ -71,10 +84,35 @@ class ParsedConfig {
   final List<Contact>? contacts;
 }
 
-const _religionIcons = {'om', 'crescent', 'khanda', 'cross', 'dharma', 'jain', 'kabir', 'misc'};
+const _religionIcons = {
+  'om',
+  'crescent',
+  'khanda',
+  'cross',
+  'dharma',
+  'jain',
+  'kabir',
+  'misc',
+};
 const _groupIcons = {
-  'scroll', 'book-red', 'book-green', 'book-blue', 'book-orange', 'swords', 'books', 'quran', 'hadees',
-  'granth-sahib', 'dasam', 'bible', 'tripitak', 'dhammapad', 'kabir-sagar', 'bijak', 'shabdavali', 'misc',
+  'scroll',
+  'book-red',
+  'book-green',
+  'book-blue',
+  'book-orange',
+  'swords',
+  'books',
+  'quran',
+  'hadees',
+  'granth-sahib',
+  'dasam',
+  'bible',
+  'tripitak',
+  'dhammapad',
+  'kabir-sagar',
+  'bijak',
+  'shabdavali',
+  'misc',
 };
 final _slug = RegExp(r'^[a-z0-9][a-z0-9_-]{0,39}$');
 final _gid = RegExp(r'^[0-9]{1,8}$');
@@ -84,13 +122,15 @@ final _phone = RegExp(r'^(\+[0-9]{1,19}|[0-9]{1,20})$');
 /// Config icon keys → painted symbols. Unknown → `misc` (never an error).
 String religionIconKey(Object? k) {
   final s = '$k';
-  if (s == 'ektara') return 'kabir'; // the old key; the इकतारा became the Kabir symbol
+  if (s == 'ektara')
+    return 'kabir'; // the old key; the इकतारा became the Kabir symbol
   return _religionIcons.contains(s) ? s : 'misc';
 }
 
 String groupIconKey(Object? k) => _groupIcons.contains('$k') ? '$k' : 'misc';
 
-Map<String, dynamic>? _map(Object? v) => v is Map ? v.cast<String, dynamic>() : null;
+Map<String, dynamic>? _map(Object? v) =>
+    v is Map ? v.cast<String, dynamic>() : null;
 String _title(Object? v) => v is String ? v.trim() : '';
 
 ShelfGroup? _group(Object? raw, {required bool allowSub}) {
@@ -107,8 +147,14 @@ ShelfGroup? _group(Object? raw, {required bool allowSub}) {
       if (g != null && seen.add(g.id)) subs.add(g);
     }
   }
-  List<String> ids(Object? v) => [for (final e in (v is List ? v : const [])) if (e is String && _gid.hasMatch(e)) e];
-  List<String> words(Object? v) => [for (final e in (v is List ? v : const [])) if (e is String && e.trim().isNotEmpty) e];
+  List<String> ids(Object? v) => [
+    for (final e in (v is List ? v : const []))
+      if (e is String && _gid.hasMatch(e)) e,
+  ];
+  List<String> words(Object? v) => [
+    for (final e in (v is List ? v : const []))
+      if (e is String && e.trim().isNotEmpty) e,
+  ];
   return ShelfGroup(
     id: id,
     title: title,
@@ -133,7 +179,12 @@ Structure? parseStructure(Object? raw) {
     if (m == null) continue;
     final id = '${m['id']}';
     final title = _title(m['title']);
-    if (!_slug.hasMatch(id) || id == kOtherId || title.isEmpty || title.length > 60 || !seen.add(id)) continue;
+    if (!_slug.hasMatch(id) ||
+        id == kOtherId ||
+        title.isEmpty ||
+        title.length > 60 ||
+        !seen.add(id))
+      continue;
     final groups = <ShelfGroup>[];
     final gseen = <String>{};
     for (final g in (m['groups'] is List ? m['groups'] as List : const [])) {
@@ -141,15 +192,19 @@ Structure? parseStructure(Object? raw) {
       if (p != null && gseen.add(p.id)) groups.add(p);
     }
     final tone = '${m['tone']}';
-    religions.add(ShelfReligion(
-      id: id,
-      title: title,
-      tone: const {'saffron', 'maroon', 'gold'}.contains(tone) ? tone : 'saffron',
-      icon: religionIconKey(m['icon']),
-      groups: groups,
-      visible: m['visible'] != false,
-      comingSoon: _title(m['coming_soon']),
-    ));
+    religions.add(
+      ShelfReligion(
+        id: id,
+        title: title,
+        tone: const {'saffron', 'maroon', 'gold'}.contains(tone)
+            ? tone
+            : 'saffron',
+        icon: religionIconKey(m['icon']),
+        groups: groups,
+        visible: m['visible'] != false,
+        comingSoon: _title(m['coming_soon']),
+      ),
+    );
   }
   if (religions.isEmpty) return null;
   final o = _map(j['other']);
@@ -159,7 +214,11 @@ Structure? parseStructure(Object? raw) {
           id: kOtherId,
           title: _title(o['title']).isEmpty ? 'अन्य' : _title(o['title']),
           icon: religionIconKey(o['icon']),
-          granthIds: [for (final e in (o['forceIds'] is List ? o['forceIds'] as List : const [])) if (e is String && _gid.hasMatch(e)) e],
+          granthIds: [
+            for (final e
+                in (o['forceIds'] is List ? o['forceIds'] as List : const []))
+              if (e is String && _gid.hasMatch(e)) e,
+          ],
           comingSoon: _title(o['coming_soon']),
         );
   return Structure(religions: religions, other: other);
@@ -175,8 +234,12 @@ List<Contact>? parseContacts(Object? raw) {
     if (m == null) continue;
     final id = m['id'];
     final name = m['name'];
-    if (id is! String || !RegExp(r'^[A-Za-z0-9_-]{1,40}$').hasMatch(id) || ids.contains(id)) continue;
-    if (name is! String || name.trim().isEmpty || name.trim().length > 80) continue;
+    if (id is! String ||
+        !RegExp(r'^[A-Za-z0-9_-]{1,40}$').hasMatch(id) ||
+        ids.contains(id))
+      continue;
+    if (name is! String || name.trim().isEmpty || name.trim().length > 80)
+      continue;
     final role = m['role'] is String ? (m['role'] as String).trim() : '';
     if (role.length > 80) continue;
     final phone = m['phone'] is String ? (m['phone'] as String) : '';
@@ -187,7 +250,16 @@ List<Contact>? parseContacts(Object? raw) {
       continue;
     }
     ids.add(id);
-    out.add(Contact(id: id, name: name.trim(), role: role, phone: phone, whatsapp: phone.isNotEmpty && m['whatsapp'] == true, order: order));
+    out.add(
+      Contact(
+        id: id,
+        name: name.trim(),
+        role: role,
+        phone: phone,
+        whatsapp: phone.isNotEmpty && m['whatsapp'] == true,
+        order: order,
+      ),
+    );
   }
   out.sort((a, b) => a.order.compareTo(b.order));
   return out;
@@ -195,7 +267,13 @@ List<Contact>? parseContacts(Object? raw) {
 
 /// Verify + validate a config text. Returns null (with [why] set) when it must be ignored — the
 /// caller then keeps the last good config / the bundled structure. Never throws.
-ParsedConfig? parseConfig(String text, {int cachedVersion = 0, int appBuild = kBuildNumber, List<int>? publicKey, void Function(String why)? why}) {
+ParsedConfig? parseConfig(
+  String text, {
+  int cachedVersion = 0,
+  int appBuild = kBuildNumber,
+  List<int>? publicKey,
+  void Function(String why)? why,
+}) {
   ParsedConfig? fail(String m) {
     why?.call(m);
     return null;
@@ -203,16 +281,23 @@ ParsedConfig? parseConfig(String text, {int cachedVersion = 0, int appBuild = kB
 
   try {
     if (text.length > 70000) return fail('too big');
-    final dec = jsonDecode(text.startsWith('\uFEFF') ? text.substring(1) : text);
+    final dec = jsonDecode(
+      text.startsWith('\uFEFF') ? text.substring(1) : text,
+    );
     final j = _map(dec);
     if (j == null) return fail('not an object');
     final sigText = j.remove('sig');
     if (sigText is! String) return fail('no signature');
-    final ok = ed25519Verify(publicKey ?? base64Decode(kConfigPublicKey), canonicalBytes(j), base64Decode(sigText));
+    final ok = ed25519Verify(
+      publicKey ?? base64Decode(kConfigPublicKey),
+      canonicalBytes(j),
+      base64Decode(sigText),
+    );
     if (!ok) return fail('bad signature');
     if (j['schema'] != 1) return fail('schema');
     final version = j['version'];
-    if (version is! int || version < cachedVersion) return fail('older version');
+    if (version is! int || version < cachedVersion)
+      return fail('older version');
     final minApp = j['min_app'];
     if (minApp is num && minApp > appBuild) return fail('min_app');
     Structure? structure;
@@ -220,30 +305,43 @@ ParsedConfig? parseConfig(String text, {int cachedVersion = 0, int appBuild = kB
       structure = parseStructure(j['structure']);
       if (structure == null) return fail('structure');
     }
-    final leafKeys = {for (final l in (structure ?? Shelves.bundled).leaves()) l.key, kOtherId};
+    final leafKeys = {
+      for (final l in (structure ?? Shelves.bundled).leaves()) l.key,
+      kOtherId,
+    };
     final overrides = <String, String>{};
     final ov = _map(j['overrides']);
     if (ov != null) {
       ov.forEach((id, v) {
         final leaf = _map(v)?['leaf'];
-        if (_gid.hasMatch(id) && leaf is String && leafKeys.contains(leaf)) overrides[id] = leaf;
+        if (_gid.hasMatch(id) && leaf is String && leafKeys.contains(leaf))
+          overrides[id] = leaf;
       });
     }
     final hidden = <String>{
-      for (final e in (j['hidden_granth_ids'] is List ? j['hidden_granth_ids'] as List : const [])) if (e is String && _gid.hasMatch(e)) e,
+      for (final e
+          in (j['hidden_granth_ids'] is List
+              ? j['hidden_granth_ids'] as List
+              : const []))
+        if (e is String && _gid.hasMatch(e)) e,
     };
     Announcement? ann;
     final a = _map(j['announcement']);
     if (a != null && a['enabled'] == true) {
       final t = _title(a['text']);
       final id = a['id'];
-      if (t.isNotEmpty && t.length <= 280 && id is String && _annId.hasMatch(id)) {
+      if (t.isNotEmpty &&
+          t.length <= 280 &&
+          id is String &&
+          _annId.hasMatch(id)) {
         final lv = '${a['level']}';
         ann = Announcement(
           id: id,
           text: t,
           level: const {'info', 'warn', 'critical'}.contains(lv) ? lv : 'info',
-          expiresAt: a['expires_at'] is String ? DateTime.tryParse(a['expires_at'] as String)?.toUtc() : null,
+          expiresAt: a['expires_at'] is String
+              ? DateTime.tryParse(a['expires_at'] as String)?.toUtc()
+              : null,
         );
       }
     }
@@ -253,7 +351,11 @@ ParsedConfig? parseConfig(String text, {int cachedVersion = 0, int appBuild = kB
     final ep = _map(j['endpoints']);
     if (ep != null && ep['ai'] is String) {
       final u = Uri.tryParse((ep['ai'] as String).trim());
-      if (u != null && u.scheme == 'https' && u.host.isNotEmpty && (ep['ai'] as String).length <= 200) ai = (ep['ai'] as String).trim().replaceAll(RegExp(r'/+$'), '');
+      if (u != null &&
+          u.scheme == 'https' &&
+          u.host.isNotEmpty &&
+          (ep['ai'] as String).length <= 200)
+        ai = (ep['ai'] as String).trim().replaceAll(RegExp(r'/+$'), '');
     }
     final cp = _map(j['contacts_page']);
     final ct = cp == null ? '' : _title(cp['title']);
@@ -275,7 +377,8 @@ ParsedConfig? parseConfig(String text, {int cachedVersion = 0, int appBuild = kB
   }
 }
 
-String _normEtag(String? e) => (e ?? '').trim().replaceFirst(RegExp(r'^W/'), '');
+String _normEtag(String? e) =>
+    (e ?? '').trim().replaceFirst(RegExp(r'^W/'), '');
 
 /// The signed remote config: folders, hidden granths, announcement, flags, contacts.
 ///
@@ -283,8 +386,19 @@ String _normEtag(String? e) => (e ?? '').trim().replaceFirst(RegExp(r'^W/'), '')
 /// signature, a wrong schema, an older version or an app older than `min_app` changes nothing and
 /// shows nothing. Fetched on every catalog sync with a conditional GET (ETag).
 class RemoteConfig extends ChangeNotifier {
-  RemoteConfig({Dio? dio, this.url = kConfigUrl, this.build = kBuildNumber, this.publicKey})
-      : _dio = dio ?? Dio(BaseOptions(connectTimeout: const Duration(seconds: 8), receiveTimeout: const Duration(seconds: 8)));
+  RemoteConfig({
+    Dio? dio,
+    this.url = kConfigUrl,
+    this.build = kBuildNumber,
+    this.publicKey,
+  }) : _dio =
+           dio ??
+           Dio(
+             BaseOptions(
+               connectTimeout: const Duration(seconds: 8),
+               receiveTimeout: const Duration(seconds: 8),
+             ),
+           );
   static RemoteConfig I = RemoteConfig();
 
   static const fileName = 'remote_config.json';
@@ -352,7 +466,8 @@ class RemoteConfig extends ChangeNotifier {
   Future<bool>? _running;
 
   /// Conditional GET; returns true when a newer config was applied. Never throws.
-  Future<bool> refresh() => _running ??= _refresh().whenComplete(() => _running = null);
+  Future<bool> refresh() =>
+      _running ??= _refresh().whenComplete(() => _running = null);
 
   Future<bool> _refresh() async {
     if (!enabled) return false;
@@ -362,7 +477,10 @@ class RemoteConfig extends ChangeNotifier {
         url,
         options: Options(
           responseType: ResponseType.plain,
-          headers: {if (etag != null && etag.isNotEmpty && version > 0) 'If-None-Match': etag},
+          headers: {
+            if (etag != null && etag.isNotEmpty && version > 0)
+              'If-None-Match': etag,
+          },
           validateStatus: (s) => s == 200 || s == 304,
         ),
       );
@@ -372,12 +490,20 @@ class RemoteConfig extends ChangeNotifier {
       }
       final body = res.data ?? '';
       final newTag = res.headers.value('etag');
-      if (newTag != null && version > 0 && _normEtag(newTag) == _normEtag(etag)) {
+      if (newTag != null &&
+          version > 0 &&
+          _normEtag(newTag) == _normEtag(etag)) {
         lastResult = 'unchanged';
         return false;
       }
       String? why;
-      final p = parseConfig(body, cachedVersion: version, appBuild: build, publicKey: publicKey, why: (m) => why = m);
+      final p = parseConfig(
+        body,
+        cachedVersion: version,
+        appBuild: build,
+        publicKey: publicKey,
+        why: (m) => why = m,
+      );
       if (p == null) {
         lastResult = 'ignored:$why';
         return false;

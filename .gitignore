@@ -59,3 +59,9 @@ server/node_modules
 server/secrets
 server/.dev.vars
 server/.wrangler/
+
+# Firebase client config + signing material - injected by CI from secrets, never committed
+android/app/google-services.json
+android/key.properties
+*.jks
+*.p12

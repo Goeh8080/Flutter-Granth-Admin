@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../core/app_state.dart';
+import '../services/google_login.dart';
 import '../services/granth_api.dart';
 import '../services/panel_api.dart';
 import '../theme/app_theme.dart';
@@ -100,6 +101,42 @@ class _DualLoginScreenState extends State<DualLoginScreen>
       showToast('स्वागत है / Welcome');
     } else {
       _shake.forward(from: 0);
+    }
+  }
+
+  /// Google login for the panel (allowlisted emails only). The token is never logged.
+  Future<void> _google() async {
+    if (_busy) return;
+    final app = AppScope.of(context);
+    setState(() {
+      _busy = true;
+      _panelError = null;
+    });
+    try {
+      final t = await GoogleLogin.idToken();
+      if (t != null) {
+        await app.panel.loginWithFirebaseToken(t);
+        showToast('स्वागत है / Welcome');
+      }
+    } on PanelApiException catch (e) {
+      await GoogleLogin.signOut();
+      if (mounted) {
+        setState(
+          () => _panelError = e.code == 'not_allowed'
+              ? 'यह Google अकाउंट एडमिन सूची में नहीं है / Not on the admin allowlist'
+              : e.fullMessage,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(
+          () => _panelError = e is GoogleLoginUnavailable
+              ? e.message
+              : 'Google लॉगिन नहीं हो सका / Google login failed',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -233,6 +270,16 @@ class _DualLoginScreenState extends State<DualLoginScreen>
                         onSubmit: _submit,
                         action: false,
                       ),
+                      if (!panelOk)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: TextButton.icon(
+                            key: const ValueKey('google-login'),
+                            onPressed: _busy ? null : _google,
+                            icon: const Icon(Icons.account_circle_outlined),
+                            label: const Text('Google से लॉगिन'),
+                          ),
+                        ),
                       const SizedBox(height: 14),
                       _Section(
                         key: const ValueKey('section-wnm'),

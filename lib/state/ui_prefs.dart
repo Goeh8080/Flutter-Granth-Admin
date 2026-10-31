@@ -46,7 +46,13 @@ class UiPrefs extends ChangeNotifier {
 
   /// `tg()` — the global layout switch in settings.
   void setLayout(int v) {
-    for (final k in [Store.kUiCols, Store.kTopicCols, Store.kGranthCols, Store.kPramanCols, Store.kGalleryCols]) {
+    for (final k in [
+      Store.kUiCols,
+      Store.kTopicCols,
+      Store.kGranthCols,
+      Store.kPramanCols,
+      Store.kGalleryCols,
+    ]) {
       Store.I.setString(k, '$v');
     }
     notifyListeners();
@@ -61,17 +67,27 @@ class UiPrefs extends ChangeNotifier {
   // ---- Extra settings (added in round 5; the web app has none of these) ----
 
   /// Reading text size: small / normal / large.
-  String get textSize => switch (Store.I.getString(Store.kTextSize)) { 'small' => 'small', 'large' => 'large', _ => 'normal' };
+  String get textSize => switch (Store.I.getString(Store.kTextSize)) {
+    'small' => 'small',
+    'large' => 'large',
+    _ => 'normal',
+  };
   set textSize(String v) {
     Store.I.setString(Store.kTextSize, v);
     textFactor.value = _factor(v);
     notifyListeners();
   }
 
-  static double _factor(String v) => switch (v) { 'small' => 0.9, 'large' => 1.15, _ => 1.0 };
+  static double _factor(String v) => switch (v) {
+    'small' => 0.9,
+    'large' => 1.15,
+    _ => 1.0,
+  };
 
   /// Multiplier on the phone's own text size; only the app's text scaler listens to it.
-  late final ValueNotifier<double> textFactor = ValueNotifier(_factor(textSize));
+  late final ValueNotifier<double> textFactor = ValueNotifier(
+    _factor(textSize),
+  );
 
   /// Re-read the stored values (app start, reset). [start]: send keep-screen-on to
   /// the window (at start only when it is on — the window starts without it).
@@ -81,7 +97,11 @@ class UiPrefs extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool _flag(String k, bool def) => switch (Store.I.getString(k)) { '1' || 'true' => true, '0' || 'false' => false, _ => def };
+  bool _flag(String k, bool def) => switch (Store.I.getString(k)) {
+    '1' || 'true' => true,
+    '0' || 'false' => false,
+    _ => def,
+  };
 
   /// Picture download for offline use only on WiFi (default off: download on any network).
   bool get wifiOnly => _flag(Store.kWifiOnly, false);
@@ -120,8 +140,18 @@ class UiPrefs extends ChangeNotifier {
   /// Settings → "सेटिंग रीसेट करें": every setting back to its default. Downloaded granths,
   /// pages, gallery and PDFs are never touched.
   static const settingKeys = [
-    Store.kLook, Store.kUiCols, Store.kTopicCols, Store.kGranthCols, Store.kPramanCols, Store.kGalleryCols, //
-    Store.kPdfStyle, Store.kTextSize, Store.kWifiOnly, Store.kAutoSync, Store.kKeepAwake, Store.kAnimations,
+    Store.kLook,
+    Store.kUiCols,
+    Store.kTopicCols,
+    Store.kGranthCols,
+    Store.kPramanCols,
+    Store.kGalleryCols, //
+    Store.kPdfStyle,
+    Store.kTextSize,
+    Store.kWifiOnly,
+    Store.kAutoSync,
+    Store.kKeepAwake,
+    Store.kAnimations,
   ];
   Future<void> resetAll() async {
     for (final k in settingKeys) {

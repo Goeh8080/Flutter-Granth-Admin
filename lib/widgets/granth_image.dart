@@ -14,7 +14,12 @@ import '../theme/colors.dart';
 import 'common.dart';
 
 class SaveMeta {
-  const SaveMeta({required this.title, this.text = '', this.topic = '', this.granth = ''});
+  const SaveMeta({
+    required this.title,
+    this.text = '',
+    this.topic = '',
+    this.granth = '',
+  });
   final String title;
   final String text;
   final String topic;
@@ -25,7 +30,15 @@ enum ShotKind { cover, proof, thumb, lightbox }
 
 /// `Gn` — offline-first page image with the ↓ save and 👁 view buttons.
 class GranthImage extends StatefulWidget {
-  const GranthImage({super.key, required this.path, this.kind = ShotKind.cover, this.onTap, this.onView, this.save, this.heroTag});
+  const GranthImage({
+    super.key,
+    required this.path,
+    this.kind = ShotKind.cover,
+    this.onTap,
+    this.onView,
+    this.save,
+    this.heroTag,
+  });
   final String? path;
   final ShotKind kind;
   final VoidCallback? onTap;
@@ -56,7 +69,8 @@ class _GranthImageState extends State<GranthImage> {
     if (old.path != widget.path) _load();
   }
 
-  bool get _wantsRatio => widget.kind == ShotKind.cover || widget.kind == ShotKind.proof;
+  bool get _wantsRatio =>
+      widget.kind == ShotKind.cover || widget.kind == ShotKind.proof;
 
   /// First time this picture is shown without a readable header: remember its shape once
   /// it is on screen, so the next time its row has the right height from the start.
@@ -65,7 +79,8 @@ class _GranthImageState extends State<GranthImage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || f == null || _file != f) return;
       final sz = _imgKey.currentContext?.size;
-      if (sz != null && sz.height > 1 && sz.width > 1) ImageSizes.I.learn(f, sz.width / sz.height);
+      if (sz != null && sz.height > 1 && sz.width > 1)
+        ImageSizes.I.learn(f, sz.width / sz.height);
     });
   }
 
@@ -123,26 +138,50 @@ class _GranthImageState extends State<GranthImage> {
   Widget build(BuildContext context) {
     if (_p == null) return const SizedBox.shrink();
     final thumb = widget.kind == ShotKind.thumb;
-    final radius = thumb ? 6.0 : (widget.kind == ShotKind.lightbox ? 12.0 : 8.0);
+    final radius = thumb
+        ? 6.0
+        : (widget.kind == ShotKind.lightbox ? 12.0 : 8.0);
     Widget img;
     if (_file == null) {
-      img = thumb ? Skeleton(height: 52, width: 52, radius: radius) : Skeleton(radius: radius);
-      if (_failed) img = Skeleton(height: thumb ? 52 : 120, width: thumb ? 52 : null, radius: radius);
+      img = thumb
+          ? Skeleton(height: 52, width: 52, radius: radius)
+          : Skeleton(radius: radius);
+      if (_failed)
+        img = Skeleton(
+          height: thumb ? 52 : 120,
+          width: thumb ? 52 : null,
+          radius: radius,
+        );
     } else {
       img = Image.file(
         _file!,
         width: thumb ? 52 : double.infinity,
         height: thumb ? 52 : null,
-        fit: thumb ? BoxFit.cover : (widget.kind == ShotKind.lightbox ? BoxFit.contain : BoxFit.fitWidth),
+        fit: thumb
+            ? BoxFit.cover
+            : (widget.kind == ShotKind.lightbox
+                  ? BoxFit.contain
+                  : BoxFit.fitWidth),
         gaplessPlayback: true,
-        cacheWidth: thumb ? 156 : (widget.kind == ShotKind.lightbox ? null : 1080),
+        cacheWidth: thumb
+            ? 156
+            : (widget.kind == ShotKind.lightbox ? null : 1080),
         frameBuilder: (context, child, frame, sync) {
           if (frame != null && _ratio == null && _wantsRatio) _learn();
           return sync
-            ? child
-            : AnimatedOpacity(opacity: frame == null ? 0 : 1, duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic, child: child);
+              ? child
+              : AnimatedOpacity(
+                  opacity: frame == null ? 0 : 1,
+                  duration: const Duration(milliseconds: 320),
+                  curve: Curves.easeOutCubic,
+                  child: child,
+                );
         },
-        errorBuilder: (context, error, stack) => Skeleton(height: thumb ? 52 : 120, width: thumb ? 52 : null, radius: radius),
+        errorBuilder: (context, error, stack) => Skeleton(
+          height: thumb ? 52 : 120,
+          width: thumb ? 52 : null,
+          radius: radius,
+        ),
       );
       if (_ratio != null) {
         // Final height known before the picture is decoded: the list never changes height
@@ -155,22 +194,40 @@ class _GranthImageState extends State<GranthImage> {
     }
     final decorated = Container(
       decoration: BoxDecoration(
-        color: widget.kind == ShotKind.lightbox ? GColors.paper : (thumb ? GColors.cream : GColors.creamDark),
-        border: widget.kind == ShotKind.lightbox ? null : Border.all(color: GColors.creamDark),
+        color: widget.kind == ShotKind.lightbox
+            ? GColors.paper
+            : (thumb ? GColors.cream : GColors.creamDark),
+        border: widget.kind == ShotKind.lightbox
+            ? null
+            : Border.all(color: GColors.creamDark),
         borderRadius: BorderRadius.circular(radius),
       ),
       clipBehavior: Clip.antiAlias,
       child: img,
     );
-    final tapTarget = widget.onTap == null ? decorated : Pressable(onTap: widget.onTap, scale: 0.98, child: decorated);
+    final tapTarget = widget.onTap == null
+        ? decorated
+        : Pressable(onTap: widget.onTap, scale: 0.98, child: decorated);
     final showButtons = _file != null;
     return Padding(
-      padding: EdgeInsets.only(top: widget.kind == ShotKind.cover || widget.kind == ShotKind.proof ? 12 : 0),
+      padding: EdgeInsets.only(
+        top: widget.kind == ShotKind.cover || widget.kind == ShotKind.proof
+            ? 12
+            : 0,
+      ),
       child: Stack(
         children: [
           tapTarget,
           if (showButtons && widget.onView != null)
-            Positioned(right: 8, bottom: 56, child: _RoundBtn(size: 40, onTap: widget.onView!, child: const GIcon('eye', size: 20, color: GColors.paper))),
+            Positioned(
+              right: 8,
+              bottom: 56,
+              child: _RoundBtn(
+                size: 40,
+                onTap: widget.onView!,
+                child: const GIcon('eye', size: 20, color: GColors.paper),
+              ),
+            ),
           if (showButtons && widget.save != null)
             Positioned(
               right: thumb ? 2 : 8,
@@ -178,7 +235,15 @@ class _GranthImageState extends State<GranthImage> {
               child: _RoundBtn(
                 size: thumb ? 22 : 40,
                 onTap: _saveImage,
-                child: Text('↓', style: GText.sans(size: thumb ? 12 : 16, weight: FontWeight.w700, color: GColors.paper, height: 1)),
+                child: Text(
+                  '↓',
+                  style: GText.sans(
+                    size: thumb ? 12 : 16,
+                    weight: FontWeight.w700,
+                    color: GColors.paper,
+                    height: 1,
+                  ),
+                ),
               ),
             ),
         ],
@@ -188,20 +253,27 @@ class _GranthImageState extends State<GranthImage> {
 }
 
 class _RoundBtn extends StatelessWidget {
-  const _RoundBtn({required this.size, required this.onTap, required this.child});
+  const _RoundBtn({
+    required this.size,
+    required this.onTap,
+    required this.child,
+  });
   final double size;
   final VoidCallback onTap;
   final Widget child;
   @override
   Widget build(BuildContext context) => Pressable(
-        onTap: onTap,
-        scale: 0.85,
-        child: Container(
-          width: size,
-          height: size,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(color: GColors.brown.withValues(alpha: 0.46), shape: BoxShape.circle),
-          child: child,
-        ),
-      );
+    onTap: onTap,
+    scale: 0.85,
+    child: Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: GColors.brown.withValues(alpha: 0.46),
+        shape: BoxShape.circle,
+      ),
+      child: child,
+    ),
+  );
 }

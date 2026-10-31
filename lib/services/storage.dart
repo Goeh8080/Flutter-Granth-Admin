@@ -35,6 +35,7 @@ class Store {
   static const kWifiOnly = 'granth-wifi-only';
   static const kAutoSync = 'granth-auto-sync';
   static const kKeepAwake = 'granth-keep-awake';
+
   /// Round 8: "एनिमेशन" चालू ('1', default) / कम ('0') — the decorative entrance animations.
   static const kAnimations = 'granth-animations';
 
@@ -62,12 +63,18 @@ class Store {
         // Too slow (or failed) at start-up: the app opens anyway, settings live in memory,
         // and the preferences are picked up (and written) as soon as they do arrive.
         debugPrint('Store: prefs not ready yet: $e');
-        load.then(_adopt).catchError((Object e) => debugPrint('Store: prefs unavailable: $e'));
+        load
+            .then(_adopt)
+            .catchError(
+              (Object e) => debugPrint('Store: prefs unavailable: $e'),
+            );
       }
     }
     if (_root == null) {
       try {
-        final docs = await getApplicationDocumentsDirectory().timeout(const Duration(seconds: 4));
+        final docs = await getApplicationDocumentsDirectory().timeout(
+          const Duration(seconds: 4),
+        );
         _root = Directory('${docs.path}/granth');
       } catch (e) {
         debugPrint('Store: documents dir unavailable: $e');
@@ -232,7 +239,8 @@ class Store {
     return compute(_dirBytes, imagesDir);
   }
 
-  Future<void> writeJson(String name, Object? value) => writeText(name, jsonEncode(value));
+  Future<void> writeJson(String name, Object? value) =>
+      writeText(name, jsonEncode(value));
 
   /// Atomic write of already-encoded text (the catalog is encoded off the UI thread).
   Future<void> writeText(String name, String text) async {
@@ -246,7 +254,9 @@ class Store {
 int _dirBytes(String path) {
   var n = 0;
   try {
-    for (final e in Directory(path).listSync(recursive: true, followLinks: false)) {
+    for (final e in Directory(
+      path,
+    ).listSync(recursive: true, followLinks: false)) {
       if (e is File) {
         try {
           n += e.lengthSync();

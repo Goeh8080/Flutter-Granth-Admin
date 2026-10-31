@@ -99,6 +99,18 @@ class PanelState extends ChangeNotifier {
     unawaited(refreshAlerts());
   }
 
+  /// Signs in with a Firebase ID token (Google login). Username/password login is unchanged.
+  Future<void> loginWithFirebaseToken(String idToken) async {
+    await api.loginFirebase(idToken);
+    loggedIn = true;
+    expiredMessage = null;
+    try {
+      me = await api.me();
+    } catch (_) {}
+    notifyListeners();
+    unawaited(refreshAlerts());
+  }
+
   Future<void> logout() async {
     await api.logout();
     _reset();

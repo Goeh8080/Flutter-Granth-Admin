@@ -355,6 +355,29 @@ class PanelApi {
     return l;
   }
 
+  /// Google login: a Firebase ID token goes to `POST /auth/firebase`; the server checks the
+  /// email allowlist and returns a bearer token like [login].
+  Future<PanelLogin> loginFirebase(String idToken) async {
+    final j = await _call(
+      'POST',
+      '/auth/firebase',
+      auth: false,
+      body: {'id_token': idToken},
+      headers: {'X-Client': 'app', 'X-Client-Name': clientName},
+    );
+    final l = PanelLogin.fromJson(j);
+    if (l.token.isEmpty) {
+      throw const PanelApiException(
+        'अमान्य उत्तर / Invalid server response',
+        code: 'bad_response',
+      );
+    }
+    _token = l.token;
+    _loaded = true;
+    await store.write(l.token);
+    return l;
+  }
+
   /// Revokes the session on the server (best effort) and forgets the token locally.
   Future<void> logout() async {
     try {
@@ -671,6 +694,7 @@ class PanelApi {
       }))['item'],
     ),
   );
+
   /// Round 3 (server CONTRACT §5): support tickets, AI flags, highlights, named events.
   /// Raw JSON on purpose: these screens read the maps directly.
   Future<Map<String, dynamic>> raw(

@@ -20,13 +20,25 @@ class AiTurn {
 
 /// What the Worker answered.
 class AiAnswer {
-  const AiAnswer({required this.answer, required this.cited, required this.provider});
+  const AiAnswer({
+    required this.answer,
+    required this.cited,
+    required this.provider,
+  });
   final String answer;
   final List<int> cited;
   final String provider;
 }
 
-enum AiFailure { offline, timeout, rateLimited, unavailable, rejected, tooLarge, badReply }
+enum AiFailure {
+  offline,
+  timeout,
+  rateLimited,
+  unavailable,
+  rejected,
+  tooLarge,
+  badReply,
+}
 
 /// A failure with a message the user can read (Hindi) and whether trying again may help.
 class AiException implements Exception {
@@ -35,7 +47,8 @@ class AiException implements Exception {
   final String message;
   final int? status;
 
-  bool get retryable => kind != AiFailure.rejected && kind != AiFailure.tooLarge;
+  bool get retryable =>
+      kind != AiFailure.rejected && kind != AiFailure.tooLarge;
   @override
   String toString() => 'AiException($kind, status=$status)';
 }
@@ -51,12 +64,27 @@ String _cut(String s, int max) {
 }
 
 /// The JSON body of `POST /ask`, with every limit of the contract applied.
-Map<String, Object> buildAskBody(String question, List<AiTurn> history, List<Candidate> candidates) {
-  final turns = history.where((t) => t.text.trim().isNotEmpty && (t.role == 'user' || t.role == 'assistant')).toList();
-  final last = turns.length > kHistoryTurns ? turns.sublist(turns.length - kHistoryTurns) : turns;
+Map<String, Object> buildAskBody(
+  String question,
+  List<AiTurn> history,
+  List<Candidate> candidates,
+) {
+  final turns = history
+      .where(
+        (t) =>
+            t.text.trim().isNotEmpty &&
+            (t.role == 'user' || t.role == 'assistant'),
+      )
+      .toList();
+  final last = turns.length > kHistoryTurns
+      ? turns.sublist(turns.length - kHistoryTurns)
+      : turns;
   return {
     'question': _cut(question.trim(), kQuestionMax),
-    'history': [for (final t in last) AiTurn(t.role, _cut(t.text.trim(), kHistoryTextMax)).toJson()],
+    'history': [
+      for (final t in last)
+        AiTurn(t.role, _cut(t.text.trim(), kHistoryTextMax)).toJson(),
+    ],
     'candidates': [for (final c in candidates.take(kCandidatesMax)) c.toJson()],
   };
 }
@@ -73,14 +101,20 @@ List<int> parseCited(Object? raw) {
 }
 
 String _messageFor(AiFailure k) => switch (k) {
-      AiFailure.offline => 'इंटरनेट से जुड़ नहीं पाया। कनेक्शन जाँचकर फिर कोशिश करें।',
-      AiFailure.timeout => 'उत्तर आने में बहुत समय लग रहा है। कृपया फिर कोशिश करें।',
-      AiFailure.rateLimited => 'अभी बहुत प्रश्न आ रहे हैं। थोड़ी देर बाद फिर कोशिश करें।',
-      AiFailure.unavailable => 'AI सेवा अभी उपलब्ध नहीं है। थोड़ी देर बाद फिर कोशिश करें।',
-      AiFailure.rejected => 'यह प्रश्न स्वीकार नहीं हुआ। कृपया इसे छोटा या अलग तरह से लिखें।',
-      AiFailure.tooLarge => 'प्रश्न बहुत बड़ा है। कृपया इसे छोटा करके पूछें।',
-      AiFailure.badReply => 'AI से समझ न आने वाला उत्तर मिला। कृपया फिर कोशिश करें।',
-    };
+  AiFailure.offline =>
+    'इंटरनेट से जुड़ नहीं पाया। कनेक्शन जाँचकर फिर कोशिश करें।',
+  AiFailure.timeout =>
+    'उत्तर आने में बहुत समय लग रहा है। कृपया फिर कोशिश करें।',
+  AiFailure.rateLimited =>
+    'अभी बहुत प्रश्न आ रहे हैं। थोड़ी देर बाद फिर कोशिश करें।',
+  AiFailure.unavailable =>
+    'AI सेवा अभी उपलब्ध नहीं है। थोड़ी देर बाद फिर कोशिश करें।',
+  AiFailure.rejected =>
+    'यह प्रश्न स्वीकार नहीं हुआ। कृपया इसे छोटा या अलग तरह से लिखें।',
+  AiFailure.tooLarge => 'प्रश्न बहुत बड़ा है। कृपया इसे छोटा करके पूछें।',
+  AiFailure.badReply =>
+    'AI से समझ न आने वाला उत्तर मिला। कृपया फिर कोशिश करें।',
+};
 
 /// Turns an HTTP status + body into an answer or an [AiException]. Pure, so it is unit-tested.
 AiAnswer parseAskResponse(int status, String body) {
@@ -95,10 +129,18 @@ AiAnswer parseAskResponse(int status, String body) {
       final a = json['answer'];
       if (a is String && a.trim().isNotEmpty) {
         final p = json['provider'];
-        return AiAnswer(answer: a.trim(), cited: parseCited(json['cited']), provider: p is String ? p : '');
+        return AiAnswer(
+          answer: a.trim(),
+          cited: parseCited(json['cited']),
+          provider: p is String ? p : '',
+        );
       }
     }
-    throw AiException(AiFailure.badReply, _messageFor(AiFailure.badReply), status: status);
+    throw AiException(
+      AiFailure.badReply,
+      _messageFor(AiFailure.badReply),
+      status: status,
+    );
   }
   final k = switch (status) {
     429 => AiFailure.rateLimited,
@@ -115,7 +157,8 @@ class AiClient {
     this.timeout = const Duration(seconds: 45),
     this.backoff = const Duration(milliseconds: 1500),
     this.header = kAiClientHeader,
-  }) : endpoint = (endpoint ?? RemoteConfig.I.aiEndpoint ?? kAiEndpoint).replaceAll(RegExp(r'/+$'), '');
+  }) : endpoint = (endpoint ?? RemoteConfig.I.aiEndpoint ?? kAiEndpoint)
+           .replaceAll(RegExp(r'/+$'), '');
 
   final String endpoint;
   final Duration timeout;
@@ -123,19 +166,26 @@ class AiClient {
   final String header;
 
   /// Asks once; on a timeout, a network error, a 429 or a 5xx it waits a little and asks once more.
-  Future<AiAnswer> ask(String question, List<AiTurn> history, List<Candidate> candidates) async {
+  Future<AiAnswer> ask(
+    String question,
+    List<AiTurn> history,
+    List<Candidate> candidates,
+  ) async {
     final body = jsonEncode(buildAskBody(question, history, candidates));
     try {
       return await _once(body);
     } on AiException catch (e) {
       if (!e.retryable) rethrow;
-      await Future<void>.delayed(e.kind == AiFailure.rateLimited ? backoff * 2 : backoff);
+      await Future<void>.delayed(
+        e.kind == AiFailure.rateLimited ? backoff * 2 : backoff,
+      );
       return _once(body);
     }
   }
 
   Future<AiAnswer> _once(String body) async {
-    final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 15);
     try {
       return await _send(client, body).timeout(timeout);
     } on TimeoutException {
@@ -145,7 +195,10 @@ class AiClient {
     } on HandshakeException {
       throw AiException(AiFailure.offline, _messageFor(AiFailure.offline));
     } on HttpException {
-      throw AiException(AiFailure.unavailable, _messageFor(AiFailure.unavailable));
+      throw AiException(
+        AiFailure.unavailable,
+        _messageFor(AiFailure.unavailable),
+      );
     } finally {
       client.close(force: true);
     }

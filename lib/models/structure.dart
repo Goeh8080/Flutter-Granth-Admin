@@ -18,7 +18,12 @@ const String kOtherId = 'other';
 
 String _fold(String e) {
   // NFD + dropping the nukta makes क़ुरान == कुरान and फ़ == फ; the rest mirrors search.dart.
-  final s = unorm.nfd(e).replaceAll('\u093c', '').replaceAll('\u200c', '').replaceAll('\u200d', '').replaceAll('\u0901', '\u0902');
+  final s = unorm
+      .nfd(e)
+      .replaceAll('\u093c', '')
+      .replaceAll('\u200c', '')
+      .replaceAll('\u200d', '')
+      .replaceAll('\u0901', '\u0902');
   return unorm.nfc(s).toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
 }
 
@@ -55,20 +60,33 @@ class ShelfGroup {
   bool get hasSubgroups => subgroups.isNotEmpty;
 
   factory ShelfGroup.fromJson(Map<String, dynamic> j) => ShelfGroup(
-        id: '${j['id']}',
-        title: '${j['title']}',
-        icon: '${j['icon'] ?? 'misc'}',
-        granthIds: _strings(j['granthIds'] ?? j['forceIds']),
-        keywords: _strings(j['keywords']),
-        notKeywords: _strings(j['notKeywords']),
-        subgroups: [for (final s in (j['subgroups'] as List? ?? const [])) ShelfGroup.fromJson((s as Map).cast<String, dynamic>())],
-        visible: j['visible'] != false,
-        comingSoon: j['coming_soon'] is String ? (j['coming_soon'] as String).trim() : '',
-      );
+    id: '${j['id']}',
+    title: '${j['title']}',
+    icon: '${j['icon'] ?? 'misc'}',
+    granthIds: _strings(j['granthIds'] ?? j['forceIds']),
+    keywords: _strings(j['keywords']),
+    notKeywords: _strings(j['notKeywords']),
+    subgroups: [
+      for (final s in (j['subgroups'] as List? ?? const []))
+        ShelfGroup.fromJson((s as Map).cast<String, dynamic>()),
+    ],
+    visible: j['visible'] != false,
+    comingSoon: j['coming_soon'] is String
+        ? (j['coming_soon'] as String).trim()
+        : '',
+  );
 }
 
 class ShelfReligion {
-  const ShelfReligion({required this.id, required this.title, this.tone = 'maroon', this.icon = 'folder-open', this.groups = const [], this.visible = true, this.comingSoon = ''});
+  const ShelfReligion({
+    required this.id,
+    required this.title,
+    this.tone = 'maroon',
+    this.icon = 'folder-open',
+    this.groups = const [],
+    this.visible = true,
+    this.comingSoon = '',
+  });
   final String id;
   final String title;
 
@@ -82,21 +100,31 @@ class ShelfReligion {
   final List<ShelfGroup> groups;
 
   factory ShelfReligion.fromJson(Map<String, dynamic> j) => ShelfReligion(
-        id: '${j['id']}',
-        title: '${j['title']}',
-        tone: '${j['tone'] ?? 'maroon'}',
-        icon: '${j['icon'] ?? 'folder-open'}',
-        groups: [for (final g in (j['groups'] as List? ?? const [])) ShelfGroup.fromJson((g as Map).cast<String, dynamic>())],
-        visible: j['visible'] != false,
-        comingSoon: j['coming_soon'] is String ? (j['coming_soon'] as String).trim() : '',
-      );
+    id: '${j['id']}',
+    title: '${j['title']}',
+    tone: '${j['tone'] ?? 'maroon'}',
+    icon: '${j['icon'] ?? 'folder-open'}',
+    groups: [
+      for (final g in (j['groups'] as List? ?? const []))
+        ShelfGroup.fromJson((g as Map).cast<String, dynamic>()),
+    ],
+    visible: j['visible'] != false,
+    comingSoon: j['coming_soon'] is String
+        ? (j['coming_soon'] as String).trim()
+        : '',
+  );
 }
 
-List<String> _strings(Object? v) => [for (final e in (v as List? ?? const [])) '$e'];
+List<String> _strings(Object? v) => [
+  for (final e in (v as List? ?? const [])) '$e',
+];
 
 /// The parsed JSON. Immutable; the file is tiny.
 class Structure {
-  const Structure({this.religions = const [], this.other = const ShelfGroup(id: kOtherId, title: 'अन्य', icon: 'misc')});
+  const Structure({
+    this.religions = const [],
+    this.other = const ShelfGroup(id: kOtherId, title: 'अन्य', icon: 'misc'),
+  });
 
   /// No structure at all: every granth lands in अन्य (used only if the asset cannot be read).
   static const Structure empty = Structure();
@@ -104,12 +132,18 @@ class Structure {
   final List<ShelfReligion> religions;
   final ShelfGroup other;
 
-  factory Structure.parse(String source) => Structure.fromMap(jsonDecode(source) as Map<String, dynamic>);
+  factory Structure.parse(String source) =>
+      Structure.fromMap(jsonDecode(source) as Map<String, dynamic>);
 
   factory Structure.fromMap(Map<String, dynamic> j) {
     return Structure(
-      religions: [for (final r in (j['religions'] as List? ?? const [])) ShelfReligion.fromJson((r as Map).cast<String, dynamic>())],
-      other: j['other'] is Map ? ShelfGroup.fromJson((j['other'] as Map).cast<String, dynamic>()) : const ShelfGroup(id: kOtherId, title: 'अन्य', icon: 'misc'),
+      religions: [
+        for (final r in (j['religions'] as List? ?? const []))
+          ShelfReligion.fromJson((r as Map).cast<String, dynamic>()),
+      ],
+      other: j['other'] is Map
+          ? ShelfGroup.fromJson((j['other'] as Map).cast<String, dynamic>())
+          : const ShelfGroup(id: kOtherId, title: 'अन्य', icon: 'misc'),
     );
   }
 
@@ -121,12 +155,20 @@ class Structure {
   }
 
   /// Every leaf (a group with no sub-groups, or a sub-group) with its path key.
-  Iterable<({String key, ShelfReligion religion, ShelfGroup? parent, ShelfGroup leaf})> leaves() sync* {
+  Iterable<
+    ({String key, ShelfReligion religion, ShelfGroup? parent, ShelfGroup leaf})
+  >
+  leaves() sync* {
     for (final r in religions) {
       for (final g in r.groups) {
         if (g.hasSubgroups) {
           for (final s in g.subgroups) {
-            yield (key: leafKey(r.id, g.id, s.id), religion: r, parent: g, leaf: s);
+            yield (
+              key: leafKey(r.id, g.id, s.id),
+              religion: r,
+              parent: g,
+              leaf: s,
+            );
           }
         } else {
           yield (key: leafKey(r.id, g.id), religion: r, parent: null, leaf: g);
@@ -137,7 +179,8 @@ class Structure {
 }
 
 /// `religion/group` or `religion/group/sub`; the fallback folder is just [kOtherId].
-String leafKey(String religion, [String? group, String? sub]) => [religion, ?group, ?sub].join('/');
+String leafKey(String religion, [String? group, String? sub]) =>
+    [religion, ?group, ?sub].join('/');
 
 /// Where one granth was placed.
 class Placement {
@@ -163,7 +206,12 @@ class ShelfIndex {
 
   /// [overrides] (remote config: granth id → leaf key) win over everything else; [hidden] granths
   /// are dropped after placement.
-  factory ShelfIndex.build(Structure structure, List<Granth> granths, {Map<String, String> overrides = const {}, Set<String> hidden = const {}}) {
+  factory ShelfIndex.build(
+    Structure structure,
+    List<Granth> granths, {
+    Map<String, String> overrides = const {},
+    Set<String> hidden = const {},
+  }) {
     final leaves = structure.leaves().toList();
     final byId = <String, String>{};
     for (final l in leaves) {
@@ -173,7 +221,13 @@ class ShelfIndex {
     }
     final forced = {...structure.other.granthIds};
     final leafKeys = {for (final l in leaves) l.key};
-    final folded = {for (final l in leaves) l.key: (kw: [for (final k in l.leaf.keywords) _fold(k)], no: [for (final k in l.leaf.notKeywords) _fold(k)])};
+    final folded = {
+      for (final l in leaves)
+        l.key: (
+          kw: [for (final k in l.leaf.keywords) _fold(k)],
+          no: [for (final k in l.leaf.notKeywords) _fold(k)],
+        ),
+    };
     final buckets = <String, List<Granth>>{};
     final placements = <String, Placement>{};
     for (final g in granths) {
@@ -193,15 +247,22 @@ class ShelfIndex {
         final hits = <String>[];
         for (final l in leaves) {
           final f = folded[l.key]!;
-          if (f.kw.any((k) => k.isNotEmpty && t.contains(k)) && !f.no.any((k) => k.isNotEmpty && t.contains(k))) hits.add(l.key);
+          if (f.kw.any((k) => k.isNotEmpty && t.contains(k)) &&
+              !f.no.any((k) => k.isNotEmpty && t.contains(k)))
+            hits.add(l.key);
         }
-        p = hits.length == 1 ? Placement(hits.first, 'keyword') : const Placement(kOtherId, 'fallback');
+        p = hits.length == 1
+            ? Placement(hits.first, 'keyword')
+            : const Placement(kOtherId, 'fallback');
       }
       placements[g.id] = p;
       (buckets[p.key] ??= []).add(g);
     }
     for (final list in buckets.values) {
-      stableSort<Granth>(list, (a, b) => numericCompare(a.position, b.position));
+      stableSort<Granth>(
+        list,
+        (a, b) => numericCompare(a.position, b.position),
+      );
     }
     return ShelfIndex._(structure, granths, buckets, placements);
   }
@@ -215,8 +276,11 @@ class ShelfIndex {
     final r = structure.religion(religion);
     final g = r?.groups.where((e) => e.id == group).firstOrNull;
     if (g == null) return const [];
-    if (sub != null || !g.hasSubgroups) return inLeaf(leafKey(religion, group, sub));
-    return _merge([for (final s in g.subgroups) inLeaf(leafKey(religion, group, s.id))]);
+    if (sub != null || !g.hasSubgroups)
+      return inLeaf(leafKey(religion, group, sub));
+    return _merge([
+      for (final s in g.subgroups) inLeaf(leafKey(religion, group, s.id)),
+    ]);
   }
 
   List<Granth> inReligion(String religion) {
@@ -235,31 +299,57 @@ class ShelfIndex {
   List<ShelfGroup> visibleGroups(String religion) {
     final r = structure.religion(religion);
     if (r == null) return const [];
-    return [for (final g in r.groups) if (g.visible && (inGroup(religion, g.id).isNotEmpty || g.comingSoon.isNotEmpty)) g];
+    return [
+      for (final g in r.groups)
+        if (g.visible &&
+            (inGroup(religion, g.id).isNotEmpty || g.comingSoon.isNotEmpty))
+          g,
+    ];
   }
 
   /// Sub-groups of a group that hold at least one granth.
   List<ShelfGroup> visibleSubgroups(String religion, String group) {
-    final g = structure.religion(religion)?.groups.where((e) => e.id == group).firstOrNull;
+    final g = structure
+        .religion(religion)
+        ?.groups
+        .where((e) => e.id == group)
+        .firstOrNull;
     if (g == null) return const [];
-    return [for (final s in g.subgroups) if (s.visible && (inLeaf(leafKey(religion, group, s.id)).isNotEmpty || s.comingSoon.isNotEmpty)) s];
+    return [
+      for (final s in g.subgroups)
+        if (s.visible &&
+            (inLeaf(leafKey(religion, group, s.id)).isNotEmpty ||
+                s.comingSoon.isNotEmpty))
+          s,
+    ];
   }
 
   /// Number of pramans in a list of granths (API `pramanCount`s).
-  static int pramans(Iterable<Granth> list) => list.fold(0, (a, g) => a + g.pramanCount);
+  static int pramans(Iterable<Granth> list) =>
+      list.fold(0, (a, g) => a + g.pramanCount);
 
   /// Placement summary for docs and tests: leaf key → ids.
-  Map<String, List<String>> get idsByLeaf => {for (final e in _byLeaf.entries) e.key: [for (final g in e.value) g.id]};
+  Map<String, List<String>> get idsByLeaf => {
+    for (final e in _byLeaf.entries) e.key: [for (final g in e.value) g.id],
+  };
 }
 
 /// Which granths a granth-list screen shows: one group / sub-group, or the अन्य folder.
 class ShelfScope {
   const ShelfScope(this.religion, this.group, [this.sub]) : isOther = false;
-  const ShelfScope.other() : religion = kOtherId, group = null, sub = null, isOther = true;
+  const ShelfScope.other()
+    : religion = kOtherId,
+      group = null,
+      sub = null,
+      isOther = true;
   final String religion;
   final String? group;
   final String? sub;
   final bool isOther;
 
-  List<Granth> resolve(ShelfIndex index) => isOther ? index.other : (group == null ? index.inReligion(religion) : index.inGroup(religion, group!, sub));
+  List<Granth> resolve(ShelfIndex index) => isOther
+      ? index.other
+      : (group == null
+            ? index.inReligion(religion)
+            : index.inGroup(religion, group!, sub));
 }

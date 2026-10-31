@@ -20,11 +20,13 @@ class PdfNotify {
 
   /// Native calls; replaceable in tests.
   @visibleForTesting
-  Future<void> Function(String method, Map<String, Object?> args) call = NativeBridge.pdfNotice;
+  Future<void> Function(String method, Map<String, Object?> args) call =
+      NativeBridge.pdfNotice;
 
   /// Native questions with an answer (`notifState`, `askNotifications`); replaceable in tests.
   @visibleForTesting
-  Future<Object?> Function(String method, Map<String, Object?> args) query = NativeBridge.pdfQuery;
+  Future<Object?> Function(String method, Map<String, Object?> args) query =
+      NativeBridge.pdfQuery;
 
   /// Bumped when the one-time "notifications are off" hint should be shown (HomeShell shows it).
   final ValueNotifier<int> hint = ValueNotifier(0);
@@ -75,7 +77,9 @@ class PdfNotify {
 
   static void _log(String m) => debugPrint('[GranthPdf] $m');
 
-  static String text(int count, int percent) => count == 1 ? '1 PDF बन रही है — $percent%' : '$count PDF बन रही हैं — $percent%';
+  static String text(int count, int percent) => count == 1
+      ? '1 PDF बन रही है — $percent%'
+      : '$count PDF बन रही हैं — $percent%';
 
   void _onQueue() {
     final q = PdfQueue.I;
@@ -118,7 +122,9 @@ class PdfNotify {
     _lastCount = count;
     _lastPercent = pct;
     final first = q.jobs.where((j) => j.active).firstOrNull;
-    final waiting = q.jobs.where((j) => j.active).every((j) => j.phase == PdfPhase.waiting && j.attempts > 0);
+    final waiting = q.jobs
+        .where((j) => j.active)
+        .every((j) => j.phase == PdfPhase.waiting && j.attempts > 0);
     call('pdfProgress', {
       'title': count == 1 && first != null ? first.title : text(count, pct),
       'text': waiting ? 'ऐप खोलने पर आगे बनेगी' : text(count, pct),
@@ -145,7 +151,9 @@ class PdfNotify {
         lastCheck = 'enabled';
         return;
       }
-      if (sdk >= 33 && st['granted'] != true && Store.I.getString(Store.kNotifAsked) != '1') {
+      if (sdk >= 33 &&
+          st['granted'] != true &&
+          Store.I.getString(Store.kNotifAsked) != '1') {
         Store.I.setString(Store.kNotifAsked, '1');
         _log('asking POST_NOTIFICATIONS');
         enabled = await query('askNotifications', const {}) == true;

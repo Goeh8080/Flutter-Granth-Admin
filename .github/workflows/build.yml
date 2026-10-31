@@ -38,6 +38,19 @@ jobs:
         run: flutter test
 
       # APP_KEY (optional repository secret) is passed via --dart-define-from-file; without it the build has no key.
+      - name: Inject Firebase config and signing key (from secrets, never logged)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          ADMIN_KEYSTORE_B64: ${{ secrets.ADMIN_KEYSTORE_B64 }}
+          ADMIN_KEYSTORE_PASSWORD: ${{ secrets.ADMIN_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json; echo "google-services.json written"; else echo "GOOGLE_SERVICES_JSON not set: Google login disabled in this build"; fi
+          if [ -n "$ADMIN_KEYSTORE_B64" ]; then
+            printf '%s' "$ADMIN_KEYSTORE_B64" | base64 -d > android/app/admin-release.p12
+            printf 'storeFile=admin-release.p12\nstorePassword=%s\nkeyAlias=granthadmin\nkeyPassword=%s\n' "$ADMIN_KEYSTORE_PASSWORD" "$ADMIN_KEYSTORE_PASSWORD" > android/key.properties
+            echo "fixed admin signing key configured"
+          else echo "ADMIN_KEYSTORE_B64 not set: debug signing"; fi
+
       - name: Build universal release APK
         env:
           APP_KEY: ${{ secrets.APP_KEY }}

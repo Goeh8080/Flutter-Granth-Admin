@@ -4,7 +4,10 @@ library;
 
 /// The AI Worker (Cloudflare Workers). `POST {kAiEndpoint}/ask`, `GET {kAiEndpoint}/health`.
 /// Override at build time: `flutter build apk --dart-define=AI_ENDPOINT=https://…`.
-const String kAiEndpoint = String.fromEnvironment('AI_ENDPOINT', defaultValue: 'https://granth-ai.vedpuran8090.workers.dev');
+const String kAiEndpoint = String.fromEnvironment(
+  'AI_ENDPOINT',
+  defaultValue: 'https://granth-ai.vedpuran8090.workers.dev',
+);
 
 /// Sent as `X-Granth-Client` on every AI request (the Worker rejects requests without it).
 const String kAiClientHeader = 'granth-app-1';
@@ -13,7 +16,10 @@ const String kAiClientHeader = 'granth-app-1';
 /// TODO(owner): put the real contact e-mail here. It is empty on purpose — the app does NOT
 /// invent an address; while it is empty the legal pages say "संपर्क ईमेल जल्द जोड़ा जाएगा".
 /// Can also be set at build time: `--dart-define=CONTACT_EMAIL=name@example.com`.
-const String kContactEmail = String.fromEnvironment('CONTACT_EMAIL', defaultValue: '');
+const String kContactEmail = String.fromEnvironment(
+  'CONTACT_EMAIL',
+  defaultValue: '',
+);
 
 /// The date every legal page was last updated (shown on each page).
 const String kLegalUpdated = '25 अक्टूबर 2026';
@@ -29,8 +35,14 @@ const int kBuildNumber = 1;
 const String kAppFull = '1.0.0+1';
 
 /// The admin server (public config + anonymous usage counts). See docs/AI.md / docs/REMOTE.md.
-const String kConfigUrl = String.fromEnvironment('CONFIG_URL', defaultValue: 'https://granth-admin.vedpuran8090.workers.dev/config.json');
-const String kEventsUrl = String.fromEnvironment('EVENTS_URL', defaultValue: 'https://granth-admin.vedpuran8090.workers.dev/events');
+const String kConfigUrl = String.fromEnvironment(
+  'CONFIG_URL',
+  defaultValue: 'https://granth-admin.vedpuran8090.workers.dev/config.json',
+);
+const String kEventsUrl = String.fromEnvironment(
+  'EVENTS_URL',
+  defaultValue: 'https://granth-admin.vedpuran8090.workers.dev/events',
+);
 
 /// The permanent app key: an *identifier*, not a secret (it only tags genuine-app traffic so the
 /// admin dashboard can split verified / unverified installs). It is never kept in the repository:

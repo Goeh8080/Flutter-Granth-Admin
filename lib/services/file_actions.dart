@@ -19,7 +19,8 @@ class FileActions {
     return cut.isEmpty ? 'granth.pdf' : cut;
   }
 
-  static bool isPdf(String name, [String? mime]) => (mime ?? '').contains('pdf') || name.toLowerCase().endsWith('.pdf');
+  static bool isPdf(String name, [String? mime]) =>
+      (mime ?? '').contains('pdf') || name.toLowerCase().endsWith('.pdf');
 
   static String mimeOf(String name) {
     final n = name.toLowerCase();
@@ -73,12 +74,18 @@ class FileActions {
   static Future<int> cleanupPartials() async {
     if (!Store.I.ready) return 0;
     var n = 0;
-    for (final dir in [Store.I.pdfDir, Store.I.galleryDir, Store.I.imagesDir, Store.I.root.path]) {
+    for (final dir in [
+      Store.I.pdfDir,
+      Store.I.galleryDir,
+      Store.I.imagesDir,
+      Store.I.root.path,
+    ]) {
       try {
         final d = Directory(dir);
         if (!await d.exists()) continue;
         await for (final e in d.list(followLinks: false)) {
-          if (e is File && (e.path.endsWith('.part') || e.path.endsWith('.tmp'))) {
+          if (e is File &&
+              (e.path.endsWith('.part') || e.path.endsWith('.tmp'))) {
             try {
               await e.delete();
               n++;
@@ -107,10 +114,14 @@ class FileActions {
   }
 
   /// `xe()`/`we()` — save to the phone: PDFs to Downloads, pictures to the album.
-  static Future<bool> exportToDevice(String sourcePath, String name) async => await exportToDeviceUri(sourcePath, name) != null;
+  static Future<bool> exportToDevice(String sourcePath, String name) async =>
+      await exportToDeviceUri(sourcePath, name) != null;
 
   /// Same as [exportToDevice]; returns where the copy went (MediaStore URI or path), or null.
-  static Future<String?> exportToDeviceUri(String sourcePath, String name) async {
+  static Future<String?> exportToDeviceUri(
+    String sourcePath,
+    String name,
+  ) async {
     final File local;
     try {
       local = await ensureLocal(sourcePath, name);
@@ -133,7 +144,14 @@ class FileActions {
   /// `Se()` — share a saved file.
   static Future<void> shareFile(String sourcePath, String name) async {
     final local = await ensureLocal(sourcePath, name);
-    await SharePlus.instance.share(ShareParams(files: [XFile(local.path, mimeType: mimeOf(name), name: safeName(name))], title: name));
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [
+          XFile(local.path, mimeType: mimeOf(name), name: safeName(name)),
+        ],
+        title: name,
+      ),
+    );
   }
 
   /// `_e()` — share text + link.

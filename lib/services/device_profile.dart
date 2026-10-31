@@ -34,6 +34,10 @@ class DeviceProfile {
     final m = await NativeBridge.deviceInfo();
     if (m == null) return;
     int n(Object? v, int d) => v is num ? v.toInt() : d;
-    I = DeviceProfile(sdk: n(m['sdk'], 0), lowRam: m['lowRam'] == true, memClassMb: n(m['memClassMb'], 256));
+    I = DeviceProfile(
+      sdk: n(m['sdk'], 0),
+      lowRam: m['lowRam'] == true,
+      memClassMb: n(m['memClassMb'], 256),
+    );
   }
 }

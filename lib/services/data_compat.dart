@@ -32,7 +32,8 @@ class MigrationReport {
   final bool newerData;
 
   @override
-  String toString() => 'MigrationReport(from=$from to=$to ran=$ran newer=$newerData)';
+  String toString() =>
+      'MigrationReport(from=$from to=$to ran=$ran newer=$newerData)';
 }
 
 class DataCompat {
@@ -40,21 +41,35 @@ class DataCompat {
 
   /// Settings that are stored as text (kept identical to the original web app's keys).
   static const List<String> textKeys = [
-    Store.kTopicCols, Store.kGranthCols, Store.kPramanCols, Store.kGalleryCols, Store.kUiCols,
-    Store.kPdfStyle, Store.kLook, Store.kTextSize, Store.kWifiOnly, Store.kAutoSync, Store.kKeepAwake,
-    Store.kHash, Store.kOfflineIds, Store.kDevice, Store.kNotifAsked, Store.kNotifHint,
+    Store.kTopicCols,
+    Store.kGranthCols,
+    Store.kPramanCols,
+    Store.kGalleryCols,
+    Store.kUiCols,
+    Store.kPdfStyle,
+    Store.kLook,
+    Store.kTextSize,
+    Store.kWifiOnly,
+    Store.kAutoSync,
+    Store.kKeepAwake,
+    Store.kHash,
+    Store.kOfflineIds,
+    Store.kDevice,
+    Store.kNotifAsked,
+    Store.kNotifHint,
     Store.kAnimations,
   ];
 
   /// Keys older builds wrote that nothing reads any more (round 9 removed the "सारे ग्रंथ ऑफलाइन"
   /// card). They are left in place and ignored: harmless, and an older build over this data still works.
-  static const List<String> retiredKeys = ['granth-offline-ready', 'granth-offline-card-seen'];
+  static const List<String> retiredKeys = [
+    'granth-offline-ready',
+    'granth-offline-card-seen',
+  ];
 
   /// Each step takes the layout from version `n` to `n + 1`. Idempotent: running one twice
   /// is the same as once.
-  static final List<Future<void> Function()> _steps = [
-    _v0to1,
-  ];
+  static final List<Future<void> Function()> _steps = [_v0to1];
 
   static MigrationReport? last;
 
@@ -97,7 +112,8 @@ class DataCompat {
       if (v == null || v is String) continue;
       final text = switch (v) {
         bool b => b ? '1' : '0',
-        num n => n is int ? '$n' : (n == n.truncate() ? '${n.truncate()}' : '$n'),
+        num n =>
+          n is int ? '$n' : (n == n.truncate() ? '${n.truncate()}' : '$n'),
         _ => '$v',
       };
       await Store.I.setString(k, text);

@@ -3,7 +3,14 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 
 import '../models/models.dart';
-import '../services/search.dart' show foldLatin, normalizeText, skeleton, stopWords, synonymClusters, transliterate;
+import '../services/search.dart'
+    show
+        foldLatin,
+        normalizeText,
+        skeleton,
+        stopWords,
+        synonymClusters,
+        transliterate;
 
 /// On-device retrieval for "तत्त्व AI से पूछे": BM25 over the cached catalog (823 pramans). The
 /// best candidates go to the AI Worker with the question; nothing leaves the phone before the user
@@ -44,38 +51,241 @@ String devFold(String w) {
 
 // Longest first. A stem must keep at least 2 characters.
 const List<String> _suffixes = [
-  'ताओ', 'वाला', 'वाले', 'वाली', 'ाता', 'ाती', 'ाते', 'िया', 'ियो', 'ाओ', 'ाए', 'ता', 'ती', 'ते', 'ना', 'ने', 'ो', 'े',
+  'ताओ',
+  'वाला',
+  'वाले',
+  'वाली',
+  'ाता',
+  'ाती',
+  'ाते',
+  'िया',
+  'ियो',
+  'ाओ',
+  'ाए',
+  'ता',
+  'ती',
+  'ते',
+  'ना',
+  'ने',
+  'ो',
+  'े',
 ];
 
 String devStem(String folded) {
   if (folded.length < 4) return folded;
   for (final s in _suffixes) {
-    if (folded.length - s.length >= 2 && folded.endsWith(s)) return folded.substring(0, folded.length - s.length);
+    if (folded.length - s.length >= 2 && folded.endsWith(s))
+      return folded.substring(0, folded.length - s.length);
   }
   return folded;
 }
 
 /// Hindi question words and function words that carry no topic.
 final Set<String> aiStopWords = {
-  'क्या', 'कैसे', 'क्यों', 'क्यूँ', 'कौन', 'किस', 'किसे', 'किसने', 'किसका', 'किसकी', 'किसके', 'कहाँ', 'कहां', 'कब', 'कितना', 'कितने', 'कितनी',
-  'कोई', 'कुछ', 'बताओ', 'बताइए', 'बताएं', 'बताएँ', 'बतायें', 'बारे', 'बात', 'मैं', 'मुझे', 'हम', 'हमें', 'आप', 'तुम', 'हैं', 'हूँ', 'था', 'थे', 'थी',
-  'थीं', 'होता', 'होती', 'होते', 'होना', 'जो', 'जिस', 'जिसे', 'इस', 'उस', 'इन', 'उन', 'तो', 'ही', 'नहीं', 'नही', 'अनुसार', 'द्वारा', 'लिए',
-  'लिये', 'साथ', 'वाले', 'वाला', 'वाली', 'कर', 'करना', 'करते', 'करता', 'करती', 'करें', 'करे', 'कहते', 'कहा', 'कहती', 'कहता', 'ये', 'वे', 'वो',
-  'अपने', 'अपना', 'अपनी', 'सकता', 'सकते', 'सकती', 'चाहिए', 'चाहिये', 'तक', 'ऐसा', 'ऐसे', 'कैसा', 'जी', 'ग्रंथ', 'ग्रन्थ', 'ग्रंथों', 'प्रमाण', 'प्रमाणों',
-  'में', 'मे', 'पर', 'से', 'को', 'का', 'की', 'के', 'है', 'हो', 'और', 'या', 'एक', 'भी', 'यह', 'वह', 'ने', 'कि', 'हुआ', 'हुई', 'हुए', 'गया', 'गई', 'गये',
-  'what', 'is', 'are', 'the', 'of', 'in', 'to', 'a', 'an', 'how', 'why', 'who', 'where', 'when', 'does', 'do', 'about', 'tell', 'me', 'ke', 'ka', 'ki', 'mein',
-  'kya', 'hai', 'hain', 'ko', 'se', 'par', 'aur', 'ya', 'kaise', 'kyon', 'kaun', 'batao', 'bataiye',
+  'क्या',
+  'कैसे',
+  'क्यों',
+  'क्यूँ',
+  'कौन',
+  'किस',
+  'किसे',
+  'किसने',
+  'किसका',
+  'किसकी',
+  'किसके',
+  'कहाँ',
+  'कहां',
+  'कब',
+  'कितना',
+  'कितने',
+  'कितनी',
+  'कोई',
+  'कुछ',
+  'बताओ',
+  'बताइए',
+  'बताएं',
+  'बताएँ',
+  'बतायें',
+  'बारे',
+  'बात',
+  'मैं',
+  'मुझे',
+  'हम',
+  'हमें',
+  'आप',
+  'तुम',
+  'हैं',
+  'हूँ',
+  'था',
+  'थे',
+  'थी',
+  'थीं',
+  'होता',
+  'होती',
+  'होते',
+  'होना',
+  'जो',
+  'जिस',
+  'जिसे',
+  'इस',
+  'उस',
+  'इन',
+  'उन',
+  'तो',
+  'ही',
+  'नहीं',
+  'नही',
+  'अनुसार',
+  'द्वारा',
+  'लिए',
+  'लिये',
+  'साथ',
+  'वाले',
+  'वाला',
+  'वाली',
+  'कर',
+  'करना',
+  'करते',
+  'करता',
+  'करती',
+  'करें',
+  'करे',
+  'कहते',
+  'कहा',
+  'कहती',
+  'कहता',
+  'ये',
+  'वे',
+  'वो',
+  'अपने',
+  'अपना',
+  'अपनी',
+  'सकता',
+  'सकते',
+  'सकती',
+  'चाहिए',
+  'चाहिये',
+  'तक',
+  'ऐसा',
+  'ऐसे',
+  'कैसा',
+  'जी',
+  'ग्रंथ',
+  'ग्रन्थ',
+  'ग्रंथों',
+  'प्रमाण',
+  'प्रमाणों',
+  'में',
+  'मे',
+  'पर',
+  'से',
+  'को',
+  'का',
+  'की',
+  'के',
+  'है',
+  'हो',
+  'और',
+  'या',
+  'एक',
+  'भी',
+  'यह',
+  'वह',
+  'ने',
+  'कि',
+  'हुआ',
+  'हुई',
+  'हुए',
+  'गया',
+  'गई',
+  'गये',
+  'what',
+  'is',
+  'are',
+  'the',
+  'of',
+  'in',
+  'to',
+  'a',
+  'an',
+  'how',
+  'why',
+  'who',
+  'where',
+  'when',
+  'does',
+  'do',
+  'about',
+  'tell',
+  'me',
+  'ke',
+  'ka',
+  'ki',
+  'mein',
+  'kya',
+  'hai',
+  'hain',
+  'ko',
+  'se',
+  'par',
+  'aur',
+  'ya',
+  'kaise',
+  'kyon',
+  'kaun',
+  'batao',
+  'bataiye',
 };
 
 /// Extra synonym / spelling clusters (on top of search.dart's), for the questions people ask of
 /// this catalog. Members are matched after folding, so matras / spelling variants need not be listed.
 const List<List<String>> aiClusters = [
-  ['परमात्मा', 'परमेश्वर', 'ईश्वर', 'भगवान', 'प्रभु', 'खुदा', 'अल्लाह', 'god', 'allah', 'parmatma', 'parmeshwar', 'ishwar', 'khuda', 'ईलाह', 'यहोवा'],
+  [
+    'परमात्मा',
+    'परमेश्वर',
+    'ईश्वर',
+    'भगवान',
+    'प्रभु',
+    'खुदा',
+    'अल्लाह',
+    'god',
+    'allah',
+    'parmatma',
+    'parmeshwar',
+    'ishwar',
+    'khuda',
+    'ईलाह',
+    'यहोवा',
+  ],
   ['कबीर', 'कविर्देव', 'कविर', 'कबीर साहेब', 'कबीर साहब', 'kabir', 'kabeer'],
   ['सतलोक', 'सत्यलोक', 'सतलोक', 'satlok', 'satyalok', 'सनातन परमधाम'],
-  ['श्राद्ध', 'पितर', 'पित्र', 'पितृ', 'पूर्वज', 'पुरखे', 'बापदादा', 'दादा', 'बाप', 'मृतक', 'shraddh', 'shradh', 'pitar', 'pitra'],
+  [
+    'श्राद्ध',
+    'पितर',
+    'पित्र',
+    'पितृ',
+    'पूर्वज',
+    'पुरखे',
+    'बापदादा',
+    'दादा',
+    'बाप',
+    'मृतक',
+    'shraddh',
+    'shradh',
+    'pitar',
+    'pitra',
+  ],
   ['मूर्ति', 'मूर्ती', 'मूर्तिपूजा', 'murti', 'idol'],
-  ['गीता', 'गीताजी', 'gita', 'geeta', 'bhagavadgita', 'भगवद्गीता', 'गीताज्ञान', 'गीता ज्ञान दाता'],
+  [
+    'गीता',
+    'गीताजी',
+    'gita',
+    'geeta',
+    'bhagavadgita',
+    'भगवद्गीता',
+    'गीताज्ञान',
+    'गीता ज्ञान दाता',
+  ],
   ['काल', 'ब्रह्म', 'क्षर', 'kaal', 'kal'],
   ['अवतार', 'avatar', 'autar'],
   ['साकार', 'निराकार', 'आकार', 'रूप', 'सूरत', 'शरीर', 'sakar', 'nirakar'],
@@ -86,8 +296,38 @@ const List<List<String>> aiClusters = [
   ['पाप', 'पापी', 'दोष'],
   ['नरक', 'narak', 'हेल', 'जहन्नम', 'दोजख'],
   ['स्वर्ग', 'जन्नत', 'swarg', 'jannat', 'heaven'],
-  ['शराब', 'मदिरा', 'सुरा', 'दारू', 'नशा', 'sharab', 'alcohol', 'wine', 'तम्बाकू', 'तंबाकू'],
-  ['मांस', 'माँस', 'गोश्त', 'शिकार', 'बलि', 'हिंसा', 'meat', 'mans', 'kurbani', 'क़ुर्बानी', 'कुर्बानी', 'जानवर', 'पशु', 'कुर्बान', 'हलाल', 'झटका', 'ज़बह', 'zabah'],
+  [
+    'शराब',
+    'मदिरा',
+    'सुरा',
+    'दारू',
+    'नशा',
+    'sharab',
+    'alcohol',
+    'wine',
+    'तम्बाकू',
+    'तंबाकू',
+  ],
+  [
+    'मांस',
+    'माँस',
+    'गोश्त',
+    'शिकार',
+    'बलि',
+    'हिंसा',
+    'meat',
+    'mans',
+    'kurbani',
+    'क़ुर्बानी',
+    'कुर्बानी',
+    'जानवर',
+    'पशु',
+    'कुर्बान',
+    'हलाल',
+    'झटका',
+    'ज़बह',
+    'zabah',
+  ],
   ['गाय', 'गौ', 'गऊ', 'cow', 'gaay'],
   ['विवाह', 'शादी', 'ब्याह', 'vivah', 'shadi', 'marriage'],
   ['स्त्री', 'नारी', 'औरत', 'महिला', 'पत्नी', 'stri', 'nari'],
@@ -95,10 +335,38 @@ const List<List<String>> aiClusters = [
   ['दयानन्द', 'दयानंद', 'सत्यार्थ', 'आर्यसमाज', 'dayanand', 'satyarth'],
   ['रामपाल', 'rampal', 'संत रामपाल'],
   ['सृष्टि', 'उत्पत्ति', 'रचना', 'srishti', 'creation'],
-  ['मुहम्मद', 'मोहम्मद', 'पैगंबर', 'पैगम्बर', 'रसूल', 'muhammad', 'mohammad', 'mohammed'],
+  [
+    'मुहम्मद',
+    'मोहम्मद',
+    'पैगंबर',
+    'पैगम्बर',
+    'रसूल',
+    'muhammad',
+    'mohammad',
+    'mohammed',
+  ],
   ['कुरआन', 'क़ुरान', 'कुरान', 'क़ुरआन', 'quran', 'koran', 'kuran', 'qur\'an'],
-  ['बाइबल', 'बाईबल', 'bible', 'बाइबिल', 'यीशु', 'ईसा', 'jesus', 'isa', 'masih', 'मसीह'],
-  ['गुरु ग्रंथ साहिब', 'ग्रंथ साहिब', 'नानक', 'गुरु नानक', 'nanak', 'sikh', 'सिख'],
+  [
+    'बाइबल',
+    'बाईबल',
+    'bible',
+    'बाइबिल',
+    'यीशु',
+    'ईसा',
+    'jesus',
+    'isa',
+    'masih',
+    'मसीह',
+  ],
+  [
+    'गुरु ग्रंथ साहिब',
+    'ग्रंथ साहिब',
+    'नानक',
+    'गुरु नानक',
+    'nanak',
+    'sikh',
+    'सिख',
+  ],
   ['वेद', 'ऋग्वेद', 'यजुर्वेद', 'सामवेद', 'अथर्ववेद', 'veda'],
   ['पूजा', 'साधना', 'उपासना', 'भक्ति', 'puja', 'sadhna', 'pooja'],
   ['योग', 'योगी', 'yoga', 'yog'],
@@ -210,7 +478,9 @@ RetrievalIndex buildIndex(List<RawDoc> docs) {
     dl.add(len);
     tf.forEach((t, v) => (post[t] ??= <double>[]).addAll([d.toDouble(), v]));
   }
-  final avg = dl.isEmpty ? 1.0 : math.max(1.0, dl.reduce((a, b) => a + b) / dl.length);
+  final avg = dl.isEmpty
+      ? 1.0
+      : math.max(1.0, dl.reduce((a, b) => a + b) / dl.length);
   final roman = <String, List<String>>{};
   for (final v in vocab) {
     final key = skeleton(foldLatin(transliterate(v)));
@@ -233,7 +503,11 @@ class Hit {
 const double _k1 = 1.2, _b = 0.75;
 
 /// Weighted query terms (term → weight) for [question]; [context] (the previous question) adds weak terms.
-Map<String, double> queryTerms(RetrievalIndex ix, String question, {String? context}) {
+Map<String, double> queryTerms(
+  RetrievalIndex ix,
+  String question, {
+  String? context,
+}) {
   final q = <String, double>{};
   void add(String t, double w) {
     if ((q[t] ?? 0) < w) q[t] = w;
@@ -282,12 +556,18 @@ Map<String, double> queryTerms(RetrievalIndex ix, String question, {String? cont
   }
 
   feed(question, 1.0);
-  if (context != null && context.trim().isNotEmpty && q.length < 6) feed(context, 0.5);
+  if (context != null && context.trim().isNotEmpty && q.length < 6)
+    feed(context, 0.5);
   return q;
 }
 
 /// Top [k] pramans for [question] by BM25.
-List<Hit> searchIndex(RetrievalIndex ix, String question, {int k = 12, String? context}) {
+List<Hit> searchIndex(
+  RetrievalIndex ix,
+  String question, {
+  int k = 12,
+  String? context,
+}) {
   if (ix.length == 0) return const [];
   final q = queryTerms(ix, question, context: context);
   if (q.isEmpty) return const [];
@@ -301,7 +581,8 @@ List<Hit> searchIndex(RetrievalIndex ix, String question, {int k = 12, String? c
     for (var i = 0; i < p.length; i += 2) {
       final d = p[i].toInt();
       final tf = p[i + 1];
-      final norm = tf * (_k1 + 1) / (tf + _k1 * (1 - _b + _b * ix.dl[d] / ix.avgdl));
+      final norm =
+          tf * (_k1 + 1) / (tf + _k1 * (1 - _b + _b * ix.dl[d] / ix.avgdl));
       score[d] = (score[d] ?? 0) + qw * idf * norm;
     }
   });
@@ -317,13 +598,23 @@ List<Hit> searchIndex(RetrievalIndex ix, String question, {int k = 12, String? c
 
 /// The excerpt the Worker gets for a praman.
 class Candidate {
-  const Candidate({required this.id, required this.title, required this.text, required this.granth});
+  const Candidate({
+    required this.id,
+    required this.title,
+    required this.text,
+    required this.granth,
+  });
   final int id;
   final String title;
   final String text;
   final String granth;
 
-  Map<String, Object> toJson() => {'id': id, 'title': title, 'text': text, 'granth': granth};
+  Map<String, Object> toJson() => {
+    'id': id,
+    'title': title,
+    'text': text,
+    'granth': granth,
+  };
 }
 
 String _clip(String s, int max) {
@@ -335,7 +626,10 @@ String _clip(String s, int max) {
 Candidate candidateOf(Praman p) {
   // The topic title is the claim the praman proves; the description explains it; for a picture-only
   // praman that is all there is.
-  final text = [p.topicTitle, p.description].where((e) => e.trim().isNotEmpty).join(' — ');
+  final text = [
+    p.topicTitle,
+    p.description,
+  ].where((e) => e.trim().isNotEmpty).join(' — ');
   return Candidate(
     id: int.tryParse(p.id) ?? -1,
     title: _clip(p.title, 160),
@@ -345,8 +639,9 @@ Candidate candidateOf(Praman p) {
 }
 
 List<RawDoc> rawDocsOf(List<Praman> pramans) => [
-      for (final p in pramans) [p.id, p.topicTitle, p.description, p.title, p.granthTitle, p.granthAuthor],
-    ];
+  for (final p in pramans)
+    [p.id, p.topicTitle, p.description, p.title, p.granthTitle, p.granthAuthor],
+];
 
 class Retriever {
   Retriever._();
@@ -373,7 +668,9 @@ class Retriever {
     _version = version;
     _byId
       ..clear()
-      ..addEntries([for (final p in pramans) MapEntry(int.tryParse(p.id) ?? -1, p)]);
+      ..addEntries([
+        for (final p in pramans) MapEntry(int.tryParse(p.id) ?? -1, p),
+      ]);
     final docs = rawDocsOf(pramans);
     final f = compute(buildIndexFromMaps, docs).then((ix) {
       if (_version == version) _ix = ix;
@@ -387,7 +684,13 @@ class Retriever {
   }
 
   /// Up to [k] candidates for [question] ([history] only adds context for very short follow-ups).
-  Future<List<Candidate>> candidates(List<Praman> pramans, int version, String question, {String? context, int k = 12}) async {
+  Future<List<Candidate>> candidates(
+    List<Praman> pramans,
+    int version,
+    String question, {
+    String? context,
+    int k = 12,
+  }) async {
     final ix = await ensure(pramans, version);
     final hits = searchIndex(ix, question, k: k, context: context);
     return [

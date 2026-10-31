@@ -12,11 +12,15 @@ import 'chat_store.dart';
 import 'retriever.dart';
 
 class ChatController extends ChangeNotifier {
-  ChatController({AiClient? client, ChatStore? store, List<Praman> Function()? pramans, int Function()? version})
-      : _client = client,
-        _store = store,
-        _pramans = pramans,
-        _version = version;
+  ChatController({
+    AiClient? client,
+    ChatStore? store,
+    List<Praman> Function()? pramans,
+    int Function()? version,
+  }) : _client = client,
+       _store = store,
+       _pramans = pramans,
+       _version = version;
 
   static ChatController I = ChatController();
 
@@ -51,7 +55,8 @@ class ChatController extends ChangeNotifier {
 
   Future<void> _load() async {
     chats = await store.list();
-    if (current == null && chats.isNotEmpty) current = await store.load(chats.first.id);
+    if (current == null && chats.isNotEmpty)
+      current = await store.load(chats.first.id);
     loaded = true;
     notifyListeners();
     // Build the retrieval index in the background so the first question is quick.
@@ -100,11 +105,23 @@ class ChatController extends ChangeNotifier {
     final q = raw.trim();
     if (q.isEmpty || sending) return false;
     final now = DateTime.now().millisecondsSinceEpoch;
-    final c = current ??= Conversation(id: newChatId(), title: titleFor(q), created: now, updated: now);
-    c.messages.add(ChatMsg(role: 'user', text: q.length > kQuestionMax ? q.substring(0, kQuestionMax) : q, at: now));
+    final c = current ??= Conversation(
+      id: newChatId(),
+      title: titleFor(q),
+      created: now,
+      updated: now,
+    );
+    c.messages.add(
+      ChatMsg(
+        role: 'user',
+        text: q.length > kQuestionMax ? q.substring(0, kQuestionMax) : q,
+        at: now,
+      ),
+    );
     c.updated = now;
     error = null;
-    sending = true; // locks the composer at once (the save below is asynchronous)
+    sending =
+        true; // locks the composer at once (the save below is asynchronous)
     tick++;
     notifyListeners();
     Analytics.I.aiAsked();
@@ -131,16 +148,33 @@ class ChatController extends ChangeNotifier {
     final history = [for (final m in earlier) AiTurn(m.role, m.text)];
     try {
       final ps = pramans;
-      final context = earlier.where((m) => m.isUser).isEmpty ? null : earlier.lastWhere((m) => m.isUser).text;
-      final cands = await Retriever.I.candidates(ps, version, question, context: context);
+      final context = earlier.where((m) => m.isUser).isEmpty
+          ? null
+          : earlier.lastWhere((m) => m.isUser).text;
+      final cands = await Retriever.I.candidates(
+        ps,
+        version,
+        question,
+        context: context,
+      );
       final a = await client.ask(question, history, cands);
-      if (run != _run) return; // the user switched chat meanwhile: this answer is dropped
+      if (run != _run)
+        return; // the user switched chat meanwhile: this answer is dropped
       final known = <int>[
         for (final id in a.cited)
           if (Retriever.I.praman(id) != null) id,
       ];
       final now = DateTime.now().millisecondsSinceEpoch;
-      c.messages.add(ChatMsg(role: 'assistant', text: a.answer.length > kMaxMessageChars ? a.answer.substring(0, kMaxMessageChars) : a.answer, cited: known, at: now));
+      c.messages.add(
+        ChatMsg(
+          role: 'assistant',
+          text: a.answer.length > kMaxMessageChars
+              ? a.answer.substring(0, kMaxMessageChars)
+              : a.answer,
+          cited: known,
+          at: now,
+        ),
+      );
       c.updated = now;
       sending = false;
       tick++;
@@ -154,7 +188,10 @@ class ChatController extends ChangeNotifier {
       notifyListeners();
     } catch (_) {
       if (run != _run) return;
-      error = const AiException(AiFailure.unavailable, 'कुछ गड़बड़ हो गई। कृपया फिर कोशिश करें।');
+      error = const AiException(
+        AiFailure.unavailable,
+        'कुछ गड़बड़ हो गई। कृपया फिर कोशिश करें।',
+      );
       sending = false;
       notifyListeners();
     }

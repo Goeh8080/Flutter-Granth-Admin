@@ -11,19 +11,26 @@ class BoundedScrollPhysics extends ClampingScrollPhysics {
   const BoundedScrollPhysics({super.parent});
 
   @override
-  BoundedScrollPhysics applyTo(ScrollPhysics? ancestor) => BoundedScrollPhysics(parent: buildParent(ancestor));
+  BoundedScrollPhysics applyTo(ScrollPhysics? ancestor) =>
+      BoundedScrollPhysics(parent: buildParent(ancestor));
 
   @override
   double get maxFlingVelocity => kMaxFling;
 
   @override
-  Simulation? createBallisticSimulation(ScrollMetrics position, double velocity) =>
-      super.createBallisticSimulation(position, velocity.clamp(-kMaxFling, kMaxFling));
+  Simulation? createBallisticSimulation(
+    ScrollMetrics position,
+    double velocity,
+  ) => super.createBallisticSimulation(
+    position,
+    velocity.clamp(-kMaxFling, kMaxFling),
+  );
 }
 
 /// Gives every scrollable below it [BoundedScrollPhysics] (Android look: clamped, no glow change).
 class BoundedScrollBehavior extends MaterialScrollBehavior {
   const BoundedScrollBehavior();
   @override
-  ScrollPhysics getScrollPhysics(BuildContext context) => const BoundedScrollPhysics();
+  ScrollPhysics getScrollPhysics(BuildContext context) =>
+      const BoundedScrollPhysics();
 }

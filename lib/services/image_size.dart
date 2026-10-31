@@ -55,18 +55,27 @@ class ImageSizes {
 /// measured after decoding instead).
 double? ratioOfHeader(Uint8List b) {
   int u16(int i) => (b[i] << 8) | b[i + 1];
-  int u32(int i) => (b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | b[i + 3];
+  int u32(int i) =>
+      (b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | b[i + 3];
   int le16(int i) => b[i] | (b[i + 1] << 8);
   int le24(int i) => b[i] | (b[i + 1] << 8) | (b[i + 2] << 16);
   double? of(int w, int h) => w > 0 && h > 0 ? w / h : null;
   final n = b.length;
   if (n < 24) return null;
   // PNG
-  if (b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4E && b[3] == 0x47) return of(u32(16), u32(20));
+  if (b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4E && b[3] == 0x47)
+    return of(u32(16), u32(20));
   // GIF
   if (b[0] == 0x47 && b[1] == 0x49 && b[2] == 0x46) return of(le16(6), le16(8));
   // WebP
-  if (b[0] == 0x52 && b[1] == 0x49 && b[2] == 0x46 && b[3] == 0x46 && b[8] == 0x57 && b[9] == 0x45 && b[10] == 0x42 && b[11] == 0x50) {
+  if (b[0] == 0x52 &&
+      b[1] == 0x49 &&
+      b[2] == 0x46 &&
+      b[3] == 0x46 &&
+      b[8] == 0x57 &&
+      b[9] == 0x45 &&
+      b[10] == 0x42 &&
+      b[11] == 0x50) {
     if (n < 30) return null;
     final t = String.fromCharCodes(b.sublist(12, 16));
     if (t == 'VP8 ' && n >= 30) return of(le16(26) & 0x3FFF, le16(28) & 0x3FFF);
@@ -93,7 +102,12 @@ double? ratioOfHeader(Uint8List b) {
       if (i + 2 > n) return null;
       final len = u16(i);
       if (len < 2) return null;
-      if (m == 0xE1 && i + 2 + 14 <= n && b[i + 2] == 0x45 && b[i + 3] == 0x78 && b[i + 4] == 0x69 && b[i + 5] == 0x66) {
+      if (m == 0xE1 &&
+          i + 2 + 14 <= n &&
+          b[i + 2] == 0x45 &&
+          b[i + 3] == 0x78 &&
+          b[i + 4] == 0x69 &&
+          b[i + 5] == 0x66) {
         orientation = _exifOrientation(b, i + 8, (i + len).clamp(0, n));
       }
       final sof = m >= 0xC0 && m <= 0xCF && m != 0xC4 && m != 0xC8 && m != 0xCC;
@@ -113,7 +127,9 @@ int _exifOrientation(Uint8List b, int t, int end) {
   if (t + 8 > end) return 1;
   final le = b[t] == 0x49;
   int r16(int i) => le ? b[i] | (b[i + 1] << 8) : (b[i] << 8) | b[i + 1];
-  int r32(int i) => le ? b[i] | (b[i + 1] << 8) | (b[i + 2] << 16) | (b[i + 3] << 24) : (b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | b[i + 3];
+  int r32(int i) => le
+      ? b[i] | (b[i + 1] << 8) | (b[i + 2] << 16) | (b[i + 3] << 24)
+      : (b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | b[i + 3];
   final ifd = t + r32(t + 4);
   if (ifd + 2 > end) return 1;
   final cnt = r16(ifd);
