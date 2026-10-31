@@ -615,8 +615,22 @@ class PanelSettings {
 
   /// CONTRACT §4.1: `ui.grid` of the draft (1|2|3) or null = not set (the app defaults to 3).
   final int? uiGrid;
+
+  /// CONTRACT §4.1.1: `ui.grid_pages` per-page override (page -> 1|2|3). A missing page uses `ui.grid`.
+  final Map<String, int> uiGridPages;
+
+  /// The six pages of `ui.grid_pages`, in display order.
+  static const gridPages = [
+    'granths',
+    'shelves',
+    'pramans',
+    'topics',
+    'gallery',
+    'dashboard',
+  ];
   const PanelSettings({
     this.uiGrid,
+    this.uiGridPages = const {},
     required this.aiEnabled,
     required this.analyticsEnabled,
     required this.analyticsSample,
@@ -649,6 +663,16 @@ class PanelSettings {
         final g = pMap(j['ui'])['grid'];
         final n = g is num ? g.toInt() : int.tryParse('$g');
         return n != null && n >= 1 && n <= 3 ? n : null;
+      })(),
+      uiGridPages: (() {
+        final gp = pMap(pMap(j['ui'])['grid_pages']);
+        final out = <String, int>{};
+        for (final k in gridPages) {
+          final g = gp[k];
+          final n = g is num ? g.toInt() : int.tryParse('$g');
+          if (n != null && n >= 1 && n <= 3) out[k] = n;
+        }
+        return out;
       })(),
     );
   }

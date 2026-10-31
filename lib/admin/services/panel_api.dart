@@ -590,6 +590,8 @@ class PanelApi {
     // [clearUiGrid] sends `ui:{grid:null}` (the app then uses its default of 3).
     int? uiGrid,
     bool clearUiGrid = false,
+    // CONTRACT §4.1.1: per-page override; a null value = back to `ui.grid`.
+    Map<String, int?>? uiGridPages,
   }) async {
     final flags = <String, Object?>{
       'ai_enabled': ?aiEnabled,
@@ -600,10 +602,11 @@ class PanelApi {
       if (flags.isNotEmpty) 'flags': flags,
       'announcement': ?announcement,
       'ai_endpoint': ?aiEndpoint,
-      if (uiGrid != null)
-        'ui': {'grid': uiGrid}
-      else if (clearUiGrid)
-        'ui': {'grid': null},
+      if (uiGrid != null || clearUiGrid || uiGridPages != null)
+        'ui': {
+          if (uiGrid != null) 'grid': uiGrid else if (clearUiGrid) 'grid': null,
+          'grid_pages': ?uiGridPages,
+        },
     };
     if (b.isEmpty) return;
     await _put('/settings', b);

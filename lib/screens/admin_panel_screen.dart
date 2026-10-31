@@ -18,6 +18,7 @@ import '../admin_ui/admin_kit.dart';
 import '../admin_ui/admin_widgets.dart';
 import '../admin_ui/ai_admin_screens.dart';
 import '../admin_ui/announcement_editor.dart';
+import '../admin_ui/grid_pages_card.dart';
 import '../config.dart';
 import '../theme/colors.dart';
 import '../widgets/common.dart';
@@ -144,6 +145,20 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
           const SizedBox(height: 10),
           Entry(index: 5, child: _gridCard(grid)),
           const SizedBox(height: 10),
+          Entry(
+            index: 5,
+            child: GridPagesCard(
+              grid: grid,
+              pages: d.settings?.uiGridPages ?? const {},
+              onSet: (page, n) => runWrite(
+                () => _d.saveSettings(uiGridPages: {page: n}),
+                success: n == null
+                    ? '$page: डिफ़ॉल्ट = ui.grid (ड्राफ्ट)'
+                    : '$page: $n×$n (ड्राफ्ट) — प्रकाशित करें',
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           Entry(index: 6, child: _announcementCard()),
           const AdminLabel('ग्रंथ और फ़ोल्डर'),
           Entry(
@@ -238,7 +253,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
         const SizedBox(height: 6),
         Center(
           child: Text(
-            'ग्रंथ एडमिन · Round 4 · संस्करण $_version${me == null ? '' : ' · लाइव कॉन्फ़िग v${me.version}'}',
+            'ग्रंथ एडमिन · Round 5 · संस्करण $_version${me == null ? '' : ' · लाइव कॉन्फ़िग v${me.version}'}',
             key: const ValueKey('version-line'),
             textAlign: TextAlign.center,
             style: GText.sans(size: 12.5, color: GColors.muted),

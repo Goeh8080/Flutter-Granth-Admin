@@ -270,8 +270,10 @@ class AdminData extends ChangeNotifier {
     Map<String, Object?>? announcement,
     int? uiGrid,
     bool clearUiGrid = false,
+    Map<String, int?>? uiGridPages,
   }) async {
     await app.panel.api.putSettings(
+      uiGridPages: uiGridPages,
       aiEnabled: aiEnabled,
       announcement: announcement,
       uiGrid: uiGrid,
