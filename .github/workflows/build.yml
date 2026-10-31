@@ -1,6 +1,6 @@
 name: Build APK
 
-run-name: Round 2
+run-name: Round 3
 
 on:
   push:
@@ -54,7 +54,7 @@ jobs:
       - name: Upload universal APK
         uses: actions/upload-artifact@v4
         with:
-          name: Round-2-universal
+          name: Round-3-universal
           path: build/app/outputs/flutter-apk/app-release.apk
 
       - name: Build arm64-v8a release APK
@@ -73,20 +73,20 @@ jobs:
       - name: Upload arm64-v8a APK
         uses: actions/upload-artifact@v4
         with:
-          name: Round-2-arm64
+          name: Round-3-arm64
           path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
 
-      - name: Publish "Round 2" prerelease
+      - name: Publish "Round 3" prerelease
         if: github.event_name == 'push'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "round-2-run${{ github.run_number }}" \
+          gh release create "round-3-run${{ github.run_number }}" \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
             --prerelease \
-            --title "Round 2" \
-            --notes "Round 2 build of ${{ github.sha }} (run ${{ github.run_id }})." \
+            --title "Round 3" \
+            --notes "Round 3 build of ${{ github.sha }} (run ${{ github.run_id }})." \
             build/app/outputs/flutter-apk/app-release.apk \
             build/app/outputs/flutter-apk/app-arm64-v8a-release.apk

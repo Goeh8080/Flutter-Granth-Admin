@@ -15,6 +15,7 @@ import '../admin/screens/panel/panel_widgets.dart'
     show confirmLogout, pushPanel;
 import '../admin/widgets/form_sheet.dart' show runWrite;
 import '../admin_ui/admin_data.dart';
+import '../admin_ui/round3_screens.dart';
 import '../admin_ui/admin_kit.dart';
 import '../admin_ui/admin_widgets.dart';
 import '../admin_ui/ai_admin_screens.dart';
@@ -138,6 +139,8 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
               onTap: () => _open(const AiKnowledgeScreen()),
             ),
           ),
+          const AdminLabel('सपोर्ट और हाइलाइट'),
+          const Round3Entries(),
           const AdminLabel('पाठकों के लिए सेटिंग'),
           Entry(index: 4, child: const AiToggleCard()),
           const SizedBox(height: 10),
@@ -237,7 +240,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
         const SizedBox(height: 6),
         Center(
           child: Text(
-            'ग्रंथ एडमिन · Round 2 · संस्करण $_version${me == null ? '' : ' · लाइव कॉन्फ़िग v${me.version}'}',
+            'ग्रंथ एडमिन · Round 3 · संस्करण $_version${me == null ? '' : ' · लाइव कॉन्फ़िग v${me.version}'}',
             key: const ValueKey('version-line'),
             textAlign: TextAlign.center,
             style: GText.sans(size: 12.5, color: GColors.muted),

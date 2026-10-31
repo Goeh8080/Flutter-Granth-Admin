@@ -671,6 +671,15 @@ class PanelApi {
       }))['item'],
     ),
   );
+  /// Round 3 (server CONTRACT §5): support tickets, AI flags, highlights, named events.
+  /// Raw JSON on purpose: these screens read the maps directly.
+  Future<Map<String, dynamic>> raw(
+    String method,
+    String path, {
+    Map<String, String>? query,
+    Object? body,
+  }) => _call(method, path, query: query, body: body);
+
   Future<AiSummary> aiSummary() async =>
       AiSummary.fromJson(await _get('/ai/summary'));
   Future<void> aiQuestionMark(

@@ -12,6 +12,7 @@ import 'admin_actions.dart' show AdminPill, SortChips;
 import 'admin_data.dart';
 import 'admin_kit.dart';
 import 'admin_widgets.dart';
+import 'round3_screens.dart';
 
 PanelApi get _api => AdminData.I.app.panel.api;
 
@@ -151,6 +152,8 @@ class _AiSettingsEntriesState extends State<AiSettingsEntries> {
             _load();
           },
         ),
+        const AdminLabel('सपोर्ट और हाइलाइट'),
+        const Round3Entries(),
       ],
     );
   }
