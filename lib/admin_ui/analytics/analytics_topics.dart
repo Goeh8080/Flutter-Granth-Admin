@@ -26,7 +26,7 @@ class AnalyticsTopicsScreen extends StatelessWidget {
                   ),
                   AnStat(
                     'प्रति दिन औसत',
-                    '${(opens / d.days).toStringAsFixed(1)}',
+                    (opens / d.days).toStringAsFixed(1),
                     GColors.brown,
                   ),
                 ]),
