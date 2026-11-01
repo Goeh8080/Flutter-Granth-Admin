@@ -38,7 +38,7 @@ class AnalyticsTopicsScreen extends StatelessWidget {
               AnTopBlock(
                 d: d,
                 kind: 'topics',
-                title: 'टॉप 5 विषय',
+                title: 'विषय — नाम सहित (टॉप 5 + पूरी सूची)',
                 color: GColors.saffronDark,
               ),
             ];

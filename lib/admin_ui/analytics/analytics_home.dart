@@ -10,6 +10,7 @@ import '../admin_kit.dart';
 import '../round3_screens.dart' show EventsScreen;
 import 'analytics_ai.dart';
 import 'analytics_granth.dart';
+import 'analytics_folders.dart';
 import 'analytics_kit.dart';
 import 'analytics_pdf.dart';
 import 'analytics_praman.dart';
@@ -190,6 +191,13 @@ class _AnalyticsHomeScreenState extends State<AnalyticsHomeScreen> {
               'ग्रंथ',
               'ग्रंथ/फ़ोल्डर खुले, पढ़ने का समय · टॉप 5',
               const AnalyticsGranthScreen(),
+            ),
+            _section(
+              'folders',
+              'folder',
+              'फ़ोल्डर',
+              'कौन-से फ़ोल्डर खुले — नाम व गिनती · पूरी सूची',
+              const AnalyticsFoldersScreen(),
             ),
             _section(
               'praman',

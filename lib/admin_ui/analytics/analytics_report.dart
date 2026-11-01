@@ -30,6 +30,7 @@ class _AnalyticsReportScreenState extends State<AnalyticsReportScreen> {
   int _days = 30;
   AnData? _d;
   Map<String, Map<String, dynamic>> _tops = {};
+  List<Map<String, dynamic>> _folders = const [];
   bool _busy = true;
 
   @override
@@ -42,10 +43,12 @@ class _AnalyticsReportScreenState extends State<AnalyticsReportScreen> {
     setState(() => _busy = true);
     final d = await AnData.load(_days);
     final t = await Future.wait([for (final k in _kinds) d.top(k.$1)]);
+    final f = await anGet('/stats/folders', query: {'days': '$_days'});
     if (!mounted) return;
     setState(() {
       _d = d;
       _tops = {for (var i = 0; i < _kinds.length; i++) _kinds[i].$1: t[i]};
+      _folders = anL(f['items']);
       _busy = false;
     });
   }
@@ -149,7 +152,7 @@ class _AnalyticsReportScreenState extends State<AnalyticsReportScreen> {
   Widget _list(String title, List<(String, num)> items) => anCard([
     anTitle(title),
     if (items.isEmpty) anNote('डेटा नहीं'),
-    for (var i = 0; i < items.length && i < 20; i++)
+    for (var i = 0; i < items.length && i < 200; i++)
       Padding(
         padding: const EdgeInsets.only(bottom: 3),
         child: Row(
@@ -255,8 +258,11 @@ class _AnalyticsReportScreenState extends State<AnalyticsReportScreen> {
                 for (final k in _kinds)
                   _list(
                     'टॉप — ${k.$2} (GA)',
-                    anTopItems(_tops[k.$1] ?? const {}),
+                    anTopItems(_tops[k.$1] ?? const {}, names: anNames(k.$1)),
                   ),
+                _list('फ़ोल्डर — खुले, नाम सहित (D1, पूरी सूची)', [
+                  for (final x in _folders) (anS(x['label']), anI(x['opens'])),
+                ]),
                 _list('टॉप ग्रंथ — पढ़ने का समय मिनट (D1)', [
                   for (final x in anL(d.d1['top_granths_watch']))
                     (anS(x['title']), anI(x['watch_s']) ~/ 60),

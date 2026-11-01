@@ -43,7 +43,8 @@ class AnData {
   Map<String, dynamic> get today => anM(live['today']);
   Map<String, dynamic> get d1T => anM(d1['totals']);
   Map<String, dynamic> get d1Ev => anM(anM(d1['events'])['totals']);
-  List<Map<String, dynamic>> get byDay => anL(ga['by_day']);
+  List<Map<String, dynamic>> get byDay =>
+      anFillDays(anL(ga['by_day']), days, ga['start_date'], ga['reset_at']);
   List<String> get errors => [
     if (ga['_error'] != null) 'GA: ${ga['_error']}',
     if (d1['_error'] != null) 'D1: ${d1['_error']}',
@@ -66,6 +67,69 @@ class AnData {
 
   Future<Map<String, dynamic>> top(String kind) =>
       anGet('/ga/top', query: {'kind': kind, 'days': '$days'});
+}
+
+/// Today as `YYYY-MM-DD` in IST (the GA property's day).
+String anIstToday([DateTime? now]) => (now ?? DateTime.now())
+    .toUtc()
+    .add(const Duration(hours: 5, minutes: 30))
+    .toIso8601String()
+    .substring(0, 10);
+
+/// GA leaves out days without any event, so a chart of only the returned rows squeezes the
+/// timeline and shows wrong first/last dates. Rebuild one row per day from the range start
+/// (the later of `days` ago and the analytics reset day) to today; missing days are zeros.
+List<Map<String, dynamic>> anFillDays(
+  List<Map<String, dynamic>> rows,
+  int days,
+  Object? startDate,
+  Object? resetAt, {
+  DateTime? now,
+}) {
+  final today = DateTime.parse('${anIstToday(now)}T00:00:00Z');
+  var start = DateTime.utc(today.year, today.month, today.day - (days - 1));
+  final sd = anS(startDate);
+  if (RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(sd)) {
+    final d = DateTime.parse('${sd}T00:00:00Z');
+    if (d.isAfter(start)) start = d;
+  } else {
+    final r = DateTime.tryParse(anS(resetAt));
+    if (r != null) {
+      final rd = DateTime.parse('${anIstToday(r)}T00:00:00Z');
+      if (rd.isAfter(start)) start = rd;
+    }
+  }
+  if (start.isAfter(today)) start = today;
+  final byDay = {for (final r in rows) anS(r['day']): r};
+  return [
+    for (
+      var d = start;
+      !d.isAfter(today);
+      d = DateTime.utc(d.year, d.month, d.day + 1)
+    )
+      byDay[d.toIso8601String().substring(0, 10)] ??
+          {'day': d.toIso8601String().substring(0, 10)},
+  ];
+}
+
+/// id → real name for GA top lists, from the content the admin app already loaded.
+Map<String, String> anNames(String kind) {
+  final a = AdminData.I;
+  return switch (kind) {
+    'praman' => {
+      for (final p in a.pramans)
+        p.id: p.title.isNotEmpty ? p.title : 'प्रमाण #${p.id}',
+    },
+    'topics' => {
+      for (final t in a.topics)
+        t.id: t.title.isNotEmpty ? t.title : 'विषय #${t.id}',
+    },
+    'granths' || 'downloads' || 'pdf_generate' => {
+      for (final g in a.granths)
+        g.id: g.title.isNotEmpty ? g.title : 'ग्रंथ #${g.id}',
+    },
+    _ => const {},
+  };
 }
 
 String anDur(Object? s) {
@@ -206,7 +270,12 @@ Widget anDayBars(
       maxY = math.max(maxY, v(r, s.$1));
     }
   }
-  final top = maxY <= 0 ? 1.0 : maxY;
+  if (maxY <= 0) {
+    return anNote(
+      'इस अवधि में अभी कोई डेटा नहीं (${anS(rows.first['day'])} से; GA रिपोर्ट में 24-48 घंटे लगते हैं)',
+    );
+  }
+  final top = maxY;
   final n = rows.length;
   final rodW = math.max(1.5, math.min(14.0, 220 / (n * series.length)));
   String day(int i) {
@@ -277,7 +346,9 @@ Widget anDayBars(
                   reservedSize: 18,
                   getTitlesWidget: (x, m) {
                     final i = x.toInt();
-                    if (i != 0 && i != n - 1) return const SizedBox.shrink();
+                    if (i != 0 && i != n - 1 && (n < 9 || i != n ~/ 2)) {
+                      return const SizedBox.shrink();
+                    }
                     return Text(
                       day(i),
                       style: GText.sans(size: 10, color: GColors.muted),
@@ -414,10 +485,24 @@ Widget anTop5(
 }
 
 /// GA `/ga/top` answer → (label, n) list.
-List<(String, num)> anTopItems(Map<String, dynamic> t) => [
-  for (final x in anL(t['items']))
-    (anS(x['label']).isEmpty ? anS(x['id']) : anS(x['label']), anI(x['n'])),
-];
+/// Server labels win unless they are just the raw id; then [names] (local content) is used.
+List<(String, num)> anTopItems(
+  Map<String, dynamic> t, {
+  Map<String, String> names = const {},
+}) {
+  final out = <(String, num)>[];
+  for (final x in anL(t['items'])) {
+    final id = anS(x['id']), label = anS(x['label']);
+    final raw = label.isEmpty || label == id || label == '#$id';
+    final name = id == '(not set)' || id.isEmpty
+        ? 'अज्ञात (id नहीं भेजी गई)'
+        : raw
+        ? (names[id] ?? (label.isEmpty ? id : label))
+        : label;
+    out.add((name, anI(x['n'])));
+  }
+  return anMerge(out, const []);
+}
 
 /// Merge two ranked lists (GA + D1) by label taking the larger count per label.
 List<(String, num)> anMerge(List<(String, num)> a, List<(String, num)> b) {
@@ -532,11 +617,15 @@ class AnTopBlock extends StatelessWidget {
     required this.title,
     this.d1 = const [],
     this.color = GColors.maroon,
+    this.names,
   });
   final AnData d;
   final String kind, title;
   final List<(String, num)> d1;
   final Color color;
+
+  /// id → name; defaults to [anNames] for [kind].
+  final Map<String, String>? names;
   @override
   Widget build(BuildContext context) => FutureBuilder<Map<String, dynamic>>(
     future: d.top(kind),
@@ -547,7 +636,16 @@ class AnTopBlock extends StatelessWidget {
         if (!s.hasData)
           const LinearProgressIndicator(minHeight: 2, color: GColors.saffron)
         else ...[
-          anTop5(anMerge(anTopItems(t), d1), color: color),
+          ...() {
+            final all = anMerge(
+              anTopItems(t, names: names ?? anNames(kind)),
+              d1,
+            ).where((e) => e.$2 > 0).toList();
+            return [
+              anTop5(all, color: color),
+              if (all.isNotEmpty) anFullList(all, color: color),
+            ];
+          }(),
           if (t['dims_missing'] == true)
             anNote(
               'GA में custom dimension "${anS(t['param'])}" रजिस्टर नहीं है।',
@@ -557,3 +655,50 @@ class AnTopBlock extends StatelessWidget {
     },
   );
 }
+
+/// "पूरी सूची": every opened item by name with its count, highest first (collapsed by default).
+Widget anFullList(List<(String, num)> items, {Color color = GColors.maroon}) =>
+    Theme(
+      data: ThemeData(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: EdgeInsets.zero,
+        title: Text(
+          'पूरी सूची (${items.length})',
+          style: GText.sans(size: 13, weight: FontWeight.w700, color: color),
+        ),
+        children: [
+          for (var i = 0; i < items.length; i++)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 30,
+                    child: Text(
+                      '${i + 1}.',
+                      style: GText.sans(size: 12.5, color: GColors.muted),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      items[i].$1,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GText.sans(size: 12.5),
+                    ),
+                  ),
+                  Text(
+                    anNum(items[i].$2),
+                    style: GText.sans(
+                      size: 12.5,
+                      weight: FontWeight.w800,
+                      color: color,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );

@@ -43,7 +43,11 @@ class AnalyticsPramaanScreen extends StatelessWidget {
                   ('cite_tap', 'AI टैप', GColors.gold),
                 ]),
               ]),
-              AnTopBlock(d: d, kind: 'praman', title: 'टॉप 5 प्रमाण'),
+              AnTopBlock(
+                d: d,
+                kind: 'praman',
+                title: 'प्रमाण — नाम सहित (टॉप 5 + पूरी सूची)',
+              ),
             ];
           },
         ),

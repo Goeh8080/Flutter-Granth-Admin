@@ -53,7 +53,7 @@ class AnalyticsGranthScreen extends StatelessWidget {
               AnTopBlock(
                 d: d,
                 kind: 'granths',
-                title: 'टॉप 5 ग्रंथ (खुले)',
+                title: 'ग्रंथ — नाम सहित (टॉप 5 + पूरी सूची)',
                 d1: [
                   for (final x in anL(d.d1['top_granths_opens']))
                     (anS(x['title']), anI(x['opens'])),
