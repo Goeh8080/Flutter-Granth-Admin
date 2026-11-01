@@ -1,3 +1,5 @@
+import '../admin_ui/grid_layout_button.dart';
+
 import 'package:flutter/material.dart';
 
 import '../models/models.dart';
@@ -149,15 +151,23 @@ class _PramansPanelState extends State<PramansPanel> with LivePanel {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.only(top: 12),
-            child: SortChips<PramanSort>(
-              options: const [
-                (PramanSort.number, 'क्रम'),
-                (PramanSort.name, 'नाम'),
-                (PramanSort.newest, 'नए पहले'),
-                (PramanSort.hidden, 'छिपे पहले'),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SortChips<PramanSort>(
+                    options: const [
+                      (PramanSort.number, 'क्रम'),
+                      (PramanSort.name, 'नाम'),
+                      (PramanSort.newest, 'नए पहले'),
+                      (PramanSort.hidden, 'छिपे पहले'),
+                    ],
+                    value: _sort,
+                    onChanged: (v) => setState(() => _sort = v),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const GridLayoutButton(page: 'pramans'),
               ],
-              value: _sort,
-              onChanged: (v) => setState(() => _sort = v),
             ),
           ),
         ),

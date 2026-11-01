@@ -1,3 +1,5 @@
+import '../admin_ui/grid_layout_button.dart';
+
 import 'package:flutter/material.dart';
 
 import '../models/models.dart';
@@ -131,15 +133,23 @@ class _TopicsPanelState extends State<TopicsPanel> with LivePanel {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.only(top: 12),
-            child: SortChips<TopicSort>(
-              options: const [
-                (TopicSort.number, 'क्रम'),
-                (TopicSort.name, 'नाम'),
-                (TopicSort.pramans, 'प्रमाण'),
-                (TopicSort.hidden, 'छिपे पहले'),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SortChips<TopicSort>(
+                    options: const [
+                      (TopicSort.number, 'क्रम'),
+                      (TopicSort.name, 'नाम'),
+                      (TopicSort.pramans, 'प्रमाण'),
+                      (TopicSort.hidden, 'छिपे पहले'),
+                    ],
+                    value: _sort,
+                    onChanged: (v) => setState(() => _sort = v),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const GridLayoutButton(page: 'topics'),
               ],
-              value: _sort,
-              onChanged: (v) => setState(() => _sort = v),
             ),
           ),
         ),

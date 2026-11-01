@@ -1,3 +1,5 @@
+import '../admin_ui/grid_layout_button.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -189,6 +191,8 @@ class _GranthsPanelState extends State<GranthsPanel> with LivePanel {
                       onChanged: (v) => setState(() => _sort = v),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  const GridLayoutButton(page: 'granths'),
                   if (_q.trim().isEmpty && pool.length > 1) ...[
                     const SizedBox(width: 8),
                     KeyedSubtree(

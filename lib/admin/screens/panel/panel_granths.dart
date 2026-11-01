@@ -1,3 +1,5 @@
+import '../../../admin_ui/grid_layout_button.dart';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -417,6 +419,8 @@ class _PanelGranthsScreenState extends State<PanelGranthsScreen> {
                         () => order = order == 'asc' ? 'desc' : 'asc',
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    const GridLayoutButton(page: 'granths'),
                   ],
                 ),
                 const SizedBox(height: 8),
