@@ -46,6 +46,14 @@ class AnalyticsPramaanScreen extends StatelessWidget {
               AnTopBlock(
                 d: d,
                 kind: 'praman',
+                // D1 per-id opens (/events open.p, server migration 0011), merged by name with GA
+                d1: [
+                  for (final x in anL(d.d1['top_pramans']))
+                    (
+                      anNames('praman')[anS(x['id'])] ?? '#${anS(x['id'])}',
+                      anI(x['n']),
+                    ),
+                ],
                 title: 'प्रमाण — नाम सहित (टॉप 5 + पूरी सूची)',
               ),
             ];
