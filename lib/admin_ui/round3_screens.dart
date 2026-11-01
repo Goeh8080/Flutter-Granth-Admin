@@ -10,6 +10,7 @@ import '../widgets/common.dart';
 import 'admin_actions.dart' show SortChips;
 import 'admin_data.dart';
 import 'admin_kit.dart';
+import 'analytics/analytics_home.dart' show AnalyticsCard;
 
 PanelApi get _api => AdminData.I.app.panel.api;
 
@@ -113,14 +114,7 @@ class _Round3EntriesState extends State<Round3Entries> {
         tone: Tone.saffron,
         onTap: () => _go(const HighlightsScreen()),
       ),
-      AdminTile(
-        key: const ValueKey('r3-events'),
-        icon: 'bar-chart',
-        title: 'एनालिटिक्स (GA4)',
-        sub: 'इंस्टॉल, ऐप खुला, ग्रंथ/फ़ोल्डर, PDF, AI फेल, रियलटाइम',
-        tone: Tone.saffron,
-        onTap: () => _go(const EventsScreen()),
-      ),
+      const AnalyticsCard(),
       AdminTile(
         key: const ValueKey('r3-features'),
         icon: 'settings',

@@ -19,6 +19,7 @@ import '../admin_ui/admin_widgets.dart';
 import '../admin_ui/ai_admin_screens.dart';
 import '../admin_ui/announcement_editor.dart';
 import '../admin_ui/grid_pages_card.dart';
+import '../admin_ui/taskbar_card.dart';
 import '../config.dart';
 import '../theme/colors.dart';
 import '../widgets/common.dart';
@@ -158,6 +159,8 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 10),
+          Entry(index: 5, child: const TaskbarCard()),
           const SizedBox(height: 10),
           Entry(index: 6, child: _announcementCard()),
           const AdminLabel('ग्रंथ और फ़ोल्डर'),

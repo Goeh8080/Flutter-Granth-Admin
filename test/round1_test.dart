@@ -299,7 +299,8 @@ void main() {
       );
       expect(find.textContaining('dark', findRichText: true), findsNothing);
       expect(find.textContaining('Dark'), findsNothing);
-      expect(find.byKey(const ValueKey('version-line')), findsOneWidget);
+      expect(find.byKey(const ValueKey('taskbar-card'), skipOffstage: false), findsOneWidget);
+      expect(find.byKey(const ValueKey('version-line'), skipOffstage: false), findsOneWidget);
       await settle(t, 30);
     },
   );
