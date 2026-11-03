@@ -26,6 +26,8 @@ void main() {
   runZonedGuarded<Future<void>>(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      // Release: no debug output (logs could carry server responses).
+      if (kReleaseMode) debugPrint = (String? message, {int? wrapWidth}) {};
       _installErrorHandlers();
       // Every init step is guarded: an exception or a hang must never stop runApp.
       try {

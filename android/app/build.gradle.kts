@@ -61,9 +61,9 @@ android {
             signingConfig =
                 if (keystorePropertiesFile.exists()) signingConfigs.getByName("release")
                 else signingConfigs.getByName("debug")
-            // Keep R8 off: plugin channels (shared_preferences/jni/path_provider) must not be stripped.
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // R8 on (production): plugin channels / JNI classes are kept by proguard-rules.pro.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
