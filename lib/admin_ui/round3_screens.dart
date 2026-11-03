@@ -1,4 +1,3 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../admin/screens/panel/panel_widgets.dart' show pushPanel, shortTs;
@@ -11,6 +10,7 @@ import 'admin_actions.dart' show SortChips;
 import 'admin_data.dart';
 import 'admin_kit.dart';
 import 'analytics/analytics_home.dart' show AnalyticsCard;
+import 'analytics/analytics_kit.dart' show anHBars;
 
 PanelApi get _api => AdminData.I.app.panel.api;
 
@@ -851,7 +851,10 @@ class _HighlightsFormState extends State<_HighlightsForm> {
         'प्रकाशित: ${_m(widget.s['published_trending'])['topic_ids'] ?? '—'}',
       ),
       const AdminLabel('आज का प्रमाण'),
-      AdminField(controller: _pid, label: 'प्रमाण id'),
+      _PramanPicker(
+        id: _pid.text.trim(),
+        onPick: (id) => setState(() => _pid.text = id),
+      ),
       AdminField(controller: _pdate, label: 'तारीख YYYY-MM-DD (खाली = हर दिन)'),
       AdminField(controller: _ptitle, label: 'शीर्षक (वैकल्पिक, ≤100)'),
       AdminField(
@@ -869,6 +872,169 @@ class _HighlightsFormState extends State<_HighlightsForm> {
       ),
     ],
   );
+}
+
+/// Round-3 (#6): the daily/trending प्रमाण is picked from the app's content by name (with its
+/// ग्रंथ), never typed as an id. The stored value stays the praman id (contract unchanged).
+class _PramanPicker extends StatelessWidget {
+  const _PramanPicker({required this.id, required this.onPick});
+  final String id;
+  final ValueChanged<String> onPick;
+
+  static String granthOf(dynamic p) {
+    final t = '${p.granthTitle}'.trim();
+    if (t.isNotEmpty) return t;
+    for (final g in AdminData.I.granths) {
+      if (g.id == p.granthId) return g.title;
+    }
+    return '';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    dynamic cur;
+    for (final p in AdminData.I.pramans) {
+      if (p.id == id) cur = p;
+    }
+    final title = id.isEmpty
+        ? 'प्रमाण चुनें…'
+        : cur == null
+        ? 'प्रमाण #$id (सूची में नहीं मिला)'
+        : (cur.title as String).trim().isEmpty
+        ? 'प्रमाण #$id'
+        : cur.title as String;
+    final g = cur == null ? '' : granthOf(cur);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Pressable(
+        key: const ValueKey('praman-picker'),
+        onTap: () async {
+          final r = await showModalBottomSheet<String>(
+            context: context,
+            isScrollControlled: true,
+            builder: (_) => const _PramanSearchSheet(),
+          );
+          if (r != null) onPick(r);
+        },
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: GColors.gold.withValues(alpha: 0.5)),
+          ),
+          child: Row(
+            children: [
+              const GIcon('search', size: 18, color: GColors.maroon),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GText.sans(size: 14, weight: FontWeight.w600),
+                    ),
+                    if (g.isNotEmpty)
+                      Text(
+                        'ग्रंथ: $g',
+                        style: GText.sans(size: 12, color: GColors.muted),
+                      ),
+                  ],
+                ),
+              ),
+              if (id.isNotEmpty)
+                IconButton(
+                  tooltip: 'हटाएँ',
+                  onPressed: () => onPick(''),
+                  icon: const Icon(Icons.close, size: 18),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PramanSearchSheet extends StatefulWidget {
+  const _PramanSearchSheet();
+  @override
+  State<_PramanSearchSheet> createState() => _PramanSearchSheetState();
+}
+
+class _PramanSearchSheetState extends State<_PramanSearchSheet> {
+  String _q = '';
+  @override
+  Widget build(BuildContext context) {
+    final q = _q.trim().toLowerCase();
+    final all = AdminData.I.pramans;
+    final hits = [
+      for (final p in all)
+        if (q.isEmpty ||
+            p.title.toLowerCase().contains(q) ||
+            p.id == q ||
+            _PramanPicker.granthOf(p).toLowerCase().contains(q))
+          p,
+    ].take(200).toList();
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: SizedBox(
+          height: MediaQuery.sizeOf(context).height * 0.75,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: TextField(
+                  key: const ValueKey('praman-search'),
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    hintText: 'प्रमाण या ग्रंथ का नाम खोजें',
+                    prefixIcon: Icon(Icons.search),
+                  ),
+                  onChanged: (v) => setState(() => _q = v),
+                ),
+              ),
+              Expanded(
+                child: hits.isEmpty
+                    ? Center(
+                        child: Text(
+                          all.isEmpty ? 'प्रमाण लोड नहीं हुए' : 'कुछ नहीं मिला',
+                          style: GText.sans(size: 14, color: GColors.muted),
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: hits.length,
+                        itemBuilder: (_, i) {
+                          final p = hits[i];
+                          final g = _PramanPicker.granthOf(p);
+                          return ListTile(
+                            title: Text(
+                              p.title.trim().isEmpty
+                                  ? 'प्रमाण #${p.id}'
+                                  : p.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              g.isEmpty ? '#${p.id}' : '$g · #${p.id}',
+                            ),
+                            onTap: () => Navigator.pop(context, p.id),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------- analytics
@@ -920,17 +1086,6 @@ String _dur(Object? s) {
   final h = n ~/ 3600, m = (n % 3600) ~/ 60;
   return h > 0 ? '$h घं. $m मि.' : '$m मि.';
 }
-
-const _kChartColors = [
-  GColors.saffron,
-  GColors.maroon,
-  GColors.gold,
-  GColors.online,
-  GColors.brown,
-  GColors.maroonLight,
-  GColors.saffronDark,
-  GColors.muted,
-];
 
 Widget _tile(String label, String value, {Color color = GColors.maroon}) =>
     Container(
@@ -993,119 +1148,20 @@ Widget _dayChart(
   bool bars = false,
   double Function(num v)? map,
 }) {
-  if (rows.isEmpty)
-    return _sub('अभी कोई डेटा नहीं (GA की रिपोर्ट में 24-48 घंटे लग सकते हैं)');
-  final ys = [
-    for (final r in rows)
-      map == null
-          ? (r[key] is num ? (r[key] as num).toDouble() : 0.0)
-          : map(r[key] is num ? r[key] as num : 0),
+  // Round-3: horizontal bars, one row per day (newest first), exact counts.
+  final items = <(String, num)>[
+    for (final r in rows.reversed)
+      if ((map == null ? _i(r[key]) : map(r[key] is num ? r[key] as num : 0)) >
+          0)
+        (
+          () {
+            final d = _s(r['day'] ?? r['date']);
+            return d.length >= 10 ? d.substring(5) : d;
+          }(),
+          map == null ? _i(r[key]) : map(r[key] is num ? r[key] as num : 0),
+        ),
   ];
-  final maxY = ys.fold<double>(0, (a, b) => b > a ? b : a);
-  final top = maxY <= 0 ? 1.0 : maxY * 1.2;
-  final step = rows.length <= 8 ? 1 : (rows.length / 6).ceil();
-  Widget bottom(double v, TitleMeta m) {
-    final i = v.round();
-    if (i < 0 || i >= rows.length || i % step != 0 || (v - i).abs() > 0.01) {
-      return const SizedBox.shrink();
-    }
-    final d = _s(rows[i]['day']);
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Text(
-        d.length >= 10 ? '${d.substring(8, 10)}/${d.substring(5, 7)}' : d,
-        style: GText.sans(size: 9.5, color: GColors.muted),
-      ),
-    );
-  }
-
-  Widget left(double v, TitleMeta m) => v == m.max
-      ? const SizedBox.shrink()
-      : Text(
-          v >= 1000
-              ? '${(v / 1000).toStringAsFixed(1)}k'
-              : v.toStringAsFixed(0),
-          style: GText.sans(size: 9.5, color: GColors.muted),
-        );
-  final titles = FlTitlesData(
-    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-    bottomTitles: AxisTitles(
-      sideTitles: SideTitles(
-        showTitles: true,
-        reservedSize: 20,
-        interval: 1,
-        getTitlesWidget: bottom,
-      ),
-    ),
-    leftTitles: AxisTitles(
-      sideTitles: SideTitles(
-        showTitles: true,
-        reservedSize: 32,
-        getTitlesWidget: left,
-      ),
-    ),
-  );
-  final grid = FlGridData(
-    drawVerticalLine: false,
-    getDrawingHorizontalLine: (_) =>
-        const FlLine(color: GColors.meterTrack, strokeWidth: 1),
-  );
-  return SizedBox(
-    height: 170,
-    child: bars
-        ? BarChart(
-            BarChartData(
-              maxY: top,
-              minY: 0,
-              gridData: grid,
-              borderData: FlBorderData(show: false),
-              titlesData: titles,
-              barGroups: [
-                for (var i = 0; i < ys.length; i++)
-                  BarChartGroupData(
-                    x: i,
-                    barRods: [
-                      BarChartRodData(
-                        toY: ys[i],
-                        color: color,
-                        width: rows.length > 40
-                            ? 3
-                            : (rows.length > 14 ? 6 : 12),
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-          )
-        : LineChart(
-            LineChartData(
-              maxY: top,
-              minY: 0,
-              gridData: grid,
-              borderData: FlBorderData(show: false),
-              titlesData: titles,
-              lineBarsData: [
-                LineChartBarData(
-                  spots: [
-                    for (var i = 0; i < ys.length; i++)
-                      FlSpot(i.toDouble(), ys[i]),
-                  ],
-                  isCurved: true,
-                  preventCurveOverShooting: true,
-                  color: color,
-                  barWidth: 2.5,
-                  dotData: FlDotData(show: rows.length <= 14),
-                  belowBarData: BarAreaData(
-                    show: true,
-                    color: color.withValues(alpha: 0.15),
-                  ),
-                ),
-              ],
-            ),
-          ),
-  );
+  return anHBars(items, color: color, empty: 'इस अवधि में अभी कोई डेटा नहीं');
 }
 
 /// Horizontal bars for a ranked list (label, n).
@@ -1160,69 +1216,14 @@ Widget _rankBars(
 
 /// Donut with legend.
 Widget _donut(List<(String, num)> parts) {
+  // Round-3: shares shown as horizontal bars (name + count + %), no pie.
   final total = parts.fold<num>(0, (a, b) => a + b.$2);
   if (total <= 0) return _sub('अभी कोई डेटा नहीं');
-  return Row(
-    children: [
-      SizedBox(
-        width: 120,
-        height: 120,
-        child: PieChart(
-          PieChartData(
-            centerSpaceRadius: 30,
-            sectionsSpace: 2,
-            sections: [
-              for (var i = 0; i < parts.length; i++)
-                if (parts[i].$2 > 0)
-                  PieChartSectionData(
-                    value: parts[i].$2.toDouble(),
-                    color: _kChartColors[i % _kChartColors.length],
-                    radius: 28,
-                    title: '${(parts[i].$2 * 100 / total).round()}%',
-                    titleStyle: GText.sans(
-                      size: 10,
-                      weight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
-                  ),
-            ],
-          ),
-        ),
-      ),
-      const SizedBox(width: 14),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (var i = 0; i < parts.length; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: _kChartColors[i % _kChartColors.length],
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(parts[i].$1, style: GText.sans(size: 12.5)),
-                    ),
-                    Text(
-                      '${_i(parts[i].$2)}',
-                      style: GText.sans(size: 12.5, weight: FontWeight.w800),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    ],
-  );
+  final sorted = [...parts]..sort((a, b) => b.$2.compareTo(a.$2));
+  return anHBars([
+    for (final p in sorted)
+      ('${p.$1} (${(p.$2 * 100 / total).round()}%)', p.$2),
+  ]);
 }
 
 /// A collapsible "folder" section.
