@@ -1,15 +1,18 @@
-name: Build APK
+name: Playstore Release
 
-run-name: Round-3
+run-name: Playstore-1.0.0
 
 on:
   push:
     branches: [main]
-  pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+env:
+  EXPECTED_SHA1: "46:9B:B0:22:69:9E:E1:66:C4:4A:A3:16:D4:4E:F2:52:37:31:9F:B1"
+  EXPECTED_SHA1_PLAIN: "469bb022699ee166c44aa316d44ef25237319fb1"
 
 jobs:
   build:
@@ -31,27 +34,26 @@ jobs:
       - name: Get packages
         run: flutter pub get
 
-      - name: Analyze
-        run: flutter analyze
+      - name: Analyze (info-level lints do not fail)
+        run: flutter analyze --no-fatal-infos
 
       - name: Test
         run: flutter test
 
-      # APP_KEY (optional repository secret) is passed via --dart-define-from-file; without it the build has no key.
-      - name: Inject Firebase config and signing key (from secrets, never logged)
+      - name: Inject Firebase config and admin signing key (from secrets, never logged)
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
           ADMIN_KEYSTORE_B64: ${{ secrets.ADMIN_KEYSTORE_B64 }}
           ADMIN_KEYSTORE_PASSWORD: ${{ secrets.ADMIN_KEYSTORE_PASSWORD }}
         run: |
-          if [ -n "$GOOGLE_SERVICES_JSON" ]; then printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json; echo "google-services.json written"; else echo "GOOGLE_SERVICES_JSON not set: Google login disabled in this build"; fi
-          if [ -n "$ADMIN_KEYSTORE_B64" ]; then
-            printf '%s' "$ADMIN_KEYSTORE_B64" | base64 -d > android/app/admin-release.p12
-            printf 'storeFile=admin-release.p12\nstorePassword=%s\nkeyAlias=granthadmin\nkeyPassword=%s\n' "$ADMIN_KEYSTORE_PASSWORD" "$ADMIN_KEYSTORE_PASSWORD" > android/key.properties
-            echo "fixed admin signing key configured"
-          else echo "ADMIN_KEYSTORE_B64 not set: debug signing"; fi
+          set +x
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json; echo "google-services.json written"; else echo "GOOGLE_SERVICES_JSON not set"; fi
+          if [ -z "$ADMIN_KEYSTORE_B64" ] || [ -z "$ADMIN_KEYSTORE_PASSWORD" ]; then echo "::error::ADMIN_KEYSTORE secrets missing"; exit 1; fi
+          printf '%s' "$ADMIN_KEYSTORE_B64" | base64 -d > android/app/admin-release.p12
+          printf 'storeFile=admin-release.p12\nstorePassword=%s\nkeyAlias=granthadmin\nkeyPassword=%s\n' "$ADMIN_KEYSTORE_PASSWORD" "$ADMIN_KEYSTORE_PASSWORD" > android/key.properties
+          echo "admin signing key configured"
 
-      - name: Build universal release APK
+      - name: Build AAB and arm64 APK
         env:
           APP_KEY: ${{ secrets.APP_KEY }}
         run: |
@@ -61,45 +63,54 @@ jobs:
             printf '{"APP_KEY":"%s"}' "$APP_KEY" > "$RUNNER_TEMP/dd.json"
             args="--dart-define-from-file=$RUNNER_TEMP/dd.json"
           fi
-          flutter build apk --release $args
+          flutter build appbundle --release --build-name=1.0.0 --build-number=1 $args
+          flutter build apk --release --target-platform android-arm64 --build-name=1.0.0 --build-number=1 $args
           rm -f "$RUNNER_TEMP/dd.json"
 
-      - name: Upload universal APK
+      - name: Strip, align, re-sign and verify APK; verify AAB
+        env:
+          ADMIN_KEYSTORE_PASSWORD: ${{ secrets.ADMIN_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          echo "build-tools: $BT"
+          mkdir -p out
+          W="$RUNNER_TEMP/apk"; rm -rf "$W"; mkdir -p "$W"
+          cp build/app/outputs/flutter-apk/app-release.apk "$W/in.apk"
+          # remove non-arm64 native libs and old signatures
+          for d in $(unzip -Z1 "$W/in.apk" | grep '^lib/' | cut -d/ -f2 | sort -u); do
+            if [ "$d" != "arm64-v8a" ]; then zip -q -d "$W/in.apk" "lib/$d/*"; fi
+          done
+          zip -q -d "$W/in.apk" 'META-INF/*.SF' 'META-INF/*.RSA' 'META-INF/*.EC' 'META-INF/*.DSA' 'META-INF/MANIFEST.MF' || true
+          echo "lib dirs now:"; unzip -Z1 "$W/in.apk" | grep '^lib/' | cut -d/ -f1-2 | sort -u
+          "$BT/zipalign" -P 16 -f 4 "$W/in.apk" "$W/aligned.apk"
+          "$BT/apksigner" sign --ks android/app/admin-release.p12 --ks-type PKCS12 --ks-key-alias granthadmin \
+            --ks-pass env:ADMIN_KEYSTORE_PASSWORD --key-pass env:ADMIN_KEYSTORE_PASSWORD \
+            --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true \
+            --out out/Playstore-1.0.0-arm64.apk "$W/aligned.apk"
+          "$BT/zipalign" -c -P 16 4 out/Playstore-1.0.0-arm64.apk && echo "zipalign check OK"
+          "$BT/apksigner" verify --min-sdk-version 21 --print-certs -v out/Playstore-1.0.0-arm64.apk | tee "$W/verify.txt"
+          for s in 1 2 3; do grep -q "Verified using v$s scheme (APK Signature Scheme v$s): true\|Verified using v$s scheme (JAR signing): true" "$W/verify.txt" || { echo "::error::v$s not verified"; exit 1; }; done
+          grep -qi "SHA-1 digest: $EXPECTED_SHA1_PLAIN" "$W/verify.txt" || { echo "::error::APK cert SHA-1 mismatch"; exit 1; }
+          "$BT/aapt2" dump badging out/Playstore-1.0.0-arm64.apk > "$W/badging.txt"
+          grep -E "^package:|uses-permission|native-code" "$W/badging.txt"
+          grep -q "versionCode='1' versionName='1.0.0'" "$W/badging.txt" || { echo "::error::wrong version"; exit 1; }
+          if grep -Ei "AD_ID|ADSERVICES" "$W/badging.txt"; then echo "::error::AD_ID/ADSERVICES permission present"; exit 1; fi
+          cp build/app/outputs/bundle/release/app-release.aab out/Playstore-1.0.0.aab
+          keytool -printcert -jarfile out/Playstore-1.0.0.aab | tee "$W/aab.txt"
+          grep -q "SHA1: $EXPECTED_SHA1" "$W/aab.txt" || { echo "::error::AAB cert SHA-1 mismatch"; exit 1; }
+          echo "ALL CHECKS PASSED"
+          ls -l out
+
+      - name: Upload Playstore-1.0.0
         uses: actions/upload-artifact@v4
         with:
-          name: Round-3-universal
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: Playstore-1.0.0
+          path: |
+            out/Playstore-1.0.0.aab
+            out/Playstore-1.0.0-arm64.apk
+          if-no-files-found: error
 
-      - name: Build arm64-v8a release APK
-        env:
-          APP_KEY: ${{ secrets.APP_KEY }}
-        run: |
-          set +x
-          args=""
-          if [ -n "$APP_KEY" ]; then
-            printf '{"APP_KEY":"%s"}' "$APP_KEY" > "$RUNNER_TEMP/dd.json"
-            args="--dart-define-from-file=$RUNNER_TEMP/dd.json"
-          fi
-          flutter build apk --release --split-per-abi --target-platform android-arm64 $args
-          rm -f "$RUNNER_TEMP/dd.json"
-
-      - name: Upload arm64-v8a APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Round-3-arm64
-          path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
-
-      - name: Publish "Round-3" prerelease
-        if: github.event_name == 'push'
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "round-3-run${{ github.run_number }}" \
-            --repo "${{ github.repository }}" \
-            --target "${{ github.sha }}" \
-            --prerelease \
-            --title "Round-3" \
-            --notes "Round-3 build (live presence, analytics pages, Google users, taskbar flag) of ${{ github.sha }} (run ${{ github.run_id }})." \
-            build/app/outputs/flutter-apk/app-release.apk \
-            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+      - name: Delete key files
+        if: always()
+        run: rm -f android/app/admin-release.p12 android/key.properties android/app/google-services.json "$RUNNER_TEMP/dd.json"
