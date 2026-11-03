@@ -11,7 +11,6 @@ permissions:
   contents: read
 
 env:
-  EXPECTED_SHA1: "46:9B:B0:22:69:9E:E1:66:C4:4A:A3:16:D4:4E:F2:52:37:31:9F:B1"
   EXPECTED_SHA1_PLAIN: "469bb022699ee166c44aa316d44ef25237319fb1"
 
 jobs:
@@ -53,7 +52,7 @@ jobs:
           printf 'storeFile=admin-release.p12\nstorePassword=%s\nkeyAlias=granthadmin\nkeyPassword=%s\n' "$ADMIN_KEYSTORE_PASSWORD" "$ADMIN_KEYSTORE_PASSWORD" > android/key.properties
           echo "admin signing key configured"
 
-      - name: Build AAB and arm64 APK
+      - name: Build arm64 APK
         env:
           APP_KEY: ${{ secrets.APP_KEY }}
         run: |
@@ -63,11 +62,10 @@ jobs:
             printf '{"APP_KEY":"%s"}' "$APP_KEY" > "$RUNNER_TEMP/dd.json"
             args="--dart-define-from-file=$RUNNER_TEMP/dd.json"
           fi
-          flutter build appbundle --release --build-name=1.0.0 --build-number=1 $args
           flutter build apk --release --target-platform android-arm64 --build-name=1.0.0 --build-number=1 $args
           rm -f "$RUNNER_TEMP/dd.json"
 
-      - name: Strip, align, re-sign and verify APK; verify AAB
+      - name: Strip, align, re-sign and verify APK
         env:
           ADMIN_KEYSTORE_PASSWORD: ${{ secrets.ADMIN_KEYSTORE_PASSWORD }}
         run: |
@@ -96,9 +94,6 @@ jobs:
           grep -E "^package:|uses-permission|native-code" "$W/badging.txt"
           grep -q "versionCode='1' versionName='1.0.0'" "$W/badging.txt" || { echo "::error::wrong version"; exit 1; }
           if grep -Ei "AD_ID|ADSERVICES" "$W/badging.txt"; then echo "::error::AD_ID/ADSERVICES permission present"; exit 1; fi
-          cp build/app/outputs/bundle/release/app-release.aab out/Playstore-1.0.0.aab
-          keytool -printcert -jarfile out/Playstore-1.0.0.aab | tee "$W/aab.txt"
-          grep -q "SHA1: $EXPECTED_SHA1" "$W/aab.txt" || { echo "::error::AAB cert SHA-1 mismatch"; exit 1; }
           echo "ALL CHECKS PASSED"
           ls -l out
 
@@ -107,7 +102,6 @@ jobs:
         with:
           name: Playstore-1.0.0
           path: |
-            out/Playstore-1.0.0.aab
             out/Playstore-1.0.0-arm64.apk
           if-no-files-found: error
 
