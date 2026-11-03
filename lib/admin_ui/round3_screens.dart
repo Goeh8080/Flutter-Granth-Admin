@@ -259,7 +259,7 @@ class _SupportScreenState extends State<SupportScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _sub(
-                  'आज ${_s(d['today'])} · आज के टिकट ${_i(c['today'])} · टोकन रोज़ रात 12 बजे (IST) 1 से शुरू',
+                  'आज ${_s(d['today'])} · आज के टिकट ${_i(c['today'])} (${_i(c['today_users'])} यूज़र) · कुल ${_i(c['tickets'])} टिकट, ${_i(c['users'])} अलग यूज़र · टोकन रोज़ रात 12 बजे (IST) 1 से शुरू',
                 ),
                 const SizedBox(height: 8),
                 SortChips<String>(
@@ -392,13 +392,7 @@ class _SupportTicketScreenState extends State<SupportTicketScreen> {
                 if (_s(t['subject']).isNotEmpty) _title(_s(t['subject'])),
                 _body(_s(t['message'])),
               ]),
-              for (final m in _l(t['messages']))
-                _card(ValueKey('m-${m['id']}'), [
-                  _sub(
-                    '${m['from'] == 'admin' ? 'एडमिन ${_s(m['by'])}' : 'यूज़र'} · ${shortTs(_s(m['at']))}',
-                  ),
-                  _body(_s(m['text'])),
-                ]),
+              for (final m in _l(t['messages'])) _Bubble(m),
               if (t['status'] == 'open') ...[
                 AdminField(
                   controller: _reply,
@@ -1944,6 +1938,73 @@ class _NotifyFormState extends State<_NotifyForm> {
             ),
           ]),
       ],
+    );
+  }
+}
+
+/// WhatsApp-style bubble: admin messages right (maroon tint), user messages left.
+/// ✓ = sent, ✓✓ = read by the other side (CONTRACT §20.6 `read`).
+class _Bubble extends StatelessWidget {
+  const _Bubble(this.m);
+  final Map<String, dynamic> m;
+  @override
+  Widget build(BuildContext context) {
+    final admin = m['from'] == 'admin';
+    final read = m['read'] == true;
+    return Align(
+      alignment: admin ? Alignment.centerRight : Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.8,
+        ),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+          decoration: BoxDecoration(
+            color: admin ? const Color(0xFFF6E3DC) : const Color(0xFFFFFFFF),
+            border: Border.all(color: const Color(0x22000000)),
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(14),
+              topRight: const Radius.circular(14),
+              bottomLeft: Radius.circular(admin ? 14 : 2),
+              bottomRight: Radius.circular(admin ? 2 : 14),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (admin && _s(m['by']).isNotEmpty)
+                Text(
+                  _s(m['by']),
+                  style: GText.sans(size: 11, weight: FontWeight.w600),
+                ),
+              Text(_s(m['text']), style: GText.sans(size: 14, height: 1.45)),
+              const SizedBox(height: 2),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    shortTs(_s(m['at'])),
+                    style: GText.sans(size: 11, color: const Color(0x99000000)),
+                  ),
+                  if (admin) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      read ? '✓✓' : '✓',
+                      style: GText.sans(
+                        size: 11,
+                        color: read
+                            ? const Color(0xFF1E88E5)
+                            : const Color(0x99000000),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
