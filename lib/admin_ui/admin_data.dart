@@ -218,16 +218,24 @@ class AdminData extends ChangeNotifier {
   // ------------------------------------------------------------------ writes (control server)
 
   /// Hide / show granths (draft until published). Returns false when the write failed.
-  Future<void> setHidden(Iterable<String> ids, bool hidden) async {
+  Future<bool> setHidden(Iterable<String> ids, bool hidden) async {
     final api = app.panel.api;
     final l = ids.toList();
-    if (l.length == 1) {
-      await api.setGranth(l.first, hidden: hidden);
-    } else if (l.isNotEmpty) {
-      await api.bulkGranths(l, hidden: hidden);
+    try {
+      if (l.length == 1) {
+        await api.setGranth(l.first, hidden: hidden);
+      } else if (l.isNotEmpty) {
+        await api.bulkGranths(l, hidden: hidden);
+      }
+    } catch (e) {
+      debugPrint('setHidden failed: $e');
+      return false;
     }
-    await refreshControl();
+    try {
+      await refreshControl();
+    } catch (_) {}
     app.panel.bump();
+    return true;
   }
 
   /// Saves a manual order for the granths of ONE folder ([folderIds] in the wanted order).

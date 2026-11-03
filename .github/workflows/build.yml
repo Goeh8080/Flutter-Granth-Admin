@@ -1,14 +1,15 @@
-name: Playstore Release
+name: Build APK
 
-run-name: Playstore-1.0.0
+run-name: Round-1
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   EXPECTED_SHA1_PLAIN: "469bb022699ee166c44aa316d44ef25237319fb1"
@@ -52,20 +53,23 @@ jobs:
           printf 'storeFile=admin-release.p12\nstorePassword=%s\nkeyAlias=granthadmin\nkeyPassword=%s\n' "$ADMIN_KEYSTORE_PASSWORD" "$ADMIN_KEYSTORE_PASSWORD" > android/key.properties
           echo "admin signing key configured"
 
-      - name: Build arm64 APK
+      - name: Build universal + arm64 APKs (1.0.0+1)
         env:
           APP_KEY: ${{ secrets.APP_KEY }}
         run: |
           set +x
-          args=""
+          args="--build-name=1.0.0 --build-number=1"
           if [ -n "$APP_KEY" ]; then
             printf '{"APP_KEY":"%s"}' "$APP_KEY" > "$RUNNER_TEMP/dd.json"
-            args="--dart-define-from-file=$RUNNER_TEMP/dd.json"
+            args="$args --dart-define-from-file=$RUNNER_TEMP/dd.json"
           fi
-          flutter build apk --release --target-platform android-arm64 --build-name=1.0.0 --build-number=1 $args
+          flutter build apk --release $args
+          cp build/app/outputs/flutter-apk/app-release.apk "$RUNNER_TEMP/universal.apk"
+          flutter build apk --release --split-per-abi --target-platform android-arm64 $args
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "$RUNNER_TEMP/arm64.apk"
           rm -f "$RUNNER_TEMP/dd.json"
 
-      - name: Strip, align, re-sign and verify APK
+      - name: Align, re-sign (v1+v2+v3) and verify APKs
         env:
           ADMIN_KEYSTORE_PASSWORD: ${{ secrets.ADMIN_KEYSTORE_PASSWORD }}
         run: |
@@ -73,37 +77,55 @@ jobs:
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           echo "build-tools: $BT"
           mkdir -p out
-          W="$RUNNER_TEMP/apk"; rm -rf "$W"; mkdir -p "$W"
-          cp build/app/outputs/flutter-apk/app-release.apk "$W/in.apk"
-          # remove non-arm64 native libs and old signatures
-          for d in $(unzip -Z1 "$W/in.apk" | grep '^lib/' | cut -d/ -f2 | sort -u); do
-            if [ "$d" != "arm64-v8a" ]; then zip -q -d "$W/in.apk" "lib/$d/*"; fi
-          done
-          zip -q -d "$W/in.apk" 'META-INF/*.SF' 'META-INF/*.RSA' 'META-INF/*.EC' 'META-INF/*.DSA' 'META-INF/MANIFEST.MF' || true
-          echo "lib dirs now:"; unzip -Z1 "$W/in.apk" | grep '^lib/' | cut -d/ -f1-2 | sort -u
-          "$BT/zipalign" -P 16 -f 4 "$W/in.apk" "$W/aligned.apk"
-          "$BT/apksigner" sign --ks android/app/admin-release.p12 --ks-type PKCS12 --ks-key-alias granthadmin \
-            --ks-pass env:ADMIN_KEYSTORE_PASSWORD --key-pass env:ADMIN_KEYSTORE_PASSWORD \
-            --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true \
-            --out out/Playstore-1.0.0-arm64.apk "$W/aligned.apk"
-          "$BT/zipalign" -c -P 16 4 out/Playstore-1.0.0-arm64.apk && echo "zipalign check OK"
-          "$BT/apksigner" verify --min-sdk-version 21 --print-certs -v out/Playstore-1.0.0-arm64.apk | tee "$W/verify.txt"
-          for s in 1 2 3; do grep -q "Verified using v$s scheme (APK Signature Scheme v$s): true\|Verified using v$s scheme (JAR signing): true" "$W/verify.txt" || { echo "::error::v$s not verified"; exit 1; }; done
-          grep -qi "SHA-1 digest: $EXPECTED_SHA1_PLAIN" "$W/verify.txt" || { echo "::error::APK cert SHA-1 mismatch"; exit 1; }
-          "$BT/aapt2" dump badging out/Playstore-1.0.0-arm64.apk > "$W/badging.txt"
-          grep -E "^package:|uses-permission|native-code" "$W/badging.txt"
-          grep -q "versionCode='1' versionName='1.0.0'" "$W/badging.txt" || { echo "::error::wrong version"; exit 1; }
-          if grep -Ei "AD_ID|ADSERVICES" "$W/badging.txt"; then echo "::error::AD_ID/ADSERVICES permission present"; exit 1; fi
-          echo "ALL CHECKS PASSED"
-          ls -l out
+          resign() { # $1 = input apk, $2 = output apk
+            W="$RUNNER_TEMP/w"; rm -rf "$W"; mkdir -p "$W"
+            cp "$1" "$W/in.apk"
+            zip -q -d "$W/in.apk" 'META-INF/*.SF' 'META-INF/*.RSA' 'META-INF/*.EC' 'META-INF/*.DSA' 'META-INF/MANIFEST.MF' || true
+            "$BT/zipalign" -P 16 -f 4 "$W/in.apk" "$W/aligned.apk"
+            "$BT/apksigner" sign --ks android/app/admin-release.p12 --ks-type PKCS12 --ks-key-alias granthadmin \
+              --ks-pass env:ADMIN_KEYSTORE_PASSWORD --key-pass env:ADMIN_KEYSTORE_PASSWORD \
+              --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true \
+              --out "$2" "$W/aligned.apk"
+            "$BT/zipalign" -c -P 16 4 "$2" && echo "zipalign check OK: $2"
+            "$BT/apksigner" verify --min-sdk-version 21 --print-certs -v "$2" | tee "$W/verify.txt"
+            for s in 1 2 3; do grep -q "Verified using v$s scheme (APK Signature Scheme v$s): true\|Verified using v$s scheme (JAR signing): true" "$W/verify.txt" || { echo "::error::v$s not verified ($2)"; exit 1; }; done
+            grep -qi "SHA-1 digest: $EXPECTED_SHA1_PLAIN" "$W/verify.txt" || { echo "::error::APK cert SHA-1 mismatch ($2)"; exit 1; }
+            "$BT/aapt2" dump badging "$2" > "$W/badging.txt"
+            grep -E "^package:|native-code" "$W/badging.txt"
+            grep -q "versionCode='1' versionName='1.0.0'" "$W/badging.txt" || { echo "::error::wrong version ($2)"; exit 1; }
+            if grep -Ei "AD_ID|ADSERVICES" "$W/badging.txt"; then echo "::error::AD_ID/ADSERVICES permission present ($2)"; exit 1; fi
+          }
+          resign "$RUNNER_TEMP/universal.apk" out/Round-1-universal.apk
+          resign "$RUNNER_TEMP/arm64.apk" out/Round-1-arm64.apk
+          echo "ALL CHECKS PASSED"; ls -l out
 
-      - name: Upload Playstore-1.0.0
+      - name: Upload universal APK
         uses: actions/upload-artifact@v4
         with:
-          name: Playstore-1.0.0
-          path: |
-            out/Playstore-1.0.0-arm64.apk
+          name: Round-1-universal
+          path: out/Round-1-universal.apk
           if-no-files-found: error
+
+      - name: Upload arm64-v8a APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Round-1-arm64
+          path: out/Round-1-arm64.apk
+          if-no-files-found: error
+
+      - name: Publish "Round-1" prerelease
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "round-1-run${{ github.run_number }}" \
+            --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" \
+            --prerelease \
+            --title "Round-1" \
+            --notes "Round-1 build 1.0.0+1 (admin-signed v1+v2+v3; contact email in Settings) of ${{ github.sha }} (run ${{ github.run_id }})." \
+            out/Round-1-universal.apk \
+            out/Round-1-arm64.apk
 
       - name: Delete key files
         if: always()

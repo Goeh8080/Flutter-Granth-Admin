@@ -57,6 +57,7 @@ class ParsedConfig {
     required this.aiEndpoint,
     required this.contactsTitle,
     required this.contacts,
+    this.contactEmail = '',
   });
   final int version;
   final Structure? structure;
@@ -69,6 +70,9 @@ class ParsedConfig {
   final String? aiEndpoint;
   final String contactsTitle;
   final List<Contact>? contacts;
+
+  /// CONTRACT §23 `contact.email`; '' = not set.
+  final String contactEmail;
 }
 
 const _religionIcons = {'om', 'crescent', 'khanda', 'cross', 'dharma', 'jain', 'kabir', 'misc'};
@@ -269,6 +273,7 @@ ParsedConfig? parseConfig(String text, {int cachedVersion = 0, int appBuild = kB
       aiEndpoint: ai,
       contactsTitle: ct.isNotEmpty && ct.length <= 60 ? ct : kContactsTitle,
       contacts: parseContacts(j['contacts']),
+      contactEmail: parseContactEmail(j['contact']),
     );
   } catch (e) {
     return fail('error: $e');
@@ -282,6 +287,20 @@ String _normEtag(String? e) => (e ?? '').trim().replaceFirst(RegExp(r'^W/'), '')
 /// Everything has a fallback: the bundled structure and seed contacts. A failed fetch, a bad
 /// signature, a wrong schema, an older version or an app older than `min_app` changes nothing and
 /// shows nothing. Fetched on every catalog sync with a conditional GET (ETag).
+final RegExp kEmailRe = RegExp(r'^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$');
+
+/// Basic email check shared with the server (CONTRACT §23): local@domain.tld, ≤254 chars.
+bool isValidEmail(String v) => v.length <= 254 && kEmailRe.hasMatch(v);
+
+/// `contact: {email}` → trimmed valid address, or '' when missing/invalid.
+String parseContactEmail(Object? c) {
+  if (c is! Map) return '';
+  final e = c['email'];
+  if (e is! String) return '';
+  final t = e.trim();
+  return isValidEmail(t) ? t : '';
+}
+
 class RemoteConfig extends ChangeNotifier {
   RemoteConfig({Dio? dio, this.url = kConfigUrl, this.build = kBuildNumber, this.publicKey})
       : _dio = dio ?? Dio(BaseOptions(connectTimeout: const Duration(seconds: 8), receiveTimeout: const Duration(seconds: 8)));
@@ -309,6 +328,9 @@ class RemoteConfig extends ChangeNotifier {
   double analyticsSample = 1.0;
   String? aiEndpoint;
   String contactsTitle = kContactsTitle;
+
+  /// CONTRACT §23 `contact.email` from the published config ('' = not set).
+  String contactEmail = '';
   List<Contact> contacts = kSeedContacts;
 
   /// Last refresh outcome, for tests/diagnostics: `updated`, `unchanged`, `ignored:<why>`, `failed`.
@@ -409,6 +431,7 @@ class RemoteConfig extends ChangeNotifier {
     aiEndpoint = p.aiEndpoint;
     contactsTitle = p.contactsTitle;
     contacts = p.contacts ?? kSeedContacts;
+    contactEmail = p.contactEmail;
     Shelves.useRemote(p.structure, p.overrides);
     CatalogStore.I.setHidden(p.hidden);
     if (notify) notifyListeners();
@@ -430,6 +453,7 @@ class RemoteConfig extends ChangeNotifier {
     aiEndpoint = null;
     contactsTitle = kContactsTitle;
     contacts = kSeedContacts;
+    contactEmail = '';
     lastResult = 'none';
     _cachedBody = null;
     Shelves.useRemote(null, const {});

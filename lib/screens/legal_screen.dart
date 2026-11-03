@@ -169,7 +169,7 @@ class _Extras extends StatelessWidget {
       case 'thirdparty':
         pills.add(pill('licenses', 'library', 'ओपन-सोर्स लाइसेंस देखें', () => showLicensePage(context: context, applicationName: 'ग्रंथ प्रबंधन', applicationVersion: kAppVersion)));
       case 'grievance':
-        if (hasContactEmail) pills.add(pill('mail-us', 'send', kContactEmail, () => FileActions.openMail(kContactEmail), tone: PillTone.maroon));
+        if (hasContactEmail) pills.add(pill('mail-us', 'send', contactEmail, () => FileActions.openMail(contactEmail), tone: PillTone.maroon));
         pills.add(pill('x-contacts', 'phone', RemoteConfig.I.contactsTitle, () => AppNav.I.openLink('#/legal?p=$kContactsSlug')));
       case 'copyright':
         pills.add(pill('x-grievance', 'message-circle', 'शिकायत और संपर्क', () => AppNav.I.openLink('#/legal?p=grievance')));

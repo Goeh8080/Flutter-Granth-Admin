@@ -1,4 +1,5 @@
 import '../config.dart';
+import '../services/remote_config.dart';
 
 /// "कानूनी और नीतियाँ" — the text of every policy page, bundled so it reads offline.
 ///
@@ -27,11 +28,17 @@ class LegalPage {
   final List<LegalBlock> Function() blocks;
 }
 
-bool get hasContactEmail => kContactEmail.trim().isNotEmpty;
+/// Admin-set `contact.email` from the published config, falling back to the build-time [kContactEmail].
+String get contactEmail {
+  final r = RemoteConfig.I.contactEmail.trim();
+  return r.isNotEmpty ? r : kContactEmail.trim();
+}
+
+bool get hasContactEmail => contactEmail.isNotEmpty;
 
 /// Contact line used inside the pages: the real address when the build has one, otherwise the
 /// plain note — an address is never made up.
-String get contactLine => hasContactEmail ? 'ईमेल: $kContactEmail' : 'संपर्क ईमेल जल्द जोड़ा जाएगा।';
+String get contactLine => hasContactEmail ? 'ईमेल: $contactEmail' : 'संपर्क ईमेल जल्द जोड़ा जाएगा।';
 
 const String _lastUpdated = 'अंतिम अपडेट: $kLegalUpdated · ऐप संस्करण $kAppVersion';
 

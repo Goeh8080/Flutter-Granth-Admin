@@ -7,6 +7,7 @@ import '../admin/screens/topic_form.dart';
 import '../admin/screens/panel/panel_folders.dart';
 import '../admin/screens/panel/panel_widgets.dart' show pushPanel;
 import '../admin/widgets/form_sheet.dart' show runWrite;
+import '../admin/widgets/toast.dart' show showToast;
 import '../models/models.dart' as u;
 import '../models/structure.dart';
 import '../theme/colors.dart';
@@ -33,9 +34,13 @@ Future<void> removeGranth(BuildContext context, u.Granth g) async {
 /// Show / hide in the reader app: control-server `hidden_granth_ids` (a draft until published).
 Future<void> toggleGranthHidden(BuildContext context, u.Granth g) async {
   final hide = !AdminData.I.isHidden(g.id);
-  await runWrite(
-    () => AdminData.I.setHidden([g.id], hide),
-    success: hide
+  final ok = await AdminData.I.setHidden([g.id], hide);
+  if (!ok) {
+    showToast('सेव नहीं हुआ / Could not save — try again', error: true);
+    return;
+  }
+  showToast(
+    hide
         ? 'ग्रंथ छिपाया (ड्राफ्ट) / Granth hidden (draft)'
         : 'ग्रंथ दिखाया (ड्राफ्ट) / Granth shown (draft)',
   );
