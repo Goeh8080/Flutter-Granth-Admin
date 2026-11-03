@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../admin/services/panel_api.dart';
@@ -118,7 +117,9 @@ Map<String, String> anNames(String kind) {
   return switch (kind) {
     'praman' => {
       for (final p in a.pramans)
-        p.id: p.title.isNotEmpty ? p.title : 'प्रमाण #${p.id}',
+        p.id:
+            '${p.title.isNotEmpty ? p.title : 'प्रमाण #${p.id}'}'
+            '${p.granthTitle.isNotEmpty ? ' · ${p.granthTitle}' : ''}',
     },
     'topics' => {
       for (final t in a.topics)
@@ -251,238 +252,121 @@ Widget anStats(List<AnStat> items) => LayoutBuilder(
   },
 );
 
-/// Old Cloudflare-panel day chart: one rounded bar per day (several series side by side).
+/// Round-3: EVERY analytics chart is a horizontal bar graph — one row per real item (its name,
+/// a bar proportional to the largest count, and the exact count). Empty → an empty-state note.
+Widget anHBars(
+  List<(String label, num n)> items, {
+  Color color = GColors.maroon,
+  int? max,
+  bool duration = false,
+  String empty = 'अभी कोई डेटा नहीं',
+}) {
+  var list = items.where((e) => e.$2 > 0).toList();
+  if (max != null) list = list.take(max).toList();
+  if (list.isEmpty) return anNote(empty);
+  final top = list.fold<num>(0, (a, b) => math.max(a, b.$2)).toDouble();
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      for (var i = 0; i < list.length; i++)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      list[i].$1,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GText.sans(size: 12.5, color: GColors.text),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    duration ? anDur(list[i].$2) : anNum(list[i].$2),
+                    style: GText.sans(
+                      size: 12.5,
+                      weight: FontWeight.w800,
+                      color: GColors.brown,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              LayoutBuilder(
+                builder: (context, c) => Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    height: 10,
+                    width: math.max(
+                      4.0,
+                      c.maxWidth * (top <= 0 ? 0 : list[i].$2 / top),
+                    ),
+                    decoration: BoxDecoration(
+                      color: i == 0
+                          ? color
+                          : color.withValues(
+                              alpha: math.max(0.45, 0.9 - i * 0.06),
+                            ),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+    ],
+  );
+}
+
+/// Per-day series as horizontal bars: one row per day (newest first) and series.
 Widget anDayBars(
   List<Map<String, dynamic>> rows,
   List<(String key, String label, Color color)> series, {
   bool duration = false,
 }) {
-  if (rows.isEmpty) {
-    return anNote(
-      'अभी कोई डेटा नहीं (GA रिपोर्ट में 24-48 घंटे लगते हैं; आज का डेटा ऊपर रियलटाइम से है)',
-    );
-  }
   double v(Map<String, dynamic> r, String k) =>
       r[k] is num ? (r[k] as num).toDouble() : 0;
-  var maxY = 0.0;
-  for (final r in rows) {
-    for (final s in series) {
-      maxY = math.max(maxY, v(r, s.$1));
-    }
+  final days = rows.reversed.where((r) => series.any((s) => v(r, s.$1) > 0));
+  if (days.isEmpty) {
+    return anNote('इस अवधि में अभी कोई डेटा नहीं');
   }
-  if (maxY <= 0) {
-    return anNote(
-      'इस अवधि में अभी कोई डेटा नहीं (${anS(rows.first['day'])} से; GA रिपोर्ट में 24-48 घंटे लगते हैं)',
-    );
-  }
-  final top = maxY;
-  final n = rows.length;
-  final rodW = math.max(1.5, math.min(14.0, 220 / (n * series.length)));
-  String day(int i) {
-    final d = anS(rows[i]['day']);
+  String day(Map<String, dynamic> r) {
+    final d = anS(r['day']);
     return d.length >= 10 ? d.substring(5) : d;
   }
 
   return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      if (series.length > 1)
-        Wrap(
-          spacing: 12,
-          children: [
-            for (final s in series)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: s.$3,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    s.$2,
-                    style: GText.sans(size: 11.5, color: GColors.muted),
-                  ),
-                ],
-              ),
-          ],
-        ),
-      Text(
-        duration ? anDur(maxY) : anNum(maxY),
-        style: GText.sans(size: 10.5, color: GColors.muted),
-      ),
-      SizedBox(
-        height: 150,
-        child: BarChart(
-          BarChartData(
-            maxY: top,
-            minY: 0,
-            alignment: BarChartAlignment.spaceAround,
-            borderData: FlBorderData(show: false),
-            gridData: FlGridData(
-              show: true,
-              drawVerticalLine: false,
-              horizontalInterval: top,
-              getDrawingHorizontalLine: (_) =>
-                  const FlLine(color: GColors.creamDark, strokeWidth: 1),
+      for (final s in series) ...[
+        if (series.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, bottom: 2),
+            child: Text(
+              s.$2,
+              style: GText.sans(size: 12, weight: FontWeight.w700, color: s.$3),
             ),
-            titlesData: FlTitlesData(
-              leftTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-              rightTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-              topTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 18,
-                  getTitlesWidget: (x, m) {
-                    final i = x.toInt();
-                    if (i != 0 && i != n - 1 && (n < 9 || i != n ~/ 2)) {
-                      return const SizedBox.shrink();
-                    }
-                    return Text(
-                      day(i),
-                      style: GText.sans(size: 10, color: GColors.muted),
-                    );
-                  },
-                ),
-              ),
-            ),
-            barTouchData: BarTouchData(
-              touchTooltipData: BarTouchTooltipData(
-                getTooltipColor: (_) => GColors.brown,
-                getTooltipItem: (g, gi, rod, ri) => BarTooltipItem(
-                  '${day(g.x)}\n${series[ri].$2}: ${duration ? anDur(rod.toY) : rod.toY.toInt()}',
-                  GText.sans(size: 11, color: Colors.white),
-                ),
-              ),
-            ),
-            barGroups: [
-              for (var i = 0; i < n; i++)
-                BarChartGroupData(
-                  x: i,
-                  barsSpace: 1,
-                  barRods: [
-                    for (final s in series)
-                      BarChartRodData(
-                        toY: v(rows[i], s.$1),
-                        color: s.$3,
-                        width: rodW,
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(2),
-                        ),
-                      ),
-                  ],
-                ),
-            ],
           ),
+        anHBars(
+          [for (final r in days) (day(r), v(r, s.$1))],
+          color: s.$3,
+          duration: duration,
         ),
-      ),
+      ],
     ],
   );
 }
 
-/// Top-5 vertical bar graph with a numbered legend underneath.
+/// Top-5 horizontal bar graph (real names + counts).
 Widget anTop5(
   List<(String label, num n)> items, {
   Color color = GColors.maroon,
-}) {
-  final list = items.where((e) => e.$2 > 0).take(5).toList();
-  if (list.isEmpty) return anNote('अभी कोई डेटा नहीं');
-  final maxN = list.fold<num>(0, (a, b) => math.max(a, b.$2)).toDouble();
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      SizedBox(
-        height: 140,
-        child: BarChart(
-          BarChartData(
-            maxY: maxN * 1.15,
-            minY: 0,
-            borderData: FlBorderData(show: false),
-            gridData: FlGridData(
-              drawVerticalLine: false,
-              horizontalInterval: maxN <= 0 ? 1 : maxN * 1.15,
-              getDrawingHorizontalLine: (_) =>
-                  const FlLine(color: GColors.creamDark, strokeWidth: 1),
-            ),
-            titlesData: FlTitlesData(
-              leftTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-              rightTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-              topTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 16,
-                  getTitlesWidget: (x, m) => Text(
-                    anNum(list[x.toInt()].$2),
-                    style: GText.sans(
-                      size: 10.5,
-                      weight: FontWeight.w700,
-                      color: GColors.brown,
-                    ),
-                  ),
-                ),
-              ),
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 18,
-                  getTitlesWidget: (x, m) => Text(
-                    '${x.toInt() + 1}',
-                    style: GText.sans(size: 11, color: GColors.muted),
-                  ),
-                ),
-              ),
-            ),
-            barTouchData: BarTouchData(enabled: false),
-            barGroups: [
-              for (var i = 0; i < list.length; i++)
-                BarChartGroupData(
-                  x: i,
-                  barRods: [
-                    BarChartRodData(
-                      toY: list[i].$2.toDouble(),
-                      color: i == 0
-                          ? color
-                          : color.withValues(alpha: 0.55 + 0.1 * (4 - i) / 4),
-                      width: 26,
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(6),
-                      ),
-                    ),
-                  ],
-                ),
-            ],
-          ),
-        ),
-      ),
-      const SizedBox(height: 6),
-      for (var i = 0; i < list.length; i++)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 3),
-          child: Text(
-            '${i + 1}. ${list[i].$1} — ${list[i].$2}',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: GText.sans(size: 12.5, color: GColors.text),
-          ),
-        ),
-    ],
-  );
-}
+}) => anHBars(items, color: color, max: 5);
 
 /// GA `/ga/top` answer → (label, n) list.
 /// Server labels win unless they are just the raw id; then [names] (local content) is used.
@@ -667,38 +551,6 @@ Widget anFullList(List<(String, num)> items, {Color color = GColors.maroon}) =>
           'पूरी सूची (${items.length})',
           style: GText.sans(size: 13, weight: FontWeight.w700, color: color),
         ),
-        children: [
-          for (var i = 0; i < items.length; i++)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 3),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 30,
-                    child: Text(
-                      '${i + 1}.',
-                      style: GText.sans(size: 12.5, color: GColors.muted),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      items[i].$1,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GText.sans(size: 12.5),
-                    ),
-                  ),
-                  Text(
-                    anNum(items[i].$2),
-                    style: GText.sans(
-                      size: 12.5,
-                      weight: FontWeight.w800,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
+        children: [anHBars(items, color: color)],
       ),
     );
