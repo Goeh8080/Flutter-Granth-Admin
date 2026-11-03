@@ -18,20 +18,22 @@ import 'analytics_report.dart';
 import 'analytics_topics.dart';
 import 'google_users.dart';
 
-/// Merged live header numbers: presence (exact, 45 s window) first, GA4 as fallback/floor.
+/// Live header numbers. #9: these are UNIQUE people from D1 presence (signed-in uid deduped across
+/// installs, only app-key-verified installs). GA4 is used only when presence is not ready — never
+/// max()-ed in, because GA counts every app instance (reinstalls, debug builds) and inflated 5 → 30.
 class AnLive {
   AnLive(this.p, this.ga);
   final Map<String, dynamic> p, ga;
   bool get presence => p['ready'] == true;
   int get online => presence ? anI(p['online']) : anI(ga['live_users']);
-  int get total => math.max(anI(p['total_users']), anI(ga['total_users']));
+  int get total => presence ? anI(p['total_users']) : anI(ga['total_users']);
   int get offline => math.max(0, total - online);
   int get today =>
-      math.max(anI(p['today_users']), anI(anM(ga['today'])['active_users']));
+      presence ? anI(p['today_users']) : anI(anM(ga['today'])['active_users']);
   int get totalTime =>
-      math.max(anI(p['total_time_s']), anI(ga['total_engagement_s']));
+      presence ? anI(p['total_time_s']) : anI(ga['total_engagement_s']);
   int get todayTime =>
-      math.max(anI(p['today_time_s']), anI(anM(ga['today'])['engagement_s']));
+      presence ? anI(p['today_time_s']) : anI(anM(ga['today'])['engagement_s']);
 }
 
 class AnalyticsHomeScreen extends StatefulWidget {
