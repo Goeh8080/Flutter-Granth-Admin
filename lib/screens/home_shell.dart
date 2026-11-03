@@ -419,8 +419,11 @@ class _Mast extends StatelessWidget {
   // arrives later and the header counts must follow it.)
   @override
   Widget build(BuildContext context) => ListenableBuilder(
+    // AppNav too: the header stats glow for the ACTIVE panel, and the const mast is never
+    // rebuilt by the shell, so without it the highlight stayed stuck on the first panel.
     listenable: Listenable.merge([
       CatalogStore.I,
+      AppNav.I,
       if (AdminData.isSet) AdminData.I,
     ]),
     builder: (context, _) => _build(context),
